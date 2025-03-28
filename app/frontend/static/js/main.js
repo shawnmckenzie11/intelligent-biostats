@@ -156,22 +156,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayAnalysisOptions(options) {
         const optionsContainer = document.getElementById('analysisOptions');
+        const searchInput = document.getElementById('analysisSearch');
+        
+        // Store options globally so we can filter them later
+        window.allAnalysisOptions = options;
+        
+        // Initial display of all options
+        renderAnalysisOptions(options);
+        
+        // Add search functionality
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredOptions = window.allAnalysisOptions.filter(option => 
+                option.name.toLowerCase().includes(searchTerm) ||
+                option.description.toLowerCase().includes(searchTerm)
+            );
+            renderAnalysisOptions(filteredOptions);
+        });
+    }
+
+    function renderAnalysisOptions(options) {
+        const optionsContainer = document.getElementById('analysisOptions');
+        
+        if (options.length === 0) {
+            optionsContainer.innerHTML = `
+                <div class="no-results">
+                    No matching analyses found
+                </div>
+            `;
+            return;
+        }
+        
         optionsContainer.innerHTML = options.map(option => `
             <div class="analysis-option ${option.requirements_met ? 'available' : 'unavailable'}">
                 <h3>${option.name}</h3>
                 <div class="description">${option.description}</div>
-                <div class="requirements ${option.requirements_met ? 'met' : 'unmet'}">
-                    Requirements: ${option.requirements}
-                    ${option.requirements_met ? 
-                        '<span class="requirements-status">(✓ Requirements met)</span>' : 
-                        '<span class="requirements-status">(✗ Requirements not met)</span>'}
-                </div>
                 <button 
                     onclick="selectAnalysis('${option.id}')"
                     ${option.requirements_met ? '' : 'disabled'}
                 >
                     Select Analysis
                 </button>
+                <div class="requirements">
+                    Requirements: ${option.requirements}
+                    <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                        ${option.requirements_met ? '✓ Met' : '✗ Not met'}
+                    </span>
+                </div>
             </div>
         `).join('');
     }

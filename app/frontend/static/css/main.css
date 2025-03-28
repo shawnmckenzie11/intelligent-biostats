@@ -154,84 +154,115 @@ body {
 }
 
 /* Analysis Options */
+.analysis-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.analysis-search {
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.analysis-frame {
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
 .analysis-options-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    padding: 0.5rem;
 }
 
 .analysis-option {
-    background-color: white;
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: 2fr 3fr 120px;
+    grid-template-areas: 
+        "name description button"
+        "requirements requirements requirements";
+    gap: 0.5rem;
+    align-items: start;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
 }
 
 .analysis-option:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background-color: #e9ecef;
 }
 
 .analysis-option h3 {
+    grid-area: name;
     margin: 0;
-    color: var(--primary-color);
-    font-size: 1.2rem;
+    font-size: 1rem;
 }
 
 .analysis-option .description {
+    grid-area: description;
     color: #666;
     font-size: 0.9rem;
-    flex-grow: 1;
-}
-
-.analysis-option .requirements {
-    font-size: 0.8rem;
-    color: #888;
-    font-style: italic;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border-color);
 }
 
 .analysis-option button {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.75rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s ease;
-    width: 100%;
-    margin-top: 0.5rem;
+    grid-area: button;
+    justify-self: end;
 }
 
-.analysis-option button:hover {
-    background-color: #34495e;
-}
-
-.analysis-option.unavailable {
-    opacity: 0.7;
-    background-color: #f8f9fa;
-}
-
-.requirements.unmet {
-    color: #dc3545;
-}
-
-.requirements.met {
-    color: #28a745;
+.analysis-option .requirements {
+    grid-area: requirements;
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid #e9ecef;
 }
 
 .requirements-status {
-    margin-left: 8px;
-    font-weight: 500;
+    margin-left: 0.5rem;
 }
 
-.analysis-option button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
+.requirements-met {
+    color: #28a745;
+}
+
+.requirements-not-met {
+    color: #dc3545;
+}
+
+/* Scrollbar styling */
+.analysis-frame::-webkit-scrollbar {
+    width: 8px;
+}
+
+.analysis-frame::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.analysis-frame::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.analysis-frame::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
