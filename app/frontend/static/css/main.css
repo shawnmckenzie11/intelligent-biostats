@@ -98,3 +98,97 @@ body {
 .data-preview tr:hover {
     background-color: rgba(0,0,0,0.02);
 }
+
+/* Modify Section */
+.modify-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.modify-container {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.modify-container textarea {
+    flex-grow: 1;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    resize: none;
+    min-height: 36px;
+    max-height: 36px;
+    overflow: hidden;
+}
+
+.proceed-button {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: background-color 0.3s ease;
+    height: 36px;
+}
+
+.proceed-button:hover {
+    background-color: #2980b9;
+}
+
+.status-message {
+    font-size: 0.9rem;
+    color: #2ecc71;
+    white-space: nowrap;
+}
+
+.status-message.error {
+    color: #e74c3c;
+}
+
+/* Analysis Options */
+.analysis-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.analysis-option {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.analysis-option:hover {
+    transform: translateY(-2px);
+}
+
+.analysis-option h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--primary-color);
+}
+
+.analysis-option button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.analysis-option button:hover {
+    background-color: #34495e;
+}
