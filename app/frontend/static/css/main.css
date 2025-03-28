@@ -156,7 +156,7 @@ body {
 /* Analysis Options */
 .analysis-options-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
 }
@@ -166,27 +166,48 @@ body {
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .analysis-option:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .analysis-option h3 {
-    margin: 0 0 0.5rem 0;
+    margin: 0;
     color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.analysis-option .description {
+    color: #666;
+    font-size: 0.9rem;
+    flex-grow: 1;
+}
+
+.analysis-option .requirements {
+    font-size: 0.8rem;
+    color: #888;
+    font-style: italic;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
 }
 
 .analysis-option button {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     border-radius: 4px;
     cursor: pointer;
-    margin-top: 1rem;
+    font-weight: 500;
     transition: background-color 0.3s ease;
+    width: 100%;
+    margin-top: 0.5rem;
 }
 
 .analysis-option button:hover {

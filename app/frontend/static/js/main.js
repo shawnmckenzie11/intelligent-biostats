@@ -159,8 +159,9 @@ document.addEventListener('DOMContentLoaded', function() {
         optionsContainer.innerHTML = options.map(option => `
             <div class="analysis-option">
                 <h3>${option.name}</h3>
-                <p>${option.description}</p>
-                <button onclick="selectAnalysis('${option.id}')">Select</button>
+                <div class="description">${option.description}</div>
+                <div class="requirements">Requirements: ${option.requirements}</div>
+                <button onclick="selectAnalysis('${option.id}')">Select Analysis</button>
             </div>
         `).join('');
     }
