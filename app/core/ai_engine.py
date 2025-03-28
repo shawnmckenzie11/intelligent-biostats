@@ -126,116 +126,134 @@ class AIEngine:
             print(f"Traceback: {traceback.format_exc()}")
             raise
         
-    def get_analysis_options(self, df):
-        """Get available analysis options based on data structure."""
-        
-        # Analyze data types in DataFrame
+    def check_requirements_met(self, df, requirements_text):
+        """Check if the dataset meets the requirements for a specific analysis."""
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns
         binary_cols = [col for col in df.columns if df[col].nunique() == 2]
         
-        options = [
+        requirements = requirements_text.lower()
+        
+        # Check different requirement patterns
+        if "any type of data" in requirements:
+            return True
+        if "one numeric variable" in requirements and len(numeric_cols) >= 1:
+            return True
+        if "two numeric variables" in requirements and len(numeric_cols) >= 2:
+            return True
+        if "multiple numeric variables" in requirements and len(numeric_cols) >= 2:
+            return True
+        if "three or more numeric variables" in requirements and len(numeric_cols) >= 3:
+            return True
+        if "one binary variable" in requirements and len(binary_cols) >= 1:
+            return True
+        if "one categorical variable" in requirements and len(categorical_cols) >= 1:
+            return True
+        if "two categorical variables" in requirements and len(categorical_cols) >= 2:
+            return True
+        if "one numeric variable and one binary grouping variable" in requirements:
+            return len(numeric_cols) >= 1 and len(binary_cols) >= 1
+        if "one binary outcome and one or more numeric predictors" in requirements:
+            return len(binary_cols) >= 1 and len(numeric_cols) >= 1
+        
+        return False
+
+    def get_analysis_options(self, df):
+        """Get available analysis options based on data structure."""
+        
+        # Define all possible options
+        all_options = [
             {
                 'id': 'descriptive',
                 'name': 'Descriptive Statistics',
                 'description': 'Basic statistical measures including mean, median, and standard deviation.',
                 'requirements': 'Any type of data'
-            }
-        ]
-        
-        # Add options based on available data types
-        if len(numeric_cols) >= 1:
-            options.extend([
-                {
-                    'id': 'one_sample_t',
-                    'name': 'One Sample T-Test',
-                    'description': 'Test if a sample mean differs from a hypothesized value.',
-                    'requirements': 'One numeric variable'
-                },
-                {
-                    'id': 'one_sample_median',
-                    'name': 'One Sample Median Test',
-                    'description': 'Test if a sample median differs from a hypothesized value.',
-                    'requirements': 'One ordinal or numeric variable'
-                }
-            ])
-        
-        if len(binary_cols) >= 1:
-            options.append({
+            },
+            {
+                'id': 'one_sample_t',
+                'name': 'One Sample T-Test',
+                'description': 'Test if a sample mean differs from a hypothesized value.',
+                'requirements': 'One numeric variable'
+            },
+            {
+                'id': 'one_sample_median',
+                'name': 'One Sample Median Test',
+                'description': 'Test if a sample median differs from a hypothesized value.',
+                'requirements': 'One numeric variable'
+            },
+            {
                 'id': 'binomial',
                 'name': 'Binomial Test',
                 'description': 'Test if the proportion in a binary variable differs from a hypothesized value.',
                 'requirements': 'One binary variable'
-            })
-        
-        if len(categorical_cols) >= 1:
-            options.append({
+            },
+            {
                 'id': 'chi_square',
                 'name': 'Chi-Square Goodness of Fit',
                 'description': 'Test if categorical variable frequencies match expected proportions.',
                 'requirements': 'One categorical variable'
-            })
-        
-        if len(numeric_cols) >= 2:
-            options.extend([
-                {
-                    'id': 'correlation',
-                    'name': 'Correlation Analysis',
-                    'description': 'Examine relationships between numerical variables.',
-                    'requirements': 'Two or more numeric variables'
-                },
-                {
-                    'id': 'simple_regression',
-                    'name': 'Simple Linear Regression',
-                    'description': 'Predict one numeric variable from another.',
-                    'requirements': 'Two numeric variables (predictor and outcome)'
-                },
-                {
-                    'id': 'multiple_regression',
-                    'name': 'Multiple Regression',
-                    'description': 'Predict a numeric outcome using multiple predictors.',
-                    'requirements': 'Multiple numeric variables'
-                }
-            ])
-        
-        if len(binary_cols) >= 1 and len(numeric_cols) >= 1:
-            options.extend([
-                {
-                    'id': 'ttest_independent',
-                    'name': 'Independent Samples T-Test',
-                    'description': 'Compare means between two independent groups.',
-                    'requirements': 'One numeric variable and one binary grouping variable'
-                },
-                {
-                    'id': 'logistic_regression',
-                    'name': 'Logistic Regression',
-                    'description': 'Predict binary outcomes using numeric predictors.',
-                    'requirements': 'One binary outcome and one or more numeric predictors'
-                }
-            ])
-        
-        if len(categorical_cols) >= 2:
-            options.append({
+            },
+            {
+                'id': 'correlation',
+                'name': 'Correlation Analysis',
+                'description': 'Examine relationships between numerical variables.',
+                'requirements': 'Two numeric variables'
+            },
+            {
+                'id': 'simple_regression',
+                'name': 'Simple Linear Regression',
+                'description': 'Predict one numeric variable from another.',
+                'requirements': 'Two numeric variables (predictor and outcome)'
+            },
+            {
+                'id': 'multiple_regression',
+                'name': 'Multiple Regression',
+                'description': 'Predict a numeric outcome using multiple predictors.',
+                'requirements': 'Multiple numeric variables'
+            },
+            {
+                'id': 'ttest_independent',
+                'name': 'Independent Samples T-Test',
+                'description': 'Compare means between two independent groups.',
+                'requirements': 'One numeric variable and one binary grouping variable'
+            },
+            {
+                'id': 'logistic_regression',
+                'name': 'Logistic Regression',
+                'description': 'Predict binary outcomes using numeric predictors.',
+                'requirements': 'One binary outcome and one or more numeric predictors'
+            },
+            {
                 'id': 'chi_square_independence',
                 'name': 'Chi-Square Test of Independence',
                 'description': 'Test relationship between two categorical variables.',
                 'requirements': 'Two categorical variables'
-            })
+            },
+            {
+                'id': 'factor_analysis',
+                'name': 'Factor Analysis',
+                'description': 'Identify underlying factors in multiple numeric variables.',
+                'requirements': 'Three or more numeric variables'
+            },
+            {
+                'id': 'manova',
+                'name': 'MANOVA',
+                'description': 'Test effects on multiple dependent variables simultaneously.',
+                'requirements': 'Multiple numeric dependent variables and categorical predictors'
+            }
+        ]
         
-        if len(numeric_cols) >= 3:
-            options.extend([
-                {
-                    'id': 'factor_analysis',
-                    'name': 'Factor Analysis',
-                    'description': 'Identify underlying factors in multiple numeric variables.',
-                    'requirements': 'Three or more numeric variables'
-                },
-                {
-                    'id': 'manova',
-                    'name': 'MANOVA',
-                    'description': 'Test effects on multiple dependent variables simultaneously.',
-                    'requirements': 'Multiple numeric dependent variables and categorical predictors'
-                }
-            ])
+        # Check requirements and sort options
+        available_options = []
+        unavailable_options = []
         
-        return options
+        for option in all_options:
+            if self.check_requirements_met(df, option['requirements']):
+                option['requirements_met'] = True
+                available_options.append(option)
+            else:
+                option['requirements_met'] = False
+                unavailable_options.append(option)
+        
+        # Combine lists with available options first
+        return available_options + unavailable_options

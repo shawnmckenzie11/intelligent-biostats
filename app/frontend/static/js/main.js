@@ -157,11 +157,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayAnalysisOptions(options) {
         const optionsContainer = document.getElementById('analysisOptions');
         optionsContainer.innerHTML = options.map(option => `
-            <div class="analysis-option">
+            <div class="analysis-option ${option.requirements_met ? 'available' : 'unavailable'}">
                 <h3>${option.name}</h3>
                 <div class="description">${option.description}</div>
-                <div class="requirements">Requirements: ${option.requirements}</div>
-                <button onclick="selectAnalysis('${option.id}')">Select Analysis</button>
+                <div class="requirements ${option.requirements_met ? 'met' : 'unmet'}">
+                    Requirements: ${option.requirements}
+                    ${option.requirements_met ? 
+                        '<span class="requirements-status">(✓ Requirements met)</span>' : 
+                        '<span class="requirements-status">(✗ Requirements not met)</span>'}
+                </div>
+                <button 
+                    onclick="selectAnalysis('${option.id}')"
+                    ${option.requirements_met ? '' : 'disabled'}
+                >
+                    Select Analysis
+                </button>
             </div>
         `).join('');
     }
