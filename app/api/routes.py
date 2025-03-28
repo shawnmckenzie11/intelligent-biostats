@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
 import pandas as pd
+import numpy as np
 import io
 from app.core.ai_engine import AIEngine
+from collections import OrderedDict
 
 api = Blueprint('api', __name__)
 ai_engine = AIEngine()
@@ -20,13 +22,22 @@ def upload_file():
         # Store DataFrame in memory
         current_df = df
         
+        # Convert to dictionary format, preserving column order
+        preview_dict = OrderedDict()
+        for column in df.columns:
+            # Handle NaN values and convert to Python native types
+            preview_dict[str(column)] = [
+                None if pd.isna(x) else x 
+                for x in df[column].head().tolist()
+            ]
+        
         info = {
             'success': True,
             'info': {
                 'rows': len(df),
                 'columns': len(df.columns),
                 'column_types': df.dtypes.to_dict(),
-                'preview': df.head().to_dict()
+                'preview': preview_dict
             }
         }
         return jsonify(info)
@@ -48,22 +59,27 @@ def modify_data():
             raise ValueError("No data has been uploaded yet")
             
         # Use AI engine to interpret and apply modification
-        modified_df = ai_engine.modify_data(current_df, modification)
+        modified_df, was_modified = ai_engine.modify_data(current_df, modification)
         
-        # Update stored DataFrame
-        current_df = modified_df
-        
-        # Convert to dictionary format for preview
-        preview_dict = {}
-        for column in modified_df.columns:
-            preview_dict[column] = modified_df[column].head().tolist()
+        # Only update stored DataFrame if changes were made
+        if was_modified:
+            current_df = modified_df
+            # Convert to dictionary format for preview, maintaining column order
+            preview_dict = OrderedDict()
+            for column in modified_df.columns:
+                # Handle NaN values and convert to Python native types
+                preview_dict[str(column)] = [
+                    None if pd.isna(x) else x 
+                    for x in modified_df[column].head().tolist()
+                ]
+        else:
+            preview_dict = None  # Don't send preview if no changes
             
         response = {
             'success': True,
-            'preview': preview_dict,
-            'message': f'Successfully applied modification: {modification}'
+            'preview': preview_dict if was_modified else None,
+            'message': 'Modifications applied successfully!' if was_modified else 'No changes were made to the data'
         }
-        print("Sending response:", response)
         return jsonify(response)
         
     except Exception as e:

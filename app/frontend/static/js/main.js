@@ -91,14 +91,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => console.error('Error:', error));
     }
 
-    // Handle proceed to analysis with debug logs
+    // Handle proceed to analysis
     document.getElementById('proceedButton').addEventListener('click', function() {
-        console.log('Proceed button clicked');
         const modificationRequest = document.getElementById('modificationInput').value;
         
         // First, apply any modifications if specified
         if (modificationRequest.trim()) {
-            console.log('Modification requested:', modificationRequest);
+            console.log('Attempting modification:', modificationRequest);
             
             fetch('/api/modify-data', {
                 method: 'POST',
@@ -109,27 +108,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     modification: modificationRequest 
                 })
             })
-            .then(response => {
-                console.log('Modification response received');
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Modification response data:', data);
-                if (data.success) {
-                    // Update preview table with modified data
+                console.log('Modification response:', data);
+                
+                // Only update the table if there were actual changes
+                if (data.success && data.preview) {
                     updatePreviewTable(data.preview);
-                    document.getElementById('modificationStatus').textContent = 'Modifications applied successfully!';
+                }
+                
+                // Display the appropriate status message
+                document.getElementById('modificationStatus').textContent = data.message;
+                document.getElementById('modificationStatus').className = 
+                    data.success ? 'status-message success' : 'status-message error';
+                
+                // Get analysis options if successful
+                if (data.success) {
                     return getAnalysisOptions();
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
                 }
             })
             .catch(error => {
                 console.error('Modification error:', error);
                 document.getElementById('modificationStatus').textContent = 'Error: ' + error.message;
+                document.getElementById('modificationStatus').className = 'status-message error';
             });
         } else {
-            console.log('No modifications requested, proceeding to analysis');
+            // If no modifications, directly get analysis options
             getAnalysisOptions();
         }
     });
@@ -163,26 +167,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updatePreviewTable(previewData) {
         console.log('Updating preview table with:', previewData);
-        // Convert preview data back to table format
-        const headers = Object.keys(previewData);
-        const rows = Object.values(previewData)[0].length;
+        
+        // Get the first row to determine column order
+        const firstRow = document.querySelector('#previewTable table tr');
+        let originalHeaders = [];
+        
+        if (firstRow) {
+            // If table exists, get current column order
+            originalHeaders = Array.from(firstRow.getElementsByTagName('th')).map(th => th.textContent);
+        } else {
+            // For first load, use order from data
+            originalHeaders = Object.keys(previewData);
+        }
         
         let tableHtml = '<table><thead><tr>';
-        headers.forEach(header => {
-            tableHtml += `<th>${header}</th>`;
+        originalHeaders.forEach(header => {
+            if (header in previewData) {  // Only include headers that still exist
+                tableHtml += `<th>${header}</th>`;
+            }
         });
         tableHtml += '</tr></thead><tbody>';
         
+        const rows = Object.values(previewData)[0].length;
         for (let i = 0; i < rows; i++) {
             tableHtml += '<tr>';
-            headers.forEach(header => {
-                tableHtml += `<td>${previewData[header][i]}</td>`;
+            originalHeaders.forEach(header => {
+                if (header in previewData) {
+                    tableHtml += `<td>${previewData[header][i]}</td>`;
+                }
             });
             tableHtml += '</tr>';
         }
         tableHtml += '</tbody></table>';
         
         previewTable.innerHTML = tableHtml;
-        console.log('Preview table updated');
+        console.log('Preview table updated with preserved column order');
     }
 });

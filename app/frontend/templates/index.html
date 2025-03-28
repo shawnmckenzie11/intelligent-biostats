@@ -21,19 +21,39 @@
 
     <!-- Main Content -->
     <div class="container">
-        <div class="upload-section">
+        <!-- Upload Section -->
+        <div class="upload-section" id="uploadSection">
             <h2>Upload Your Data</h2>
             <div class="file-drop-zone" id="dropZone">
                 <input type="file" id="fileInput" accept=".csv" style="display: none;">
                 <p>Drag and drop your CSV file here or click to browse</p>
                 <p class="small">Your data stays private - all processing happens locally</p>
             </div>
+        </div>
 
-            <!-- Data Preview Section -->
-            <div class="data-preview" id="dataPreview" style="display: none;">
-                <h3>Data Preview</h3>
-                <div id="previewTable"></div>
+        <!-- Data Preview Section -->
+        <div class="data-preview" id="dataPreview" style="display: none;">
+            <h3>Data Preview</h3>
+            <div id="previewTable"></div>
+        </div>
+
+        <!-- Modify Data Section -->
+        <div class="modify-section" id="modifySection" style="display: none;">
+            <div class="modify-container">
+                <textarea 
+                    id="modificationInput" 
+                    placeholder="Optional: Describe modifications (e.g., 'delete Age column')"
+                    rows="1"
+                ></textarea>
+                <button id="proceedButton" class="proceed-button">Proceed to Analysis</button>
+                <span id="modificationStatus" class="status-message"></span>
             </div>
+        </div>
+
+        <!-- Analysis Options Section -->
+        <div class="analysis-section" id="analysisSection" style="display: none;">
+            <h3>Available Analyses</h3>
+            <div id="analysisOptions" class="analysis-options-grid"></div>
         </div>
     </div>
 
