@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     const dataPreview = document.getElementById('dataPreview');
     const previewTable = document.getElementById('previewTable');
+    const uploadSection = document.getElementById('uploadSection');
+    const modifySection = document.getElementById('modifySection');
+    const analysisSection = document.getElementById('analysisSection');
 
     // Handle file selection via click
     dropZone.addEventListener('click', () => fileInput.click());
@@ -69,7 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
         tableHtml += '</tbody></table>';
 
         previewTable.innerHTML = tableHtml;
+        
+        // Hide upload section and show data preview and modify sections
+        uploadSection.style.display = 'none';
         dataPreview.style.display = 'block';
+        modifySection.style.display = 'block';
 
         // Send data to server
         fetch('/api/upload', {
@@ -82,5 +89,100 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => console.log('Upload successful:', data))
         .catch(error => console.error('Error:', error));
+    }
+
+    // Handle proceed to analysis with debug logs
+    document.getElementById('proceedButton').addEventListener('click', function() {
+        console.log('Proceed button clicked');
+        const modificationRequest = document.getElementById('modificationInput').value;
+        
+        // First, apply any modifications if specified
+        if (modificationRequest.trim()) {
+            console.log('Modification requested:', modificationRequest);
+            
+            fetch('/api/modify-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    modification: modificationRequest 
+                })
+            })
+            .then(response => {
+                console.log('Modification response received');
+                return response.json();
+            })
+            .then(data => {
+                console.log('Modification response data:', data);
+                if (data.success) {
+                    // Update preview table with modified data
+                    updatePreviewTable(data.preview);
+                    document.getElementById('modificationStatus').textContent = 'Modifications applied successfully!';
+                    return getAnalysisOptions();
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Modification error:', error);
+                document.getElementById('modificationStatus').textContent = 'Error: ' + error.message;
+            });
+        } else {
+            console.log('No modifications requested, proceeding to analysis');
+            getAnalysisOptions();
+        }
+    });
+
+    function getAnalysisOptions() {
+        fetch('/api/analyze-options', {
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAnalysisOptions(data.options);
+                analysisSection.style.display = 'block';
+                // Scroll to analysis section
+                analysisSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function displayAnalysisOptions(options) {
+        const optionsContainer = document.getElementById('analysisOptions');
+        optionsContainer.innerHTML = options.map(option => `
+            <div class="analysis-option">
+                <h3>${option.name}</h3>
+                <p>${option.description}</p>
+                <button onclick="selectAnalysis('${option.id}')">Select</button>
+            </div>
+        `).join('');
+    }
+
+    function updatePreviewTable(previewData) {
+        console.log('Updating preview table with:', previewData);
+        // Convert preview data back to table format
+        const headers = Object.keys(previewData);
+        const rows = Object.values(previewData)[0].length;
+        
+        let tableHtml = '<table><thead><tr>';
+        headers.forEach(header => {
+            tableHtml += `<th>${header}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        for (let i = 0; i < rows; i++) {
+            tableHtml += '<tr>';
+            headers.forEach(header => {
+                tableHtml += `<td>${previewData[header][i]}</td>`;
+            });
+            tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table>';
+        
+        previewTable.innerHTML = tableHtml;
+        console.log('Preview table updated');
     }
 });
