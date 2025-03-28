@@ -5,29 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intelligent Biostats</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="app">
-        <header>
+    <!-- Banner -->
+    <div class="banner">
+        <div class="banner-left">
             <h1>Intelligent Biostats</h1>
-        </header>
-        <main>
-            <!-- File upload section -->
-            <section id="upload">
-                <!-- Upload form will go here -->
-            </section>
-            
-            <!-- Analysis section -->
-            <section id="analysis">
-                <!-- Analysis options will go here -->
-            </section>
-            
-            <!-- Results section -->
-            <section id="results">
-                <!-- Results will be displayed here -->
-            </section>
-        </main>
+        </div>
+        <div class="banner-right">
+            <a href="#" class="banner-button">Sign In</a>
+            <a href="#" class="banner-button">Subscribe</a>
+        </div>
     </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Your Data</h2>
+            <div class="file-drop-zone" id="dropZone">
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                <p>Drag and drop your CSV file here or click to browse</p>
+                <p class="small">Your data stays private - all processing happens locally</p>
+            </div>
+
+            <!-- Data Preview Section -->
+            <div class="data-preview" id="dataPreview" style="display: none;">
+                <h3>Data Preview</h3>
+                <div id="previewTable"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 
