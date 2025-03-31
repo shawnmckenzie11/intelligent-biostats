@@ -6,10 +6,14 @@ from app.core.ai_engine import AIEngine
 from collections import OrderedDict
 
 api = Blueprint('api', __name__)
-ai_engine = AIEngine()
 
 # Define global variable at module level
 current_df = None
+
+# Add this check to prevent duplicate initialization
+if not hasattr(api, '_initialized'):
+    ai_engine = AIEngine()
+    api._initialized = True
 
 @api.route('/upload', methods=['POST'])
 def upload_file():

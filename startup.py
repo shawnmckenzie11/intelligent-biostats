@@ -46,7 +46,9 @@ def check_system_dependencies():
 
 def initialize_environment():
     """Initialize the application environment."""
-    print("Initializing Intelligent Biostats...")
-    check_python_version()
-    check_system_dependencies()
-    check_and_install_packages() 
+    if not hasattr(initialize_environment, '_initialized'):
+        print("Initializing Intelligent Biostats...")
+        check_python_version()
+        check_system_dependencies()
+        check_and_install_packages()
+        initialize_environment._initialized = True 
