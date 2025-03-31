@@ -7,8 +7,10 @@ class AIEngine:
     """Manages AI recommendations and learning for statistical analyses."""
     
     def __init__(self):
-        self.analysis_history = []
-        self.recommendations = {}
+        if not hasattr(self, '_initialized'):
+            self.analysis_history = []
+            self.recommendations = {}
+            self._initialized = True
         
     def modify_data(self, df, modification_request):
         """
