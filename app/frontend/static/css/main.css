@@ -371,25 +371,40 @@ body {
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
+    display: flex;
+    gap: 2rem;
 }
 
 .stats-card {
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    flex: 1;
 }
 
 .stats-card h4 {
     margin: 0 0 0.5rem 0;
     color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.stats-card p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 .column-picker {
     background: white;
     border-radius: 8px;
-    padding: 1.5rem;
+    padding: 1rem 1.5rem;
+}
+
+.column-picker h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--primary-color);
+    font-size: 1rem;
 }
 
 .column-select {
@@ -397,7 +412,7 @@ body {
     padding: 0.75rem;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    margin: 1rem 0;
+    margin: 0.5rem 0;
 }
 
 .column-stats {
