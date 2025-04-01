@@ -14,39 +14,42 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle drag and drop
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = '#3498db';
+        dropZone.classList.add('dragover');
     });
 
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '#e9ecef';
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = '#e9ecef';
-        
-        const files = e.dataTransfer.files;
-        if (files.length) handleFile(files[0]);
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
     });
 
     // Handle file input change
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) handleFile(e.target.files[0]);
+        const file = e.target.files[0];
+        if (file) handleFile(file);
     });
 
     function handleFile(file) {
-        if (file.type !== 'text/csv') {
+        if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
             alert('Please upload a CSV file');
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
+        // Display preview using first chunk
+        const previewReader = new FileReader();
+        const previewChunk = file.slice(0, 1024 * 1024); // First 1MB for preview
+        
+        previewReader.onload = function(e) {
             const text = e.target.result;
             displayPreview(text);
+            uploadFullFile(file);
         };
-        reader.readAsText(file);
+        previewReader.readAsText(previewChunk);
     }
 
     function displayPreview(csvText) {
@@ -73,22 +76,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         previewTable.innerHTML = tableHtml;
         
-        // Hide upload section and show data preview and modify sections
+        // Show preview sections
         uploadSection.style.display = 'none';
         dataPreview.style.display = 'block';
         modifySection.style.display = 'block';
+    }
 
-        // Send data to server
+    function uploadFullFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
         fetch('/api/upload', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ data: csvText })
+            body: formData
         })
         .then(response => response.json())
-        .then(data => console.log('Upload successful:', data))
-        .catch(error => console.error('Error:', error));
+        .then(data => {
+            console.log('Upload successful:', data);
+            if (!data.success) {
+                throw new Error(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error uploading file: ' + error.message);
+        });
     }
 
     // Handle proceed to analysis

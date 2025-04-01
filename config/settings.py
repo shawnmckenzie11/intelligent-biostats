@@ -3,7 +3,7 @@ class Config:
     DEBUG = False
     TESTING = False
     UPLOAD_FOLDER = 'uploads'
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size
 
 class DevelopmentConfig(Config):
     """Development configuration."""
