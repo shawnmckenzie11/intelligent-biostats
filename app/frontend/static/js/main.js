@@ -208,7 +208,66 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Function to display analysis options
+    // Enhanced search functionality for analysis options
+    function initializeAnalysisSearch() {
+        const searchInput = document.getElementById('analysisSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                const options = document.querySelectorAll('.analysis-option');
+                let matchCount = 0;
+                
+                options.forEach(option => {
+                    const name = option.querySelector('h3').textContent.toLowerCase();
+                    const description = option.querySelector('.description').textContent.toLowerCase();
+                    const requirements = option.querySelector('.requirements').textContent.toLowerCase();
+                    
+                    // Check if search term matches any part of the analysis option
+                    const isMatch = name.includes(searchTerm) || 
+                                  description.includes(searchTerm) || 
+                                  requirements.includes(searchTerm);
+                    
+                    // Smooth transition for showing/hiding options
+                    if (isMatch) {
+                        option.style.display = '';
+                        option.style.opacity = '1';
+                        matchCount++;
+                    } else {
+                        option.style.opacity = '0';
+                        setTimeout(() => {
+                            option.style.display = 'none';
+                        }, 200); // Match this with CSS transition duration
+                    }
+                });
+
+                // Show message if no matches found
+                const noResultsMsg = document.getElementById('noAnalysisResults');
+                if (!noResultsMsg) {
+                    const msg = document.createElement('div');
+                    msg.id = 'noAnalysisResults';
+                    msg.className = 'no-results-message';
+                    document.getElementById('analysisOptions').appendChild(msg);
+                }
+                noResultsMsg.textContent = matchCount === 0 ? 'No matching analyses found' : '';
+                noResultsMsg.style.display = matchCount === 0 ? 'block' : 'none';
+            }, 150)); // Debounce delay of 150ms
+        }
+    }
+
+    // Debounce function to limit how often the search updates
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Update displayAnalysisOptions to include search initialization
     function displayAnalysisOptions(options) {
         const analysisOptions = document.getElementById('analysisOptions');
         if (!analysisOptions) return;
@@ -234,6 +293,9 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
         analysisOptions.innerHTML = optionsHtml;
+        
+        // Initialize search after options are displayed
+        initializeAnalysisSearch();
     }
 
     // Function to run analysis (placeholder for now)
