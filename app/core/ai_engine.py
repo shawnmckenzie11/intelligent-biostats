@@ -2,15 +2,39 @@ import pandas as pd
 import re
 from collections import OrderedDict
 import numpy as np
+import traceback
+from typing import Tuple, List, Dict, Any
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
 
 class AIEngine:
     """Manages AI recommendations and learning for statistical analyses."""
     
     def __init__(self):
+        """Initialize the AI Engine with necessary imports and configurations."""
+        # Ensure single initialization
         if not hasattr(self, '_initialized'):
+            # Initialize core attributes
             self.analysis_history = []
             self.recommendations = {}
+            
+            # Import required packages
+            self._import_required_packages()
+            
             self._initialized = True
+    
+    def _import_required_packages(self):
+        """Import all required packages for statistical analysis."""
+        try:
+            global pd, np, stats
+            import pandas as pd
+            import numpy as np
+            from scipy import stats
+        except ImportError as e:
+            print(f"Error importing required packages: {str(e)}")
+            raise
         
     def modify_data(self, df, modification_request):
         """
@@ -124,7 +148,6 @@ class AIEngine:
         except Exception as e:
             print(f"Error in modify_data: {str(e)}")
             print(f"Error type: {type(e)}")
-            import traceback
             print(f"Traceback: {traceback.format_exc()}")
             raise
         
