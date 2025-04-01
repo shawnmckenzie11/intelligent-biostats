@@ -266,3 +266,69 @@ body {
 .analysis-frame::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
+
+/* Analysis Tabs Section */
+.analysis-tabs-section {
+    margin-top: 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    background-color: var(--primary-color);
+    padding: 0.5rem 0.5rem 0;
+    gap: 0.25rem;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 8px 8px 0 0;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+}
+
+.tab-button:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.tab-button.active {
+    background: white;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.tab-content {
+    padding: 1.5rem;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Adjust existing analysis container styles */
+.analysis-container {
+    box-shadow: none;
+    padding: 0;
+}
+
+.analysis-container h3 {
+    margin-top: 0;
+}
+
+/* Tab content specific styles */
+#descriptiveStats,
+#analysisHistory,
+#smartRecommendations {
+    min-height: 200px;
+}

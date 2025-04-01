@@ -50,20 +50,51 @@
             </div>
         </div>
 
-        <!-- Analysis Options Section -->
-        <div class="analysis-section" id="analysisSection" style="display: none;">
-            <div class="analysis-container">
-                <h3>Available Analyses</h3>
-                <div class="analysis-search">
-                    <input 
-                        type="text" 
-                        id="analysisSearch" 
-                        placeholder="Search analyses..."
-                        class="search-input"
-                    >
+        <!-- Analysis Tabs Section -->
+        <div class="analysis-tabs-section" id="analysisTabsSection" style="display: none;">
+            <div class="tabs">
+                <button class="tab-button active" data-tab="descriptive">Descriptive Statistics</button>
+                <button class="tab-button" data-tab="analyses">Available Analyses</button>
+                <button class="tab-button" data-tab="history">Analysis History</button>
+                <button class="tab-button" data-tab="recommendations">Smart Recommendations</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Descriptive Statistics Tab -->
+                <div id="descriptiveTab" class="tab-pane active">
+                    <h3>Descriptive Statistics</h3>
+                    <div id="descriptiveStats"></div>
                 </div>
-                <div class="analysis-frame">
-                    <div id="analysisOptions" class="analysis-options-grid"></div>
+
+                <!-- Available Analyses Tab -->
+                <div id="analysesTab" class="tab-pane">
+                    <div class="analysis-container">
+                        <h3>Available Analyses</h3>
+                        <div class="analysis-search">
+                            <input 
+                                type="text" 
+                                id="analysisSearch" 
+                                placeholder="Search analyses..."
+                                class="search-input"
+                            >
+                        </div>
+                        <div class="analysis-frame">
+                            <div id="analysisOptions" class="analysis-options-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis History Tab -->
+                <div id="historyTab" class="tab-pane">
+                    <h3>Analysis History</h3>
+                    <div id="analysisHistory"></div>
+                </div>
+
+                <!-- Smart Recommendations Tab -->
+                <div id="recommendationsTab" class="tab-pane">
+                    <h3>Smart Recommendations</h3>
+                    <div id="smartRecommendations"></div>
                 </div>
             </div>
         </div>
