@@ -384,16 +384,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryHtml = `
             <div class="stats-card">
                 <h4>File Statistics</h4>
-                <p>Total Rows: ${stats.file_stats.rows}</p>
-                <p>Total Columns: ${stats.file_stats.columns}</p>
-                <p>Memory Usage: ${stats.file_stats.memory_usage}</p>
+                <p>Rows: ${stats.file_stats.rows} | Columns: ${stats.file_stats.columns}</p>
+                <p>Memory: ${stats.file_stats.memory_usage}</p>
             </div>
             <div class="stats-card">
                 <h4>Column Types</h4>
-                <p>Numeric Columns: ${stats.column_types.numeric}</p>
-                <p>Categorical Columns: ${stats.column_types.categorical}</p>
-                <p>Boolean Columns: ${stats.column_types.boolean}</p>
-                <p>DateTime Columns: ${stats.column_types.datetime}</p>
+                <p>Numeric: ${stats.column_types.numeric} | Categorical: ${stats.column_types.categorical}</p>
+                <p>Boolean: ${stats.column_types.boolean} | DateTime: ${stats.column_types.datetime}</p>
             </div>
         `;
         
