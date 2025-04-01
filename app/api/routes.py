@@ -19,32 +19,48 @@ if not hasattr(api, '_initialized'):
 def upload_file():
     """Handle file upload and return initial analysis."""
     try:
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No file provided'
+            }), 400
+
+        file = request.files['file']
+        if not file.filename.endswith('.csv'):
+            return jsonify({
+                'success': False,
+                'error': 'File must be a CSV'
+            }), 400
+
+        # Read CSV in chunks using pandas
         global current_df
-        data = request.json.get('data')
-        df = pd.read_csv(io.StringIO(data))
+        current_df = pd.read_csv(file, chunksize=10000)
+        current_df = pd.concat(current_df, ignore_index=True)
         
-        # Store DataFrame in memory
-        current_df = df
-        
-        # Convert to dictionary format, preserving column order
+        # Create preview dict from first 5 rows
         preview_dict = OrderedDict()
-        for column in df.columns:
-            # Handle NaN values and convert to Python native types
+        preview_df = current_df.head()
+        for column in preview_df.columns:
             preview_dict[str(column)] = [
                 None if pd.isna(x) else x 
-                for x in df[column].head().tolist()
+                for x in preview_df[column].tolist()
             ]
         
-        info = {
+        # Convert dtypes to strings to make them JSON serializable
+        column_types = {
+            str(col): str(dtype) 
+            for col, dtype in current_df.dtypes.items()
+        }
+        
+        return jsonify({
             'success': True,
             'info': {
-                'rows': len(df),
-                'columns': len(df.columns),
-                'column_types': df.dtypes.to_dict(),
+                'rows': len(current_df),
+                'columns': len(current_df.columns),
+                'column_types': column_types,
                 'preview': preview_dict
             }
-        }
-        return jsonify(info)
+        })
     except Exception as e:
         return jsonify({
             'success': False,
