@@ -129,13 +129,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     updatePreviewTable(data.preview);
                 }
                 
-                // Display the appropriate status message
+                // Display status message briefly before hiding
                 document.getElementById('modificationStatus').textContent = data.message;
                 document.getElementById('modificationStatus').className = 
                     data.success ? 'status-message success' : 'status-message error';
                 
-                // Get analysis options if successful
+                // Hide the modify section after successful processing
                 if (data.success) {
+                    setTimeout(() => {
+                        document.getElementById('modifySection').style.display = 'none';
+                    }, 1500); // Hide after 1.5 seconds
                     return getAnalysisOptions();
                 }
             })
@@ -145,7 +148,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modificationStatus').className = 'status-message error';
             });
         } else {
-            // If no modifications, directly get analysis options
+            // If no modifications, directly get analysis options and hide the section
+            document.getElementById('modifySection').style.display = 'none';
             getAnalysisOptions();
         }
     });
