@@ -63,8 +63,17 @@
             <div class="tab-content">
                 <!-- Descriptive Statistics Tab -->
                 <div id="descriptiveTab" class="tab-pane active">
-                    <h3>Descriptive Statistics</h3>
-                    <div id="descriptiveStats"></div>
+                    <h3>Dataset Overview</h3>
+                    <div id="descriptiveStats" class="stats-container">
+                        <div class="stats-summary"></div>
+                        <div class="column-picker">
+                            <h4>Column Analysis</h4>
+                            <select id="columnSelect" class="column-select">
+                                <option value="">Select a column...</option>
+                            </select>
+                            <div id="columnStats" class="column-stats"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Available Analyses Tab -->

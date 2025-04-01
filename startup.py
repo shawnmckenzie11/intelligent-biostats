@@ -1,7 +1,10 @@
 import sys
 import subprocess
 import pkg_resources
+import os
+from importlib.metadata import version, PackageNotFoundError
 import importlib
+from typing import List, Set
 
 def check_python_version():
     """Check if Python version meets requirements."""
@@ -20,24 +23,30 @@ def get_required_packages():
         return [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 def check_and_install_packages():
-    """Check and install required packages."""
-    required = get_required_packages()
-    installed = {pkg.key for pkg in pkg_resources.working_set}
-    
-    missing = []
-    for package in required:
-        name = package.split('==')[0]
-        if name.lower() not in installed:
-            missing.append(package)
-    
-    if missing:
-        print("Installing missing packages:", missing)
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing)
-            print("Successfully installed missing packages.")
-        except subprocess.CalledProcessError as e:
-            print(f"Error installing packages: {e}")
-            sys.exit(1)
+    """Check and install required packages from requirements.txt."""
+    try:
+        # Get installed packages
+        installed = {pkg.key for pkg in pkg_resources.working_set}
+        
+        # Read requirements
+        requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
+        with open(requirements_path) as f:
+            required = {line.strip().split('==')[0].split('>=')[0] 
+                       for line in f if line.strip() and not line.startswith('#')}
+        
+        # Find missing packages
+        missing = required - installed
+        
+        if missing:
+            print(f"Installing missing packages: {missing}")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path])
+            print("Package installation complete.")
+        else:
+            print("All required packages are already installed.")
+            
+    except Exception as e:
+        print(f"Error checking/installing packages: {str(e)}")
+        raise
 
 def check_system_dependencies():
     """Check system-level dependencies."""

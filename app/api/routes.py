@@ -136,3 +136,40 @@ def analyze_data():
 def get_recommendations():
     """Get AI recommendations."""
     pass
+
+@api.route('/descriptive-stats', methods=['GET'])
+def get_descriptive_stats():
+    """Get descriptive statistics for the current dataset."""
+    try:
+        global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+            
+        stats = {
+            'file_stats': {
+                'rows': len(current_df),
+                'columns': len(current_df.columns),
+                'memory_usage': f"{current_df.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
+            },
+            'column_types': {
+                'numeric': len(current_df.select_dtypes(include=[np.number]).columns),
+                'categorical': len(current_df.select_dtypes(include=['object', 'category']).columns),
+                'boolean': len([col for col in current_df.columns if current_df[col].nunique() == 2]),
+                'datetime': len(current_df.select_dtypes(include=['datetime64']).columns),
+                'columns': current_df.columns.tolist()
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400

@@ -124,9 +124,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     targetPane.classList.add('active');
                 }
 
-                // If switching to analyses tab, ensure options are loaded
+                // Load appropriate data based on tab
                 if (tabName === 'analyses') {
                     getAnalysisOptions();
+                } else if (tabName === 'descriptive') {
+                    loadDescriptiveStats();
                 }
             });
         });
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (analysisTabsSection) {
             analysisTabsSection.style.display = 'block';
             initializeTabs(); // Reinitialize tabs when showing the section
+            loadDescriptiveStats(); // Load initial stats since descriptive is the default tab
         }
     }
 
@@ -357,5 +360,88 @@ document.addEventListener('DOMContentLoaded', function() {
         
         previewTable.innerHTML = tableHtml;
         console.log('Preview table updated with preserved column order');
+    }
+
+    function loadDescriptiveStats() {
+        fetch('/api/descriptive-stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayDescriptiveStats(data.stats);
+                    initializeColumnPicker(data.stats.column_types.columns);
+                } else {
+                    throw new Error(data.error || 'Failed to load statistics');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading descriptive stats:', error);
+                document.querySelector('.stats-summary').innerHTML = 
+                    `<div class="error-message">Error loading statistics: ${error.message}</div>`;
+            });
+    }
+
+    function displayDescriptiveStats(stats) {
+        const summaryHtml = `
+            <div class="stats-card">
+                <h4>File Statistics</h4>
+                <p>Total Rows: ${stats.file_stats.rows}</p>
+                <p>Total Columns: ${stats.file_stats.columns}</p>
+                <p>Memory Usage: ${stats.file_stats.memory_usage}</p>
+            </div>
+            <div class="stats-card">
+                <h4>Column Types</h4>
+                <p>Numeric Columns: ${stats.column_types.numeric}</p>
+                <p>Categorical Columns: ${stats.column_types.categorical}</p>
+                <p>Boolean Columns: ${stats.column_types.boolean}</p>
+                <p>DateTime Columns: ${stats.column_types.datetime}</p>
+            </div>
+        `;
+        
+        document.querySelector('.stats-summary').innerHTML = summaryHtml;
+    }
+
+    function initializeColumnPicker(columns) {
+        const select = document.getElementById('columnSelect');
+        select.innerHTML = '<option value="">Select a column...</option>' +
+            columns.map(col => `<option value="${col}">${col}</option>`).join('');
+            
+        select.addEventListener('change', (e) => {
+            if (e.target.value) {
+                fetchColumnStats(e.target.value);
+            } else {
+                document.getElementById('columnStats').innerHTML = '';
+            }
+        });
+    }
+
+    // Add fetchColumnStats function that was referenced but not defined
+    function fetchColumnStats(columnName) {
+        fetch(`/api/column-stats/${encodeURIComponent(columnName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayColumnStats(data.stats);
+                } else {
+                    throw new Error(data.error || 'Failed to load column statistics');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading column stats:', error);
+                document.getElementById('columnStats').innerHTML = 
+                    `<div class="error-message">Error loading column statistics: ${error.message}</div>`;
+            });
+    }
+
+    function displayColumnStats(stats) {
+        const columnStats = document.getElementById('columnStats');
+        let statsHtml = `
+            <div class="stats-card">
+                <h4>Column Statistics</h4>
+                ${Object.entries(stats).map(([key, value]) => `
+                    <p><strong>${key}:</strong> ${value}</p>
+                `).join('')}
+            </div>
+        `;
+        columnStats.innerHTML = statsHtml;
     }
 });
