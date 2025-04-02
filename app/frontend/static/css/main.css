@@ -74,13 +74,64 @@ body {
 /* Data Preview */
 .data-preview {
     margin-top: 2rem;
-    overflow-x: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    user-select: none;
+}
+
+.preview-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.toggle-preview {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    line-height: 20px;
+}
+
+.preview-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    max-height: 500px; /* Set a default max-height */
+}
+
+.preview-content.collapsed {
+    max-height: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .data-preview table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1rem;
+    margin: 0;
 }
 
 .data-preview th {
@@ -88,6 +139,9 @@ body {
     color: white;
     padding: 0.75rem;
     text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .data-preview td {

@@ -33,8 +33,15 @@
 
         <!-- Data Preview Section -->
         <div class="data-preview" id="dataPreview" style="display: none;">
-            <h3>Data Preview</h3>
-            <div id="previewTable"></div>
+            <div class="preview-header">
+                <h3>Data Preview</h3>
+                <button class="toggle-preview" id="togglePreview">
+                    <span class="toggle-icon">▼</span>
+                </button>
+            </div>
+            <div class="preview-content" id="previewContent">
+                <div id="previewTable"></div>
+            </div>
         </div>
 
         <!-- Modify Data Section -->

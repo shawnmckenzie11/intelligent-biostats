@@ -80,6 +80,34 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadSection.style.display = 'none';
         dataPreview.style.display = 'block';
         modifySection.style.display = 'block';
+
+        // Initialize collapsible functionality
+        initializeCollapsiblePreview();
+    }
+
+    function initializeCollapsiblePreview() {
+        const toggleButton = document.getElementById('togglePreview');
+        const previewContent = document.getElementById('previewContent');
+        const toggleIcon = toggleButton.querySelector('.toggle-icon');
+        
+        // Set initial state (expanded)
+        previewContent.style.maxHeight = '500px';
+        
+        toggleButton.addEventListener('click', () => {
+            const isCollapsed = previewContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                previewContent.classList.remove('collapsed');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                previewContent.style.maxHeight = '500px';
+            } else {
+                // Collapse
+                previewContent.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(-90deg)';
+                previewContent.style.maxHeight = '0';
+            }
+        });
     }
 
     function uploadFullFile(file) {
