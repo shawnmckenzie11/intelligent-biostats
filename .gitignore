@@ -1,7 +1,50 @@
+# Python
 __pycache__/
-*.pyc
-__pycache__/
-*.pyc
-__pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite3
+
+# Misc
+.DS_Store
+.env
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Project specific
 data/analysis_history.db
+uploads/
+logs/
+temp/

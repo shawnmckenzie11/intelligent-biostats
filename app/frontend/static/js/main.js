@@ -335,30 +335,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add tab handling functionality
     function initializeTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabs = document.querySelectorAll('.tab-button');
         const tabPanes = document.querySelectorAll('.tab-pane');
         
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Remove active class from all buttons and panes
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabPanes.forEach(pane => pane.classList.remove('active'));
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and panes
+                tabs.forEach(t => t.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
                 
-                // Add active class to clicked button
-                button.classList.add('active');
+                // Add active class to clicked tab and corresponding pane
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}Tab`).classList.add('active');
                 
-                // Add active class to corresponding pane
-                const tabName = button.getAttribute('data-tab');
-                const targetPane = document.getElementById(`${tabName}Tab`);
-                if (targetPane) {
-                    targetPane.classList.add('active');
-                }
-
-                // Load appropriate data based on tab
-                if (tabName === 'analyses') {
-                    getAnalysisOptions();
-                } else if (tabName === 'recommendations') {
+                // Load content for the selected tab
+                if (tabId === 'history') {
+                    loadAnalysisHistory();
+                } else if (tabId === 'recommendations') {
                     loadSmartRecommendations();
+                } else if (tabId === 'analyses') {
+                    getAnalysisOptions();
                 }
             });
         });
@@ -989,5 +986,239 @@ document.addEventListener('DOMContentLoaded', function() {
         `).join('');
 
         contentElement.innerHTML = recommendationsHtml;
+    }
+
+    function loadAnalysisHistory() {
+        fetch('/api/analysis-history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAnalysisHistory(data.analyses);
+                } else {
+                    throw new Error(data.error || 'Failed to load analysis history');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading analysis history:', error);
+                document.getElementById('analysisHistory').innerHTML = `
+                    <div class="error-message">
+                        Failed to load analysis history: ${error.message}
+                    </div>
+                `;
+            });
+    }
+
+    function displayAnalysisHistory(analyses) {
+        const historyContent = document.getElementById('analysisHistory');
+        if (!analyses || analyses.length === 0) {
+            historyContent.innerHTML = '<p class="no-results-message">No analysis history available</p>';
+            return;
+        }
+
+        // Store analyses in a closure for pagination
+        let currentPage = 1;
+        const recordsPerPage = 10;
+        const totalPages = Math.ceil(analyses.length / recordsPerPage);
+
+        function getCurrentPageAnalyses() {
+            const start = (currentPage - 1) * recordsPerPage;
+            const end = start + recordsPerPage;
+            return analyses.slice(start, end);
+        }
+
+        function updatePagination() {
+            const paginationInfo = document.getElementById('paginationInfo');
+            const prevButton = document.getElementById('prevPage');
+            const nextButton = document.getElementById('nextPage');
+
+            paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            prevButton.disabled = currentPage === 1;
+            nextButton.disabled = currentPage === totalPages;
+        }
+
+        function renderTable() {
+            const currentAnalyses = getCurrentPageAnalyses();
+            
+            let html = `
+                <div class="history-actions">
+                    <button id="deleteSelected" class="delete-button" disabled>Delete Selected</button>
+                </div>
+                <div class="history-panel">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px;"><input type="checkbox" id="selectAll"></th>
+                                <th>Date & Time</th>
+                                <th>Test Name</th>
+                                <th>Input File</th>
+                                <th>Modifications</th>
+                                <th>Conclusion</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            currentAnalyses.forEach(analysis => {
+                const date = new Date(analysis.date_time).toLocaleString();
+                const modifications = analysis.modifications ? 
+                    JSON.parse(analysis.modifications).length : 0;
+                
+                html += `
+                    <tr>
+                        <td><input type="checkbox" class="analysis-checkbox" data-id="${analysis.id}"></td>
+                        <td>${date}</td>
+                        <td>${analysis.test_name}</td>
+                        <td>${analysis.input_file}</td>
+                        <td>${modifications} modifications</td>
+                        <td>${analysis.conclusion}</td>
+                        <td>
+                            <button class="details-button" data-id="${analysis.id}">Details</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-controls">
+                    <button id="prevPage" class="pagination-button" disabled>Previous</button>
+                    <span id="paginationInfo">Page ${currentPage} of ${totalPages}</span>
+                    <button id="nextPage" class="pagination-button" disabled>Next</button>
+                </div>
+            `;
+
+            historyContent.innerHTML = html;
+
+            // Add event listeners for checkboxes
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.analysis-checkbox');
+            const deleteButton = document.getElementById('deleteSelected');
+
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateDeleteButton();
+            });
+
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateDeleteButton);
+            });
+
+            // Add event listeners for details buttons
+            document.querySelectorAll('.details-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const analysisId = this.dataset.id;
+                    const analysis = analyses.find(a => a.id === parseInt(analysisId));
+                    if (analysis) {
+                        showAnalysisDetails(analysis);
+                    }
+                });
+            });
+
+            // Add event listeners for pagination
+            document.getElementById('prevPage').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTable();
+                    updatePagination();
+                }
+            });
+
+            document.getElementById('nextPage').addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTable();
+                    updatePagination();
+                }
+            });
+
+            // Add event listener for delete button
+            deleteButton.addEventListener('click', deleteSelectedAnalyses);
+        }
+
+        renderTable();
+        updatePagination();
+    }
+
+    function updateDeleteButton() {
+        const deleteButton = document.getElementById('deleteSelected');
+        const checkedBoxes = document.querySelectorAll('.analysis-checkbox:checked');
+        deleteButton.disabled = checkedBoxes.length === 0;
+    }
+
+    function deleteSelectedAnalyses() {
+        const checkedBoxes = document.querySelectorAll('.analysis-checkbox:checked');
+        const ids = Array.from(checkedBoxes).map(checkbox => checkbox.dataset.id);
+        
+        if (ids.length === 0) return;
+
+        if (confirm(`Are you sure you want to delete ${ids.length} selected analysis(es)?`)) {
+            fetch('/api/delete-analyses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ids: ids })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadAnalysisHistory(); // Reload the history
+                } else {
+                    alert('Error deleting analyses: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting analyses');
+            });
+        }
+    }
+
+    function showAnalysisDetails(analysis) {
+        // Create modal content
+        const modalContent = `
+            <div class="modal-content">
+                <h3>Analysis Details</h3>
+                <div class="analysis-details-content">
+                    <p><strong>Test Name:</strong> ${analysis.test_name}</p>
+                    <p><strong>Date & Time:</strong> ${new Date(analysis.date_time).toLocaleString()}</p>
+                    <p><strong>Input File:</strong> ${analysis.input_file}</p>
+                    <p><strong>Modifications:</strong> ${analysis.modifications ? 
+                        JSON.parse(analysis.modifications).length : 0}</p>
+                    <div class="test-details">
+                        <h4>Test Details:</h4>
+                        <pre>${JSON.stringify(analysis.test_details, null, 2)}</pre>
+                    </div>
+                    <div class="conclusion">
+                        <h4>Conclusion:</h4>
+                        <p>${analysis.conclusion}</p>
+                    </div>
+                </div>
+                <button class="close-modal">Close</button>
+            </div>
+        `;
+
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = modalContent;
+        document.body.appendChild(modal);
+
+        // Add event listener for close button
+        modal.querySelector('.close-modal').addEventListener('click', () => {
+            modal.remove();
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
     }
 });
