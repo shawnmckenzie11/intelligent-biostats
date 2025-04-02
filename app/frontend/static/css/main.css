@@ -551,3 +551,164 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* Smart Recommendations */
+.recommendations-container {
+    padding: 1rem;
+}
+
+.recommendations-section {
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.recommendations-section h4 {
+    color: var(--primary-color);
+    margin: 0 0 0.5rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-description {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Critical Issues */
+.recommendations-section.critical {
+    border-left: 4px solid #e74c3c;
+}
+
+.recommendations-section.critical h4 {
+    color: #e74c3c;
+}
+
+.recommendation-card.critical {
+    background: #fff5f5;
+    border: 1px solid #fde8e8;
+}
+
+/* High Priority */
+.recommendations-section.high-priority {
+    border-left: 4px solid #f39c12;
+}
+
+.recommendations-section.high-priority h4 {
+    color: #f39c12;
+}
+
+.recommendation-card.high-priority {
+    background: #fff9f0;
+    border: 1px solid #fef3e0;
+}
+
+/* Suggested Analyses */
+.recommendations-section.suggested {
+    border-left: 4px solid var(--secondary-color);
+}
+
+.recommendations-section.suggested h4 {
+    color: var(--secondary-color);
+}
+
+.recommendation-card.suggested {
+    background: #f0f7ff;
+    border: 1px solid #e6f0ff;
+}
+
+/* Data Quality */
+.recommendations-section.quality {
+    border-left: 4px solid #2ecc71;
+}
+
+.recommendations-section.quality h4 {
+    color: #2ecc71;
+}
+
+.recommendation-card.quality {
+    background: #f0fff4;
+    border: 1px solid #e6fff0;
+}
+
+/* Methodological Notes */
+.recommendations-section.methodological {
+    border-left: 4px solid #9b59b6;
+}
+
+.recommendations-section.methodological h4 {
+    color: #9b59b6;
+}
+
+.recommendation-card.methodological {
+    background: #faf5ff;
+    border: 1px solid #f3e8ff;
+}
+
+.recommendation-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    transition: transform 0.2s ease;
+}
+
+.recommendation-card:last-child {
+    margin-bottom: 0;
+}
+
+.recommendation-card:hover {
+    transform: translateY(-2px);
+}
+
+.recommendation-card h5 {
+    color: var(--primary-color);
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+}
+
+.details {
+    background: white;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.details p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.recommendations-list {
+    margin-top: 0.5rem;
+}
+
+.suggested-tests {
+    color: var(--secondary-color);
+    font-size: 0.85rem;
+    margin: 0.25rem 0;
+}
+
+.references {
+    color: #666;
+    font-size: 0.8rem;
+    font-style: italic;
+    margin: 0.25rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .recommendations-section {
+        padding: 1rem;
+    }
+    
+    .recommendation-card {
+        padding: 0.75rem;
+    }
+    
+    .details {
+        padding: 0.5rem;
+    }
+}
