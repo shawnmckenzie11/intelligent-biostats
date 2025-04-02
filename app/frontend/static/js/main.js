@@ -335,30 +335,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add tab handling functionality
     function initializeTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabs = document.querySelectorAll('.tab-button');
         const tabPanes = document.querySelectorAll('.tab-pane');
         
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Remove active class from all buttons and panes
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabPanes.forEach(pane => pane.classList.remove('active'));
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and panes
+                tabs.forEach(t => t.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
                 
-                // Add active class to clicked button
-                button.classList.add('active');
+                // Add active class to clicked tab and corresponding pane
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}Tab`).classList.add('active');
                 
-                // Add active class to corresponding pane
-                const tabName = button.getAttribute('data-tab');
-                const targetPane = document.getElementById(`${tabName}Tab`);
-                if (targetPane) {
-                    targetPane.classList.add('active');
-                }
-
-                // Load appropriate data based on tab
-                if (tabName === 'analyses') {
-                    getAnalysisOptions();
-                } else if (tabName === 'recommendations') {
+                // Load content for the selected tab
+                if (tabId === 'history') {
+                    loadAnalysisHistory();
+                } else if (tabId === 'recommendations') {
                     loadSmartRecommendations();
+                } else if (tabId === 'analyses') {
+                    getAnalysisOptions();
                 }
             });
         });
@@ -989,5 +986,67 @@ document.addEventListener('DOMContentLoaded', function() {
         `).join('');
 
         contentElement.innerHTML = recommendationsHtml;
+    }
+
+    function loadAnalysisHistory() {
+        fetch('/api/analysis-history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAnalysisHistory(data.analyses);
+                } else {
+                    throw new Error(data.error || 'Failed to load analysis history');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading analysis history:', error);
+                document.getElementById('analysisHistory').innerHTML = `
+                    <div class="error-message">
+                        Failed to load analysis history: ${error.message}
+                    </div>
+                `;
+            });
+    }
+
+    function displayAnalysisHistory(analyses) {
+        const historyContainer = document.getElementById('analysisHistory');
+        
+        if (analyses.length === 0) {
+            historyContainer.innerHTML = '<p>No analysis history available.</p>';
+            return;
+        }
+
+        let tableHtml = `
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Test</th>
+                        <th>Input File</th>
+                        <th>Modifications</th>
+                        <th>Conclusion</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        analyses.forEach(analysis => {
+            const date = new Date(analysis.date_time).toLocaleString();
+            const modifications = analysis.modifications ? 
+                JSON.parse(analysis.modifications).length : 0;
+            
+            tableHtml += `
+                <tr>
+                    <td>${date}</td>
+                    <td>${analysis.test_name}</td>
+                    <td>${analysis.input_file}</td>
+                    <td>${modifications} modifications</td>
+                    <td>${analysis.conclusion}</td>
+                </tr>
+            `;
+        });
+
+        tableHtml += '</tbody></table>';
+        historyContainer.innerHTML = tableHtml;
     }
 });
