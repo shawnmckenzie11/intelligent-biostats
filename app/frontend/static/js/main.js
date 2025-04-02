@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show preview sections
         uploadSection.style.display = 'none';
         dataPreview.style.display = 'block';
-        document.getElementById('descriptiveStatsSection').style.display = 'block';
+        document.getElementById('descriptiveStatsSection').style.display = 'none'; // Hide initially
         modifySection.style.display = 'block';
 
         // Initialize collapsible functionality
@@ -117,8 +117,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const descriptiveContent = document.getElementById('descriptiveContent');
         const toggleIcon = toggleButton.querySelector('.toggle-icon');
         
-        // Set initial state (expanded)
-        descriptiveContent.style.maxHeight = '500px';
+        // Set initial state (collapsed)
+        descriptiveContent.classList.add('collapsed');
+        toggleIcon.style.transform = 'rotate(-90deg)';
+        
+        // Create a ResizeObserver to handle dynamic content changes
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (!descriptiveContent.classList.contains('collapsed')) {
+                    // Get the total height of all content
+                    const totalHeight = Array.from(descriptiveContent.children)
+                        .reduce((height, child) => height + child.offsetHeight, 0);
+                    descriptiveContent.style.maxHeight = `${totalHeight + 50}px`; // Add padding
+                }
+            }
+        });
+
+        // Start observing the content and its children
+        resizeObserver.observe(descriptiveContent);
+        descriptiveContent.childNodes.forEach(child => {
+            if (child.nodeType === 1) { // Only observe element nodes
+                resizeObserver.observe(child);
+            }
+        });
         
         toggleButton.addEventListener('click', () => {
             const isCollapsed = descriptiveContent.classList.contains('collapsed');
@@ -127,7 +148,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Expand
                 descriptiveContent.classList.remove('collapsed');
                 toggleIcon.style.transform = 'rotate(0deg)';
-                descriptiveContent.style.maxHeight = '500px';
+                // Calculate and set the height needed for all content
+                const totalHeight = Array.from(descriptiveContent.children)
+                    .reduce((height, child) => height + child.offsetHeight, 0);
+                descriptiveContent.style.maxHeight = `${totalHeight + 50}px`;
             } else {
                 // Collapse
                 descriptiveContent.classList.add('collapsed');
@@ -220,8 +244,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Update preview table with new data
                     if (data.preview) {
-                    updatePreviewTable(data.preview);
-                }
+                        updatePreviewTable(data.preview);
+                    }
                 
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
@@ -231,9 +255,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Hide modify section and show analysis tabs after a delay
                     setTimeout(() => {
                         document.getElementById('modifySection').style.display = 'none';
+                        document.getElementById('descriptiveStatsSection').style.display = 'block'; // Show descriptive stats section
                         showAnalysisTabs(); // Show tabs and initialize
                         getAnalysisOptions(); // Refresh analysis options
-                        loadDescriptiveStats(); // Refresh descriptive stats
+                        loadDescriptiveStats(); // Load descriptive stats into collapsible section
                         loadSmartRecommendations(); // Load smart recommendations
                     }, 1500);
                 } else {
@@ -249,8 +274,10 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // If no modifications, directly show analysis tabs
             document.getElementById('modifySection').style.display = 'none';
+            document.getElementById('descriptiveStatsSection').style.display = 'block'; // Show descriptive stats section
             showAnalysisTabs(); // Show tabs and initialize
             getAnalysisOptions();
+            loadDescriptiveStats(); // Load descriptive stats into collapsible section
             loadSmartRecommendations(); // Load smart recommendations
         }
     });
@@ -458,7 +485,33 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        document.querySelector('.stats-summary').innerHTML = summaryHtml;
+        // Update the descriptive statistics collapsible section instead of the tab
+        const descriptiveContent = document.getElementById('descriptiveContent');
+        descriptiveContent.innerHTML = `
+            <div class="stats-summary">${summaryHtml}</div>
+            <div class="column-picker">
+                <h4>Column Analysis</h4>
+                <select id="columnSelect" class="column-select">
+                    <option value="">Select a column...</option>
+                    ${stats.column_types.columns.map(col => `<option value="${col}">${col}</option>`).join('')}
+                </select>
+                <div class="column-stats">
+                    <div id="columnStats"></div>
+                    <div id="columnData"></div>
+                </div>
+            </div>
+        `;
+
+        // Initialize column picker event listener
+        const select = document.getElementById('columnSelect');
+        select.addEventListener('change', (e) => {
+            if (e.target.value) {
+                fetchColumnData(e.target.value);
+            } else {
+                document.getElementById('columnStats').innerHTML = '';
+                document.getElementById('columnData').innerHTML = '';
+            }
+        });
     }
 
     function initializeColumnPicker(columns) {
@@ -510,6 +563,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayColumnData(columnData) {
         const statsContainer = document.getElementById('columnStats');
         const dataContainer = document.getElementById('columnData');
+        
+        // Clear previous content
+        statsContainer.innerHTML = '';
+        dataContainer.innerHTML = '';
         
         // Display statistics in a side-by-side layout
         let statsHtml = `
@@ -612,6 +669,15 @@ document.addEventListener('DOMContentLoaded', function() {
         plotsHtml += '</div>';
         
         dataContainer.innerHTML = plotsHtml;
+
+        // Update the descriptive content height if it's expanded
+        const descriptiveContent = document.getElementById('descriptiveContent');
+        if (!descriptiveContent.classList.contains('collapsed')) {
+            // Calculate and set the height needed for all content
+            const totalHeight = Array.from(descriptiveContent.children)
+                .reduce((height, child) => height + child.offsetHeight, 0);
+            descriptiveContent.style.maxHeight = `${totalHeight + 50}px`;
+        }
     }
 
     // Add function to load and display smart recommendations
