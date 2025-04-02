@@ -153,6 +153,21 @@ def get_descriptive_stats():
                 'error': 'No data loaded'
             }), 400
             
+        # Get column types
+        column_types_list = []
+        for col in current_df.columns:
+            if pd.api.types.is_numeric_dtype(current_df[col]):
+                if current_df[col].nunique() < 20:  # threshold for discrete
+                    column_types_list.append('discrete')
+                else:
+                    column_types_list.append('numeric')
+            elif current_df[col].nunique() == 2:
+                column_types_list.append('boolean')
+            elif pd.api.types.is_datetime64_any_dtype(current_df[col]):
+                column_types_list.append('timeseries')
+            else:
+                column_types_list.append('categorical')
+            
         stats = {
             'file_stats': {
                 'rows': len(current_df),
@@ -164,7 +179,8 @@ def get_descriptive_stats():
                 'categorical': len(current_df.select_dtypes(include=['object', 'category']).columns),
                 'boolean': len([col for col in current_df.columns if current_df[col].nunique() == 2]),
                 'datetime': len(current_df.select_dtypes(include=['datetime64']).columns),
-                'columns': current_df.columns.tolist()
+                'columns': current_df.columns.tolist(),
+                'column_types_list': column_types_list
             }
         }
         
