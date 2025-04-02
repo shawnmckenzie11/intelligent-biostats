@@ -837,3 +837,77 @@ body {
         max-height: 150px;
     }
 }
+
+.analysis-setup {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.analysis-setup h5 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.column-picker,
+.hypothesis-value,
+.confidence-level {
+    margin-bottom: 1rem;
+}
+
+.column-picker label,
+.hypothesis-value label,
+.confidence-level label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.hypothesis-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.confidence-select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: white;
+}
+
+.analysis-results {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.analysis-results h5 {
+    margin: 0 0 0.75rem 0;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.analysis-results p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.error-message {
+    color: #e74c3c;
+    padding: 1rem;
+    background: #fff5f5;
+    border-radius: 4px;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
