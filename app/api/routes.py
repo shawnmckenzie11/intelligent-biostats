@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 from app.core.ai_engine import AIEngine
+from app.core.database import AnalysisHistoryDB
 from collections import OrderedDict
 import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'
@@ -10,15 +11,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
 from scipy import stats
+import json
+from datetime import datetime
 
 api = Blueprint('api', __name__)
 
 # Define global variable at module level
 current_df = None
+current_file = None  # Store the current file name
+modifications_history = []  # Store modifications history
 
 # Add this check to prevent duplicate initialization
 if not hasattr(api, '_initialized'):
     ai_engine = AIEngine()
+    db = AnalysisHistoryDB()
     api._initialized = True
 
 @api.route('/upload', methods=['POST'])
@@ -37,6 +43,11 @@ def upload_file():
                 'success': False,
                 'error': 'File must be a CSV'
             }), 400
+
+        # Store the file name
+        global current_file, modifications_history
+        current_file = file.filename
+        modifications_history = []  # Reset modifications history
 
         # Read CSV in chunks using pandas
         global current_df
@@ -77,7 +88,7 @@ def upload_file():
 def modify_data():
     """Handle AI-powered data modification requests."""
     try:
-        global current_df
+        global current_df, modifications_history
         modification = request.json.get('modification')
         print(f"Received modification request: {modification}")
         
@@ -90,6 +101,11 @@ def modify_data():
         # Only update stored DataFrame if changes were made
         if was_modified:
             current_df = modified_df
+            # Track the modification
+            modifications_history.append({
+                'timestamp': datetime.now().isoformat(),
+                'modification': modification
+            })
             # Convert to dictionary format for preview, maintaining column order
             preview_dict = OrderedDict()
             for column in modified_df.columns:
@@ -137,7 +153,7 @@ def get_analysis_options():
 def analyze_data():
     """Perform statistical analysis."""
     try:
-        global current_df
+        global current_df, current_file, modifications_history
         if current_df is None:
             return jsonify({
                 'success': False,
@@ -181,9 +197,27 @@ def analyze_data():
                 'degrees_of_freedom': len(sample_data) - 1
             }
             
+            # Create conclusion
+            conclusion = f"One-sample t-test on {column}: "
+            if p_value < 0.05:
+                conclusion += f"Significant difference from {hypothesis_value} (p={p_value:.3f}). "
+            else:
+                conclusion += f"No significant difference from {hypothesis_value} (p={p_value:.3f}). "
+            conclusion += f"95% CI: [{ci[0]:.2f}, {ci[1]:.2f}]"
+            
+            # Store analysis in database
+            db.add_analysis(
+                input_file=current_file or "Unknown",
+                modifications=json.dumps(modifications_history) if modifications_history else None,
+                test_name="One-Sample T-Test",
+                test_details=results,
+                conclusion=conclusion
+            )
+            
             return jsonify({
                 'success': True,
-                'results': results
+                'results': results,
+                'conclusion': conclusion
             })
             
         else:
@@ -192,6 +226,21 @@ def analyze_data():
                 'error': f'Analysis type {analysis_type} not supported'
             }), 400
             
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+@api.route('/analysis-history', methods=['GET'])
+def get_analysis_history():
+    """Get the history of all analyses performed."""
+    try:
+        analyses = db.get_all_analyses()
+        return jsonify({
+            'success': True,
+            'analyses': analyses
+        })
     except Exception as e:
         return jsonify({
             'success': False,

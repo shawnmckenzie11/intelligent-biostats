@@ -11,5 +11,7 @@ setup(
         'numpy',
         'scipy',
         'scikit-learn',
+        'matplotlib',
+        'seaborn',
     ],
 )
