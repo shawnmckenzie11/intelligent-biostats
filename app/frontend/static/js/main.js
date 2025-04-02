@@ -400,11 +400,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <h4>${option.name}</h4>
                             <div class="description">${option.description}</div>
                             <div class="requirements">
-                                <h5>Requirements</h5>
-                                <p>${option.requirements}</p>
-                                <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                                <p>Requirements: ${option.requirements} <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
                                     (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
-                                </span>
+                                </span></p>
                             </div>
                             <button class="proceed-button" 
                                 ${!option.requirements_met ? 'disabled' : ''}
@@ -427,20 +425,19 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const numericColumns = data.stats.column_types.columns.filter(col => {
-                        // Filter for numeric columns only
-                        return data.stats.column_types.numeric > 0;
+                    // Get numeric columns from column_types_list
+                    const numericColumns = data.stats.column_types.columns.filter((col, index) => {
+                        return data.stats.column_types.column_types_list[index] === 'numeric' || 
+                               data.stats.column_types.column_types_list[index] === 'discrete';
                     });
 
                     const detailsHtml = `
                         <h4>${option.name}</h4>
                         <div class="description">${option.description}</div>
                         <div class="requirements">
-                            <h5>Requirements</h5>
-                            <p>${option.requirements}</p>
-                            <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                            <p>Requirements: ${option.requirements} <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
                                 (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
-                            </span>
+                            </span></p>
                         </div>
                         <div class="analysis-setup">
                             <h5>Analysis Setup</h5>
@@ -463,7 +460,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <option value="0.90">90%</option>
                                 </select>
                             </div>
-                            <div id="tTestResults" class="analysis-results"></div>
                             <button class="proceed-button" 
                                 ${!option.requirements_met ? 'disabled' : ''}
                                 onclick="runOneSampleTTest()">
@@ -478,9 +474,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (columnSelect) {
                         columnSelect.addEventListener('change', (e) => {
                             if (e.target.value) {
-                                fetchColumnData(e.target.value);
+                                // Fetch column data to get the mean
+                                fetch(`/api/column-data/${encodeURIComponent(e.target.value)}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success && data.column_data.stats.Type === 'numeric') {
+                                            // Set the hypothesized mean to the column's mean
+                                            document.getElementById('hypothesisValue').value = data.column_data.stats.Mean;
+                                        }
+                                    });
                             } else {
-                                document.getElementById('tTestResults').innerHTML = '';
+                                document.getElementById('hypothesisValue').value = '';
                             }
                         });
                     }
