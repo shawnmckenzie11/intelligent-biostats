@@ -391,7 +391,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Find the corresponding option
                 const option = options.find(opt => opt.id === item.dataset.analysisId);
                 if (option) {
-                    // Display details
+                    // Special handling for one-sample t-test
+                    if (option.id === 'one_sample_t') {
+                        displayOneSampleTTestDetails(option);
+                    } else {
+                        // Display details for other analyses
+                        const detailsHtml = `
+                            <h4>${option.name}</h4>
+                            <div class="description">${option.description}</div>
+                            <div class="requirements">
+                                <h5>Requirements</h5>
+                                <p>${option.requirements}</p>
+                                <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                                    (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
+                                </span>
+                            </div>
+                            <button class="proceed-button" 
+                                ${!option.requirements_met ? 'disabled' : ''}
+                                onclick="runAnalysis('${option.id}')">
+                                Run Analysis
+                            </button>
+                        `;
+                        analysisDetails.innerHTML = detailsHtml;
+                    }
+                }
+            });
+        });
+    }
+
+    function displayOneSampleTTestDetails(option) {
+        const analysisDetails = document.getElementById('analysisDetails');
+        
+        // First, get the column types to populate the picker
+        fetch('/api/descriptive-stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const numericColumns = data.stats.column_types.columns.filter(col => {
+                        // Filter for numeric columns only
+                        return data.stats.column_types.numeric > 0;
+                    });
+
                     const detailsHtml = `
                         <h4>${option.name}</h4>
                         <div class="description">${option.description}</div>
@@ -402,16 +442,81 @@ document.addEventListener('DOMContentLoaded', function() {
                                 (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
                             </span>
                         </div>
-                        <button class="proceed-button" 
-                            ${!option.requirements_met ? 'disabled' : ''}
-                            onclick="runAnalysis('${option.id}')">
-                            Run Analysis
-                        </button>
+                        <div class="analysis-setup">
+                            <h5>Analysis Setup</h5>
+                            <div class="column-picker">
+                                <label for="tTestColumnSelect">Select Variable:</label>
+                                <select id="tTestColumnSelect" class="column-select">
+                                    <option value="">Select a numeric variable...</option>
+                                    ${numericColumns.map(col => `<option value="${col}">${col}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="hypothesis-value">
+                                <label for="hypothesisValue">Hypothesized Mean:</label>
+                                <input type="number" id="hypothesisValue" class="hypothesis-input" step="any">
+                            </div>
+                            <div class="confidence-level">
+                                <label for="confidenceLevel">Confidence Level:</label>
+                                <select id="confidenceLevel" class="confidence-select">
+                                    <option value="0.95">95%</option>
+                                    <option value="0.99">99%</option>
+                                    <option value="0.90">90%</option>
+                                </select>
+                            </div>
+                            <div id="tTestResults" class="analysis-results"></div>
+                            <button class="proceed-button" 
+                                ${!option.requirements_met ? 'disabled' : ''}
+                                onclick="runOneSampleTTest()">
+                                Run Analysis
+                            </button>
+                        </div>
                     `;
                     analysisDetails.innerHTML = detailsHtml;
+
+                    // Add event listener for column selection
+                    const columnSelect = document.getElementById('tTestColumnSelect');
+                    if (columnSelect) {
+                        columnSelect.addEventListener('change', (e) => {
+                            if (e.target.value) {
+                                fetchColumnData(e.target.value);
+                            } else {
+                                document.getElementById('tTestResults').innerHTML = '';
+                            }
+                        });
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to load column data');
                 }
+            })
+            .catch(error => {
+                console.error('Error loading column data:', error);
+                analysisDetails.innerHTML = `
+                    <div class="error-message">
+                        Error loading column data: ${error.message}
+                    </div>
+                `;
             });
-        });
+    }
+
+    function runOneSampleTTest() {
+        const columnName = document.getElementById('tTestColumnSelect').value;
+        const hypothesisValue = document.getElementById('hypothesisValue').value;
+        const confidenceLevel = document.getElementById('confidenceLevel').value;
+
+        if (!columnName || !hypothesisValue) {
+            alert('Please select a variable and enter a hypothesized mean value');
+            return;
+        }
+
+        // Here you would typically make an API call to run the t-test
+        // For now, we'll just show a placeholder message
+        const resultsDiv = document.getElementById('tTestResults');
+        resultsDiv.innerHTML = `
+            <div class="analysis-results">
+                <h5>Analysis Results</h5>
+                <p>Running one-sample t-test for variable "${columnName}" with hypothesized mean ${hypothesisValue}...</p>
+            </div>
+        `;
     }
 
     // Function to run analysis (placeholder for now)
