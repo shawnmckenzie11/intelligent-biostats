@@ -73,30 +73,17 @@
         <!-- Analysis Tabs Section -->
         <div class="analysis-tabs-section" id="analysisTabsSection" style="display: none;">
             <div class="tabs">
-                <button class="tab-button active" data-tab="descriptive">Descriptive Statistics</button>
+                <button class="tab-button" data-tab="recommendations">Smart Recommendations</button>
                 <button class="tab-button" data-tab="analyses">Available Analyses</button>
                 <button class="tab-button" data-tab="history">Analysis History</button>
-                <button class="tab-button" data-tab="recommendations">Smart Recommendations</button>
             </div>
 
             <!-- Tab Content -->
             <div class="tab-content">
-                <!-- Descriptive Statistics Tab -->
-                <div id="descriptiveTab" class="tab-pane active">
-                    <h3>Dataset Overview</h3>
-                    <div id="descriptiveStats" class="stats-container">
-                        <div class="stats-summary"></div>
-                        <div class="column-picker">
-                            <h4>Column Analysis</h4>
-                            <select id="columnSelect" class="column-select">
-                                <option value="">Select a column...</option>
-                            </select>
-                            <div class="column-stats">
-                                <div id="columnStats"></div>
-                                <div id="columnData"></div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Smart Recommendations Tab -->
+                <div id="recommendationsTab" class="tab-pane active">
+                    <h3>Smart Recommendations</h3>
+                    <div id="smartRecommendations"></div>
                 </div>
 
                 <!-- Available Analyses Tab -->
@@ -121,12 +108,6 @@
                 <div id="historyTab" class="tab-pane">
                     <h3>Analysis History</h3>
                     <div id="analysisHistory"></div>
-                </div>
-
-                <!-- Smart Recommendations Tab -->
-                <div id="recommendationsTab" class="tab-pane">
-                    <h3>Smart Recommendations</h3>
-                    <div id="smartRecommendations"></div>
                 </div>
             </div>
         </div>
