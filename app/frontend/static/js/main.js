@@ -165,9 +165,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Update preview table with new data
                     if (data.preview) {
-                        updatePreviewTable(data.preview);
-                    }
-                    
+                    updatePreviewTable(data.preview);
+                }
+                
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
                     statusElement.textContent = 'Modifications Applied Successfully';
@@ -581,144 +581,110 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('smartRecommendations');
         let html = '<div class="recommendations-container">';
         
-        // Display critical issues first
-        if (recommendations.critical_issues.length > 0) {
-            html += `
-                <div class="recommendations-section critical">
-                    <h4>Critical Issues</h4>
-                    <p class="section-description">These issues must be addressed before proceeding with analysis.</p>
-                    ${recommendations.critical_issues.map(issue => `
-                        <div class="recommendation-card critical">
-                            <h5>${issue.message}</h5>
-                            ${issue.details ? `
-                                <div class="details">
-                                    ${Object.entries(issue.details).map(([key, value]) => `
-                                        <p><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> 
-                                        ${typeof value === 'object' ? JSON.stringify(value) : value}</p>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            <div class="recommendations-list">
-                                <p class="suggested-tests">Suggested approaches: ${issue.suggested_tests.join(', ')}</p>
-                                ${issue.references ? `
-                                    <p class="references">References: ${issue.references.join(', ')}</p>
-                                ` : ''}
-                            </div>
+        // Create sections with lazy loading
+        const sections = [
+            {
+                id: 'critical',
+                title: 'Critical Issues',
+                description: 'These issues must be addressed before proceeding with analysis.',
+                data: recommendations.critical_issues,
+                priority: 1
+            },
+            {
+                id: 'high-priority',
+                title: 'High Priority Recommendations',
+                description: 'Important considerations that may affect your analysis.',
+                data: recommendations.high_priority,
+                priority: 2
+            },
+            {
+                id: 'suggested',
+                title: 'Suggested Analyses',
+                description: 'Recommended statistical approaches based on your data structure.',
+                data: recommendations.suggested_analyses,
+                priority: 3
+            },
+            {
+                id: 'quality',
+                title: 'Data Quality Considerations',
+                description: 'Issues that may affect data quality and reliability.',
+                data: recommendations.data_quality,
+                priority: 4
+            },
+            {
+                id: 'methodological',
+                title: 'Methodological Notes',
+                description: 'General considerations for statistical analysis.',
+                data: recommendations.methodological_notes,
+                priority: 5
+            }
+        ];
+
+        // Sort sections by priority
+        sections.sort((a, b) => a.priority - b.priority);
+
+        // Create section placeholders
+        sections.forEach(section => {
+            if (section.data.length > 0) {
+                html += `
+                    <div class="recommendations-section ${section.id}" id="${section.id}-section">
+                        <h4>${section.title}</h4>
+                        <p class="section-description">${section.description}</p>
+                        <div class="recommendations-content" id="${section.id}-content">
+                            <div class="loading-placeholder">Loading recommendations...</div>
                         </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        // Display high priority recommendations
-        if (recommendations.high_priority.length > 0) {
-            html += `
-                <div class="recommendations-section high-priority">
-                    <h4>High Priority Recommendations</h4>
-                    <p class="section-description">Important considerations that may affect your analysis.</p>
-                    ${recommendations.high_priority.map(rec => `
-                        <div class="recommendation-card high-priority">
-                            <h5>${rec.message}</h5>
-                            ${rec.details ? `
-                                <div class="details">
-                                    ${Object.entries(rec.details).map(([key, value]) => `
-                                        <p><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> 
-                                        ${typeof value === 'object' ? JSON.stringify(value) : value}</p>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            <div class="recommendations-list">
-                                <p class="suggested-tests">Suggested approaches: ${rec.suggested_tests.join(', ')}</p>
-                                ${rec.references ? `
-                                    <p class="references">References: ${rec.references.join(', ')}</p>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        // Display suggested analyses
-        if (recommendations.suggested_analyses.length > 0) {
-            html += `
-                <div class="recommendations-section suggested">
-                    <h4>Suggested Analyses</h4>
-                    <p class="section-description">Recommended statistical approaches based on your data structure.</p>
-                    ${recommendations.suggested_analyses.map(analysis => `
-                        <div class="recommendation-card suggested">
-                            <h5>${analysis.message}</h5>
-                            ${analysis.details ? `
-                                <div class="details">
-                                    ${Object.entries(analysis.details).map(([key, value]) => `
-                                        <p><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> 
-                                        ${typeof value === 'object' ? JSON.stringify(value) : value}</p>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            <div class="recommendations-list">
-                                <p class="suggested-tests">Suggested tests: ${analysis.suggested_tests.join(', ')}</p>
-                                ${analysis.references ? `
-                                    <p class="references">References: ${analysis.references.join(', ')}</p>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        // Display data quality considerations
-        if (recommendations.data_quality.length > 0) {
-            html += `
-                <div class="recommendations-section quality">
-                    <h4>Data Quality Considerations</h4>
-                    <p class="section-description">Issues that may affect data quality and reliability.</p>
-                    ${recommendations.data_quality.map(issue => `
-                        <div class="recommendation-card quality">
-                            <h5>${issue.message}</h5>
-                            ${issue.details ? `
-                                <div class="details">
-                                    ${Object.entries(issue.details).map(([key, value]) => `
-                                        <p><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> 
-                                        ${typeof value === 'object' ? JSON.stringify(value) : value}</p>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            <div class="recommendations-list">
-                                <p class="suggested-tests">Suggested approaches: ${issue.suggested_tests.join(', ')}</p>
-                                ${issue.references ? `
-                                    <p class="references">References: ${issue.references.join(', ')}</p>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
-        // Display methodological notes
-        if (recommendations.methodological_notes.length > 0) {
-            html += `
-                <div class="recommendations-section methodological">
-                    <h4>Methodological Notes</h4>
-                    <p class="section-description">General considerations for statistical analysis.</p>
-                    ${recommendations.methodological_notes.map(note => `
-                        <div class="recommendation-card methodological">
-                            <h5>${note.message}</h5>
-                            <div class="recommendations-list">
-                                <p class="suggested-tests">Suggested approaches: ${note.suggested_tests.join(', ')}</p>
-                                ${note.references ? `
-                                    <p class="references">References: ${note.references.join(', ')}</p>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        
+                    </div>
+                `;
+            }
+        });
+
         html += '</div>';
         container.innerHTML = html;
+
+        // Lazy load each section
+        sections.forEach(section => {
+            if (section.data.length > 0) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            loadSection(section);
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1 });
+
+                const sectionElement = document.getElementById(`${section.id}-section`);
+                if (sectionElement) {
+                    observer.observe(sectionElement);
+                }
+            }
+        });
+    }
+
+    function loadSection(section) {
+        const contentElement = document.getElementById(`${section.id}-content`);
+        if (!contentElement) return;
+
+        const recommendationsHtml = section.data.map(rec => `
+            <div class="recommendation-card ${section.id}">
+                <h5>${rec.message}</h5>
+                ${rec.details ? `
+                    <div class="details">
+                        ${Object.entries(rec.details).map(([key, value]) => `
+                            <p><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> 
+                            ${typeof value === 'object' ? JSON.stringify(value) : value}</p>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div class="recommendations-list">
+                    <p class="suggested-tests">Suggested approaches: ${rec.suggested_tests.join(', ')}</p>
+                    ${rec.references ? `
+                        <p class="references">References: ${rec.references.join(', ')}</p>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        contentElement.innerHTML = recommendationsHtml;
     }
 });
