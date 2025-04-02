@@ -417,4 +417,64 @@ body {
 
 .column-stats {
     margin-top: 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.data-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.sample-data {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 0.5rem;
+}
+
+.data-row {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-family: monospace;
+}
+
+.data-row:last-child {
+    border-bottom: none;
+}
+
+.value-distribution {
+    margin: 0.5rem 0;
+}
+
+.value-distribution ul {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0.5rem 0;
+}
+
+.value-distribution li {
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+/* Scrollbar styling for sample data */
+.sample-data::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sample-data::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.sample-data::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.sample-data::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }

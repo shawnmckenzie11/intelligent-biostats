@@ -173,3 +173,84 @@ def get_descriptive_stats():
             'success': False,
             'error': str(e)
         }), 400
+
+@api.route('/column-data/<column_name>', methods=['GET'])
+def get_column_data(column_name):
+    """Get detailed data and statistics for a specific column."""
+    try:
+        global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+            
+        if column_name not in current_df.columns:
+            return jsonify({
+                'success': False,
+                'error': 'Column not found'
+            }), 400
+            
+        # Get column data and statistics
+        column_data = current_df[column_name]
+        
+        # Determine column type
+        col_type = None
+        if pd.api.types.is_numeric_dtype(column_data):
+            col_type = 'numeric'
+            if column_data.nunique() < 20:  # threshold for discrete
+                col_type = 'discrete'
+        elif column_data.nunique() == 2:
+            col_type = 'boolean'
+        elif pd.api.types.is_datetime64_any_dtype(column_data):
+            col_type = 'timeseries'
+        else:
+            col_type = 'categorical'
+        
+        # Get basic statistics
+        stats = {
+            'Type': col_type,
+            'Missing Values': str(column_data.isna().sum()),
+            'Unique Values': str(column_data.nunique())
+        }
+        
+        # Add type-specific statistics
+        if col_type in ['numeric', 'discrete']:
+            stats.update({
+                'Mean': f"{column_data.mean():.2f}",
+                'Median': f"{column_data.median():.2f}",
+                'Std Dev': f"{column_data.std():.2f}",
+                'Min': f"{column_data.min():.2f}",
+                'Max': f"{column_data.max():.2f}"
+            })
+        elif col_type == 'categorical':
+            value_counts = column_data.value_counts()
+            stats['Most Common'] = f"{value_counts.index[0]} ({value_counts.iloc[0]} times)"
+            stats['Value Distribution'] = value_counts.head(5).to_dict()
+        elif col_type == 'boolean':
+            value_counts = column_data.value_counts()
+            stats['True Count'] = str(value_counts.get(True, 0))
+            stats['False Count'] = str(value_counts.get(False, 0))
+        elif col_type == 'timeseries':
+            stats.update({
+                'Start Date': str(column_data.min()),
+                'End Date': str(column_data.max()),
+                'Date Range': f"{column_data.max() - column_data.min()}"
+            })
+        
+        # Get sample data (first 10 rows)
+        sample_data = column_data.head(10).tolist()
+        
+        return jsonify({
+            'success': True,
+            'column_data': {
+                'stats': stats,
+                'sample_data': sample_data
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
