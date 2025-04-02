@@ -325,11 +325,26 @@ def get_smart_recommendations():
                 'error': 'No data loaded'
             }), 400
             
-        # Get distribution insights for numeric columns
-        distribution_insights = ai_engine.get_distribution_insights(current_df)
+        # Get column types
+        numeric_cols = current_df.select_dtypes(include=[np.number]).columns
+        categorical_cols = current_df.select_dtypes(include=['object', 'category']).columns
+        boolean_cols = [col for col in current_df.columns if current_df[col].nunique() == 2]
         
-        # Get analysis recommendations
-        analysis_recommendations = ai_engine.get_analysis_recommendations(current_df)
+        # For large datasets, limit analysis to most relevant columns
+        MAX_COLS_PER_TYPE = 20  # Maximum number of columns to analyze per type
+        
+        # Select most relevant numeric columns (those with highest variance)
+        if len(numeric_cols) > MAX_COLS_PER_TYPE:
+            variances = current_df[numeric_cols].var()
+            numeric_cols = variances.nlargest(MAX_COLS_PER_TYPE).index
+        
+        # Select most relevant categorical columns (those with most unique values)
+        if len(categorical_cols) > MAX_COLS_PER_TYPE:
+            unique_counts = current_df[categorical_cols].nunique()
+            categorical_cols = unique_counts.nlargest(MAX_COLS_PER_TYPE).index
+        
+        # Get distribution insights only for selected numeric columns
+        distribution_insights = ai_engine.get_distribution_insights(current_df[numeric_cols])
         
         # Organize recommendations by priority and strength
         recommendations = {
@@ -343,12 +358,15 @@ def get_smart_recommendations():
         # Process critical issues first
         missing_data = current_df.isnull().sum()
         if missing_data.any():
+            # Only show top 5 columns with missing data
+            top_missing = missing_data[missing_data > 0].nlargest(5)
             recommendations['critical_issues'].append({
                 'type': 'missing_data',
                 'message': 'Missing data detected. This must be addressed before analysis.',
                 'details': {
-                    'affected_columns': missing_data[missing_data > 0].index.tolist(),
-                    'missing_counts': missing_data[missing_data > 0].to_dict()
+                    'affected_columns': top_missing.index.tolist(),
+                    'missing_counts': top_missing.to_dict(),
+                    'total_columns_with_missing': len(missing_data[missing_data > 0])
                 },
                 'suggested_tests': ['Multiple imputation', 'Complete case analysis'],
                 'references': ['Rubin, D.B. (1976). Inference and Missing Data']
@@ -385,16 +403,13 @@ def get_smart_recommendations():
                 })
         
         # Process suggested analyses based on data structure
-        numeric_cols = current_df.select_dtypes(include=[np.number]).columns
-        categorical_cols = current_df.select_dtypes(include=['object', 'category']).columns
-        boolean_cols = [col for col in current_df.columns if current_df[col].nunique() == 2]
-        
         if len(numeric_cols) >= 2:
             recommendations['suggested_analyses'].append({
                 'type': 'correlation',
                 'message': 'Multiple numeric variables present. Consider correlation analysis.',
                 'details': {
-                    'variable_count': len(numeric_cols)
+                    'variable_count': len(numeric_cols),
+                    'analyzed_columns': numeric_cols.tolist()
                 },
                 'suggested_tests': ['Pearson correlation', 'Spearman correlation'],
                 'references': ['Pearson, K. (1895). Notes on regression and inheritance']
@@ -405,26 +420,27 @@ def get_smart_recommendations():
                 'type': 'categorical',
                 'message': 'Multiple categorical variables present. Consider contingency analysis.',
                 'details': {
-                    'variable_count': len(categorical_cols)
+                    'variable_count': len(categorical_cols),
+                    'analyzed_columns': categorical_cols.tolist()
                 },
                 'suggested_tests': ['Chi-square test', 'Fisher\'s exact test'],
                 'references': ['Fisher, R.A. (1922). On the interpretation of chi-square']
             })
         
         # Process data quality considerations
-        for col in current_df.columns:
-            unique_values = current_df[col].nunique()
-            if unique_values == 1:
-                recommendations['data_quality'].append({
-                    'type': 'constant_variable',
-                    'message': f'Constant values detected in {col}.',
-                    'details': {
-                        'column': col,
-                        'unique_values': unique_values
-                    },
-                    'suggested_tests': ['Variable removal', 'Data validation'],
-                    'references': ['Tukey, J.W. (1977). Exploratory Data Analysis']
-                })
+        constant_cols = [col for col in current_df.columns if current_df[col].nunique() == 1]
+        if constant_cols:
+            # Only show first 5 constant columns
+            recommendations['data_quality'].append({
+                'type': 'constant_variable',
+                'message': f'Constant values detected in {len(constant_cols)} columns.',
+                'details': {
+                    'example_columns': constant_cols[:5],
+                    'total_constant_columns': len(constant_cols)
+                },
+                'suggested_tests': ['Variable removal', 'Data validation'],
+                'references': ['Tukey, J.W. (1977). Exploratory Data Analysis']
+            })
         
         # Add methodological notes
         recommendations['methodological_notes'].append({
