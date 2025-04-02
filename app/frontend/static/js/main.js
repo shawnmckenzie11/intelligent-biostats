@@ -162,26 +162,33 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log('Modification response:', data);
                 
-                if (data.success && data.preview) {
-                    updatePreviewTable(data.preview);
-                }
-                
-                document.getElementById('modificationStatus').textContent = data.message;
-                document.getElementById('modificationStatus').className = 
-                    data.success ? 'status-message success' : 'status-message error';
-                
                 if (data.success) {
+                    // Update preview table with new data
+                    if (data.preview) {
+                        updatePreviewTable(data.preview);
+                    }
+                    
+                    // Update status message
+                    const statusElement = document.getElementById('modificationStatus');
+                    statusElement.textContent = 'Modifications Applied Successfully';
+                    statusElement.className = 'status-message success';
+                    
+                    // Hide modify section and show analysis tabs after a delay
                     setTimeout(() => {
                         document.getElementById('modifySection').style.display = 'none';
                         showAnalysisTabs(); // Show tabs and initialize
+                        getAnalysisOptions(); // Refresh analysis options
+                        loadDescriptiveStats(); // Refresh descriptive stats
                     }, 1500);
-                    return getAnalysisOptions();
+                } else {
+                    throw new Error(data.error || 'Failed to apply modifications');
                 }
             })
             .catch(error => {
                 console.error('Modification error:', error);
-                document.getElementById('modificationStatus').textContent = 'Error: ' + error.message;
-                document.getElementById('modificationStatus').className = 'status-message error';
+                const statusElement = document.getElementById('modificationStatus');
+                statusElement.textContent = 'Error: ' + error.message;
+                statusElement.className = 'status-message error';
             });
         } else {
             // If no modifications, directly show analysis tabs
@@ -404,41 +411,69 @@ document.addEventListener('DOMContentLoaded', function() {
             
         select.addEventListener('change', (e) => {
             if (e.target.value) {
-                fetchColumnStats(e.target.value);
+                fetchColumnData(e.target.value);
             } else {
                 document.getElementById('columnStats').innerHTML = '';
+                document.getElementById('columnData').innerHTML = '';
             }
         });
     }
 
-    // Add fetchColumnStats function that was referenced but not defined
-    function fetchColumnStats(columnName) {
-        fetch(`/api/column-stats/${encodeURIComponent(columnName)}`)
+    function fetchColumnData(columnName) {
+        fetch(`/api/column-data/${encodeURIComponent(columnName)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    displayColumnStats(data.stats);
+                    displayColumnData(data.column_data);
                 } else {
-                    throw new Error(data.error || 'Failed to load column statistics');
+                    throw new Error(data.error || 'Failed to load column data');
                 }
             })
             .catch(error => {
-                console.error('Error loading column stats:', error);
+                console.error('Error loading column data:', error);
                 document.getElementById('columnStats').innerHTML = 
-                    `<div class="error-message">Error loading column statistics: ${error.message}</div>`;
+                    `<div class="error-message">Error loading column data: ${error.message}</div>`;
             });
     }
 
-    function displayColumnStats(stats) {
-        const columnStats = document.getElementById('columnStats');
+    function displayColumnData(columnData) {
+        const statsContainer = document.getElementById('columnStats');
+        const dataContainer = document.getElementById('columnData');
+        
+        // Display statistics
         let statsHtml = `
             <div class="stats-card">
                 <h4>Column Statistics</h4>
-                ${Object.entries(stats).map(([key, value]) => `
-                    <p><strong>${key}:</strong> ${value}</p>
-                `).join('')}
+                ${Object.entries(columnData.stats).map(([key, value]) => {
+                    if (key === 'Value Distribution') {
+                        return `
+                            <div class="value-distribution">
+                                <strong>${key}:</strong>
+                                <ul>
+                                    ${Object.entries(value).map(([val, count]) => 
+                                        `<li>${val}: ${count}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    return `<p><strong>${key}:</strong> ${value}</p>`;
+                }).join('')}
             </div>
         `;
-        columnStats.innerHTML = statsHtml;
+        statsContainer.innerHTML = statsHtml;
+        
+        // Display sample data
+        let dataHtml = `
+            <div class="data-card">
+                <h4>Sample Data (First 10 rows)</h4>
+                <div class="sample-data">
+                    ${columnData.sample_data.map((value, index) => 
+                        `<div class="data-row">${index + 1}. ${value}</div>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+        dataContainer.innerHTML = dataHtml;
     }
 });
