@@ -89,13 +89,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function initializeCollapsiblePreview() {
         const toggleButton = document.getElementById('togglePreview');
+        const previewHeader = toggleButton.parentElement;
         const previewContent = document.getElementById('previewContent');
         const toggleIcon = toggleButton.querySelector('.toggle-icon');
         
         // Set initial state (expanded)
         previewContent.style.maxHeight = '500px';
         
-        toggleButton.addEventListener('click', () => {
+        // Add click handler to the entire header
+        previewHeader.addEventListener('click', (e) => {
+            // Prevent double-triggering if clicking the toggle button
+            if (e.target === toggleButton || e.target === toggleIcon) {
+                return;
+            }
+            
+            const isCollapsed = previewContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                previewContent.classList.remove('collapsed');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                previewContent.style.maxHeight = '500px';
+            } else {
+                // Collapse
+                previewContent.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(-90deg)';
+                previewContent.style.maxHeight = '0';
+            }
+        });
+        
+        // Keep the toggle button click handler
+        toggleButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent header click from triggering
             const isCollapsed = previewContent.classList.contains('collapsed');
             
             if (isCollapsed) {
@@ -114,6 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function initializeDescriptiveSection() {
         const toggleButton = document.getElementById('toggleDescriptive');
+        const descriptiveHeader = toggleButton.parentElement;
         const descriptiveContent = document.getElementById('descriptiveContent');
         const toggleIcon = toggleButton.querySelector('.toggle-icon');
         
@@ -141,7 +167,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        toggleButton.addEventListener('click', () => {
+        // Add click handler to the entire header
+        descriptiveHeader.addEventListener('click', (e) => {
+            // Prevent double-triggering if clicking the toggle button
+            if (e.target === toggleButton || e.target === toggleIcon) {
+                return;
+            }
+            
+            const isCollapsed = descriptiveContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                descriptiveContent.classList.remove('collapsed');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                // Calculate and set the height needed for all content
+                const totalHeight = Array.from(descriptiveContent.children)
+                    .reduce((height, child) => height + child.offsetHeight, 0);
+                descriptiveContent.style.maxHeight = `${totalHeight + 50}px`;
+            } else {
+                // Collapse
+                descriptiveContent.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(-90deg)';
+                descriptiveContent.style.maxHeight = '0';
+            }
+        });
+        
+        // Keep the toggle button click handler
+        toggleButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent header click from triggering
             const isCollapsed = descriptiveContent.classList.contains('collapsed');
             
             if (isCollapsed) {
@@ -206,8 +259,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Load appropriate data based on tab
                 if (tabName === 'analyses') {
                     getAnalysisOptions();
-                } else if (tabName === 'descriptive') {
-                    loadDescriptiveStats();
+                } else if (tabName === 'recommendations') {
+                    loadSmartRecommendations();
                 }
             });
         });
@@ -219,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (analysisTabsSection) {
             analysisTabsSection.style.display = 'block';
             initializeTabs(); // Reinitialize tabs when showing the section
-            loadDescriptiveStats(); // Load initial stats since descriptive is the default tab
+            loadSmartRecommendations(); // Load initial recommendations since it's the default tab
         }
     }
 
@@ -244,8 +297,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Update preview table with new data
                     if (data.preview) {
-                        updatePreviewTable(data.preview);
-                    }
+                    updatePreviewTable(data.preview);
+                }
                 
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
@@ -361,31 +414,50 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // Update displayAnalysisOptions to include search initialization
+    // Update displayAnalysisOptions to create separate tabs for each analysis type
     function displayAnalysisOptions(options) {
         const analysisOptions = document.getElementById('analysisOptions');
         if (!analysisOptions) return;
 
-        let optionsHtml = '';
+        // Group options by type
+        const groupedOptions = {};
         options.forEach(option => {
+            const type = option.type || 'Other';
+            if (!groupedOptions[type]) {
+                groupedOptions[type] = [];
+            }
+            groupedOptions[type].push(option);
+        });
+
+        // Create HTML for each analysis type
+        let optionsHtml = '';
+        Object.entries(groupedOptions).forEach(([type, typeOptions]) => {
             optionsHtml += `
-                <div class="analysis-option">
-                    <h3>${option.name}</h3>
-                    <div class="description">${option.description}</div>
-                    <button class="proceed-button" 
-                        ${!option.requirements_met ? 'disabled' : ''}
-                        onclick="runAnalysis('${option.id}')">
-                        Run Analysis
-                    </button>
-                    <div class="requirements">
-                        Requirements: ${option.requirements}
-                        <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
-                            (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
-                        </span>
+                <div class="analysis-type-section">
+                    <h4>${type}</h4>
+                    <div class="analysis-options">
+                        ${typeOptions.map(option => `
+                            <div class="analysis-option">
+                                <h3>${option.name}</h3>
+                                <div class="description">${option.description}</div>
+                                <button class="proceed-button" 
+                                    ${!option.requirements_met ? 'disabled' : ''}
+                                    onclick="runAnalysis('${option.id}')">
+                                    Run Analysis
+                                </button>
+                                <div class="requirements">
+                                    Requirements: ${option.requirements}
+                                    <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                                        (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
         });
+
         analysisOptions.innerHTML = optionsHtml;
         
         // Initialize search after options are displayed
