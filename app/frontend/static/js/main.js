@@ -235,6 +235,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Initialize tabs when document loads AND when analysis section is shown
+    function showAnalysisTabs() {
+        const analysisTabsSection = document.getElementById('analysisTabsSection');
+        if (analysisTabsSection) {
+            analysisTabsSection.style.display = 'block';
+            initializeTabs(); // Reinitialize tabs when showing the section
+            loadSmartRecommendations(); // Load smart recommendations by default
+        }
+    }
+
     // Add tab handling functionality
     function initializeTabs() {
         const tabButtons = document.querySelectorAll('.tab-button');
@@ -264,15 +274,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
-    }
 
-    // Initialize tabs when document loads AND when analysis section is shown
-    function showAnalysisTabs() {
-        const analysisTabsSection = document.getElementById('analysisTabsSection');
-        if (analysisTabsSection) {
-            analysisTabsSection.style.display = 'block';
-            initializeTabs(); // Reinitialize tabs when showing the section
-            loadSmartRecommendations(); // Load initial recommendations since it's the default tab
+        // Set initial active tab to recommendations
+        const recommendationsButton = document.querySelector('[data-tab="recommendations"]');
+        const recommendationsPane = document.getElementById('recommendationsTab');
+        if (recommendationsButton && recommendationsPane) {
+            recommendationsButton.classList.add('active');
+            recommendationsPane.classList.add('active');
         }
     }
 
@@ -355,113 +363,55 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Enhanced search functionality for analysis options
-    function initializeAnalysisSearch() {
-        const searchInput = document.getElementById('analysisSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', debounce(function() {
-                const searchTerm = this.value.toLowerCase().trim();
-                const options = document.querySelectorAll('.analysis-option');
-                let matchCount = 0;
-                
-                options.forEach(option => {
-                    const name = option.querySelector('h3').textContent.toLowerCase();
-                    const description = option.querySelector('.description').textContent.toLowerCase();
-                    const requirements = option.querySelector('.requirements').textContent.toLowerCase();
-                    
-                    // Check if search term matches any part of the analysis option
-                    const isMatch = name.includes(searchTerm) || 
-                                  description.includes(searchTerm) || 
-                                  requirements.includes(searchTerm);
-                    
-                    // Smooth transition for showing/hiding options
-                    if (isMatch) {
-                        option.style.display = '';
-                        option.style.opacity = '1';
-                        matchCount++;
-                    } else {
-                        option.style.opacity = '0';
-                        setTimeout(() => {
-                            option.style.display = 'none';
-                        }, 200); // Match this with CSS transition duration
-                    }
-                });
-
-                // Show message if no matches found
-                const noResultsMsg = document.getElementById('noAnalysisResults');
-                if (!noResultsMsg) {
-                    const msg = document.createElement('div');
-                    msg.id = 'noAnalysisResults';
-                    msg.className = 'no-results-message';
-                    document.getElementById('analysisOptions').appendChild(msg);
-                }
-                noResultsMsg.textContent = matchCount === 0 ? 'No matching analyses found' : '';
-                noResultsMsg.style.display = matchCount === 0 ? 'block' : 'none';
-            }, 150)); // Debounce delay of 150ms
-        }
-    }
-
-    // Debounce function to limit how often the search updates
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func.apply(this, args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    // Update displayAnalysisOptions to create separate tabs for each analysis type
+    // Update displayAnalysisOptions to use menu layout
     function displayAnalysisOptions(options) {
         const analysisOptions = document.getElementById('analysisOptions');
+        const analysisDetails = document.getElementById('analysisDetails');
         if (!analysisOptions) return;
 
-        // Group options by type
-        const groupedOptions = {};
+        let menuHtml = '';
         options.forEach(option => {
-            const type = option.type || 'Other';
-            if (!groupedOptions[type]) {
-                groupedOptions[type] = [];
-            }
-            groupedOptions[type].push(option);
-        });
-
-        // Create HTML for each analysis type
-        let optionsHtml = '';
-        Object.entries(groupedOptions).forEach(([type, typeOptions]) => {
-            optionsHtml += `
-                <div class="analysis-type-section">
-                    <h4>${type}</h4>
-                    <div class="analysis-options">
-                        ${typeOptions.map(option => `
-                            <div class="analysis-option">
-                                <h3>${option.name}</h3>
-                                <div class="description">${option.description}</div>
-                                <button class="proceed-button" 
-                                    ${!option.requirements_met ? 'disabled' : ''}
-                                    onclick="runAnalysis('${option.id}')">
-                                    Run Analysis
-                                </button>
-                                <div class="requirements">
-                                    Requirements: ${option.requirements}
-                                    <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
-                                        (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
-                                    </span>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
+            menuHtml += `
+                <div class="analysis-menu-item" data-analysis-id="${option.id}">
+                    ${option.name}
                 </div>
             `;
         });
-
-        analysisOptions.innerHTML = optionsHtml;
+        analysisOptions.innerHTML = menuHtml;
         
-        // Initialize search after options are displayed
-        initializeAnalysisSearch();
+        // Add click handlers for menu items
+        const menuItems = analysisOptions.querySelectorAll('.analysis-menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove active class from all items
+                menuItems.forEach(i => i.classList.remove('active'));
+                // Add active class to clicked item
+                item.classList.add('active');
+                
+                // Find the corresponding option
+                const option = options.find(opt => opt.id === item.dataset.analysisId);
+                if (option) {
+                    // Display details
+                    const detailsHtml = `
+                        <h4>${option.name}</h4>
+                        <div class="description">${option.description}</div>
+                        <div class="requirements">
+                            <h5>Requirements</h5>
+                            <p>${option.requirements}</p>
+                            <span class="requirements-status ${option.requirements_met ? 'requirements-met' : 'requirements-not-met'}">
+                                (${option.requirements_met ? '✓ Met' : '✗ Not Met'})
+                            </span>
+                        </div>
+                        <button class="proceed-button" 
+                            ${!option.requirements_met ? 'disabled' : ''}
+                            onclick="runAnalysis('${option.id}')">
+                            Run Analysis
+                        </button>
+                    `;
+                    analysisDetails.innerHTML = detailsHtml;
+                }
+            });
+        });
     }
 
     // Function to run analysis (placeholder for now)
@@ -469,22 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`Running analysis: ${analysisId}`);
         // Implementation to be added later
     }
-
-    // Add search functionality for analysis options
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('analysisSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const options = document.querySelectorAll('.analysis-option');
-                
-                options.forEach(option => {
-                    const text = option.textContent.toLowerCase();
-                    option.style.display = text.includes(searchTerm) ? '' : 'none';
-                });
-            });
-        }
-    });
 
     function updatePreviewTable(previewData) {
         console.log('Updating preview table with:', previewData);
