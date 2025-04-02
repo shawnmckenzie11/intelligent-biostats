@@ -421,7 +421,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fetchColumnData(columnName) {
         fetch(`/api/column-data/${encodeURIComponent(columnName)}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     displayColumnData(data.column_data);
@@ -431,8 +436,17 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading column data:', error);
-                document.getElementById('columnStats').innerHTML = 
-                    `<div class="error-message">Error loading column data: ${error.message}</div>`;
+                const statsContainer = document.getElementById('columnStats');
+                const dataContainer = document.getElementById('columnData');
+                
+                statsContainer.innerHTML = `
+                    <div class="error-message">
+                        Error loading column data: ${error.message}
+                        <br>
+                        Please try refreshing the page or selecting a different column.
+                    </div>
+                `;
+                dataContainer.innerHTML = '';
             });
     }
 
@@ -463,14 +477,12 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         statsContainer.innerHTML = statsHtml;
         
-        // Display sample data
+        // Display plot
         let dataHtml = `
             <div class="data-card">
-                <h4>Sample Data (First 10 rows)</h4>
-                <div class="sample-data">
-                    ${columnData.sample_data.map((value, index) => 
-                        `<div class="data-row">${index + 1}. ${value}</div>`
-                    ).join('')}
+                <h4>Data Distribution</h4>
+                <div class="plot-container">
+                    <img src="data:image/png;base64,${columnData.plot}" alt="Data Distribution" />
                 </div>
             </div>
         `;
