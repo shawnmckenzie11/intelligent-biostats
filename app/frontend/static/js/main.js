@@ -79,10 +79,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show preview sections
         uploadSection.style.display = 'none';
         dataPreview.style.display = 'block';
+        document.getElementById('descriptiveStatsSection').style.display = 'block';
         modifySection.style.display = 'block';
 
         // Initialize collapsible functionality
         initializeCollapsiblePreview();
+        initializeDescriptiveSection();
     }
 
     function initializeCollapsiblePreview() {
@@ -106,6 +108,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 previewContent.classList.add('collapsed');
                 toggleIcon.style.transform = 'rotate(-90deg)';
                 previewContent.style.maxHeight = '0';
+            }
+        });
+    }
+
+    function initializeDescriptiveSection() {
+        const toggleButton = document.getElementById('toggleDescriptive');
+        const descriptiveContent = document.getElementById('descriptiveContent');
+        const toggleIcon = toggleButton.querySelector('.toggle-icon');
+        
+        // Set initial state (expanded)
+        descriptiveContent.style.maxHeight = '500px';
+        
+        toggleButton.addEventListener('click', () => {
+            const isCollapsed = descriptiveContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                descriptiveContent.classList.remove('collapsed');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                descriptiveContent.style.maxHeight = '500px';
+            } else {
+                // Collapse
+                descriptiveContent.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(-90deg)';
+                descriptiveContent.style.maxHeight = '0';
             }
         });
     }
