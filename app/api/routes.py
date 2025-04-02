@@ -4,6 +4,11 @@ import numpy as np
 import io
 from app.core.ai_engine import AIEngine
 from collections import OrderedDict
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'
+import matplotlib.pyplot as plt
+import seaborn as sns
+import base64
 
 api = Blueprint('api', __name__)
 
@@ -174,6 +179,28 @@ def get_descriptive_stats():
             'error': str(e)
         }), 400
 
+def generate_plot(data, column_name, plot_type):
+    """Generate a plot and return it as a base64 encoded string."""
+    plt.figure(figsize=(8, 6))
+    
+    try:
+        if plot_type == 'histogram':
+            sns.histplot(data=data, x=column_name, kde=True)
+            plt.title(f'Distribution of {column_name}')
+        elif plot_type == 'barplot':
+            value_counts = data[column_name].value_counts()
+            sns.barplot(x=value_counts.index, y=value_counts.values)
+            plt.title(f'Value Distribution of {column_name}')
+            plt.xticks(rotation=45)
+        
+        # Convert plot to base64 string
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        buf.seek(0)
+        return base64.b64encode(buf.getvalue()).decode()
+    finally:
+        plt.close()  # Ensure the figure is closed even if an error occurs
+
 @api.route('/column-data/<column_name>', methods=['GET'])
 def get_column_data(column_name):
     """Get detailed data and statistics for a specific column."""
@@ -238,14 +265,18 @@ def get_column_data(column_name):
                 'Date Range': f"{column_data.max() - column_data.min()}"
             })
         
-        # Get sample data (first 10 rows)
-        sample_data = column_data.head(10).tolist()
+        # Generate appropriate plot based on column type
+        plot_data = None
+        if col_type in ['numeric', 'discrete']:
+            plot_data = generate_plot(current_df, column_name, 'histogram')
+        else:
+            plot_data = generate_plot(current_df, column_name, 'barplot')
         
         return jsonify({
             'success': True,
             'column_data': {
                 'stats': stats,
-                'sample_data': sample_data
+                'plot': plot_data
             }
         })
         
