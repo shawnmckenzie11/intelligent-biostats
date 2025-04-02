@@ -9,6 +9,7 @@ matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'
 import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
+from scipy import stats
 
 api = Blueprint('api', __name__)
 
@@ -135,7 +136,67 @@ def get_analysis_options():
 @api.route('/analyze', methods=['POST'])
 def analyze_data():
     """Perform statistical analysis."""
-    pass
+    try:
+        global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+
+        data = request.json
+        analysis_type = data.get('analysis_type')
+        
+        if analysis_type == 'one_sample_t':
+            column = data.get('column')
+            hypothesis_value = float(data.get('hypothesis_value'))
+            confidence_level = float(data.get('confidence_level'))
+            
+            if column not in current_df.columns:
+                return jsonify({
+                    'success': False,
+                    'error': f'Column {column} not found'
+                }), 400
+                
+            # Get the data for the selected column
+            sample_data = current_df[column].dropna()
+            
+            # Perform one-sample t-test
+            t_statistic, p_value = stats.ttest_1samp(sample_data, hypothesis_value)
+            
+            # Calculate confidence interval
+            ci = stats.t.interval(confidence_level, len(sample_data)-1, 
+                                loc=sample_data.mean(), 
+                                scale=stats.sem(sample_data))
+            
+            # Calculate standard error
+            std_error = stats.sem(sample_data)
+            
+            results = {
+                'statistic': float(t_statistic),
+                'p_value': float(p_value),
+                'sample_mean': float(sample_data.mean()),
+                'std_error': float(std_error),
+                'confidence_interval': [float(ci[0]), float(ci[1])],
+                'degrees_of_freedom': len(sample_data) - 1
+            }
+            
+            return jsonify({
+                'success': True,
+                'results': results
+            })
+            
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Analysis type {analysis_type} not supported'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
 @api.route('/recommendations', methods=['GET'])
 def get_recommendations():
@@ -210,7 +271,6 @@ def generate_plot(data, column_name, plot_type):
             sns.boxplot(y=data[column_name])
             plt.title(f'Box Plot of {column_name}')
         elif plot_type == 'qqplot':
-            from scipy import stats
             stats.probplot(data[column_name].dropna(), dist="norm", plot=plt)
             plt.title(f'Q-Q Plot of {column_name}')
         elif plot_type == 'barplot':

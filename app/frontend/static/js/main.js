@@ -1,4 +1,92 @@
 // Main application JavaScript
+
+// Define runOneSampleTTest globally
+function runOneSampleTTest() {
+    const columnName = document.getElementById('tTestColumnSelect').value;
+    const hypothesisValue = parseFloat(document.getElementById('hypothesisValue').value);
+    const confidenceLevel = parseFloat(document.getElementById('confidenceLevel').value);
+
+    if (!columnName || isNaN(hypothesisValue)) {
+        alert('Please select a variable and enter a valid hypothesized mean value');
+        return;
+    }
+
+    // Create results container if it doesn't exist
+    let resultsDiv = document.getElementById('tTestResults');
+    if (!resultsDiv) {
+        resultsDiv = document.createElement('div');
+        resultsDiv.id = 'tTestResults';
+        document.querySelector('.analysis-setup').appendChild(resultsDiv);
+    }
+
+    // Show loading state
+    resultsDiv.innerHTML = `
+        <div class="analysis-results">
+            <h5>Analysis Results</h5>
+            <p>Running one-sample t-test for variable "${columnName}" with hypothesized mean ${hypothesisValue}...</p>
+        </div>
+    `;
+
+    // Make API call to run the t-test
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            analysis_type: 'one_sample_t',
+            column: columnName,
+            hypothesis_value: hypothesisValue,
+            confidence_level: confidenceLevel
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Format the results
+            const results = data.results;
+            const pValue = parseFloat(results.p_value).toFixed(4);
+            const tStatistic = parseFloat(results.statistic).toFixed(4);
+            const mean = parseFloat(results.sample_mean).toFixed(4);
+            const stdErr = parseFloat(results.std_error).toFixed(4);
+            const ciLower = parseFloat(results.confidence_interval[0]).toFixed(4);
+            const ciUpper = parseFloat(results.confidence_interval[1]).toFixed(4);
+            
+            // Determine if the result is significant
+            const isSignificant = results.p_value < (1 - confidenceLevel);
+            const significanceText = isSignificant ? 
+                `significant at the ${(confidenceLevel * 100)}% confidence level` : 
+                `not significant at the ${(confidenceLevel * 100)}% confidence level`;
+
+            resultsDiv.innerHTML = `
+                <div class="analysis-results">
+                    <h5>One-Sample T-Test Results</h5>
+                    <p><strong>Variable:</strong> ${columnName}</p>
+                    <p><strong>Hypothesized Mean:</strong> ${hypothesisValue}</p>
+                    <p><strong>Sample Mean:</strong> ${mean}</p>
+                    <p><strong>Standard Error:</strong> ${stdErr}</p>
+                    <p><strong>t-statistic:</strong> ${tStatistic}</p>
+                    <p><strong>Degrees of Freedom:</strong> ${results.degrees_of_freedom}</p>
+                    <p><strong>p-value:</strong> ${pValue}</p>
+                    <p><strong>${(confidenceLevel * 100)}% Confidence Interval:</strong> (${ciLower}, ${ciUpper})</p>
+                    <p><strong>Conclusion:</strong> The difference between the sample mean and hypothesized mean is ${significanceText}.</p>
+                </div>
+            `;
+        } else {
+            throw new Error(data.error || 'Failed to run analysis');
+        }
+    })
+    .catch(error => {
+        console.error('Error running t-test:', error);
+        resultsDiv.innerHTML = `
+            <div class="analysis-results">
+                <h5>Error</h5>
+                <p class="error-message">Failed to run analysis: ${error.message}</p>
+            </div>
+        `;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -500,27 +588,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
-    }
-
-    function runOneSampleTTest() {
-        const columnName = document.getElementById('tTestColumnSelect').value;
-        const hypothesisValue = document.getElementById('hypothesisValue').value;
-        const confidenceLevel = document.getElementById('confidenceLevel').value;
-
-        if (!columnName || !hypothesisValue) {
-            alert('Please select a variable and enter a hypothesized mean value');
-            return;
-        }
-
-        // Here you would typically make an API call to run the t-test
-        // For now, we'll just show a placeholder message
-        const resultsDiv = document.getElementById('tTestResults');
-        resultsDiv.innerHTML = `
-            <div class="analysis-results">
-                <h5>Analysis Results</h5>
-                <p>Running one-sample t-test for variable "${columnName}" with hypothesized mean ${hypothesisValue}...</p>
-            </div>
-        `;
     }
 
     // Function to run analysis (placeholder for now)
