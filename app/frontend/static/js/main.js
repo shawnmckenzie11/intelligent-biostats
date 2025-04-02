@@ -454,38 +454,106 @@ document.addEventListener('DOMContentLoaded', function() {
         const statsContainer = document.getElementById('columnStats');
         const dataContainer = document.getElementById('columnData');
         
-        // Display statistics
+        // Display statistics in a side-by-side layout
         let statsHtml = `
             <div class="stats-card">
-                <h4>Column Statistics</h4>
-                ${Object.entries(columnData.stats).map(([key, value]) => {
-                    if (key === 'Value Distribution') {
-                        return `
-                            <div class="value-distribution">
-                                <strong>${key}:</strong>
-                                <ul>
-                                    ${Object.entries(value).map(([val, count]) => 
-                                        `<li>${val}: ${count}</li>`
-                                    ).join('')}
-                                </ul>
-                            </div>
-                        `;
-                    }
-                    return `<p><strong>${key}:</strong> ${value}</p>`;
-                }).join('')}
+                <h4>Basic Info</h4>
+                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
+                <p><strong>Missing:</strong> ${columnData.stats['Missing Values']}</p>
+                <p><strong>Unique:</strong> ${columnData.stats['Unique Values']}</p>
             </div>
         `;
+
+        // Add type-specific statistics
+        if (columnData.stats.Type === 'numeric' || columnData.stats.Type === 'discrete') {
+            statsHtml += `
+                <div class="stats-card">
+                    <h4>Numeric Stats</h4>
+                    <p><strong>Mean:</strong> ${columnData.stats.Mean}</p>
+                    <p><strong>Median:</strong> ${columnData.stats.Median}</p>
+                    <p><strong>Std Dev:</strong> ${columnData.stats['Std Dev']}</p>
+                </div>
+                <div class="stats-card">
+                    <h4>Range</h4>
+                    <p><strong>Min:</strong> ${columnData.stats.Min}</p>
+                    <p><strong>Max:</strong> ${columnData.stats.Max}</p>
+                </div>
+            `;
+        } else if (columnData.stats.Type === 'categorical') {
+            statsHtml += `
+                <div class="stats-card">
+                    <h4>Distribution</h4>
+                    <p><strong>Most Common:</strong> ${columnData.stats['Most Common']}</p>
+                    <div class="value-distribution">
+                        <strong>Top Values:</strong>
+                        <ul>
+                            ${Object.entries(columnData.stats['Value Distribution']).map(([val, count]) => 
+                                `<li>${val}: ${count}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        } else if (columnData.stats.Type === 'boolean') {
+            statsHtml += `
+                <div class="stats-card">
+                    <h4>Counts</h4>
+                    <p><strong>True:</strong> ${columnData.stats['True Count']}</p>
+                    <p><strong>False:</strong> ${columnData.stats['False Count']}</p>
+                </div>
+            `;
+        } else if (columnData.stats.Type === 'timeseries') {
+            statsHtml += `
+                <div class="stats-card">
+                    <h4>Time Range</h4>
+                    <p><strong>Start:</strong> ${columnData.stats['Start Date']}</p>
+                    <p><strong>End:</strong> ${columnData.stats['End Date']}</p>
+                    <p><strong>Range:</strong> ${columnData.stats['Date Range']}</p>
+                </div>
+            `;
+        }
+
         statsContainer.innerHTML = statsHtml;
         
-        // Display plot
-        let dataHtml = `
-            <div class="data-card">
-                <h4>Data Distribution</h4>
-                <div class="plot-container">
-                    <img src="data:image/png;base64,${columnData.plot}" alt="Data Distribution" />
+        // Display plots in a 2x2 grid
+        let plotsHtml = '<div class="plots-container">';
+        Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
+            let plotTitle = '';
+            switch(plotType) {
+                case 'histogram':
+                    plotTitle = 'Distribution';
+                    break;
+                case 'density':
+                    plotTitle = 'Density Plot';
+                    break;
+                case 'boxplot':
+                    plotTitle = 'Box Plot';
+                    break;
+                case 'qqplot':
+                    plotTitle = 'Q-Q Plot';
+                    break;
+                case 'barplot':
+                    plotTitle = 'Value Distribution';
+                    break;
+                case 'pie':
+                    plotTitle = 'Distribution';
+                    break;
+                case 'dotplot':
+                    plotTitle = 'Dot Plot';
+                    break;
+            }
+            
+            plotsHtml += `
+                <div class="plot-card">
+                    <h4>${plotTitle}</h4>
+                    <div class="plot-container">
+                        <img src="data:image/png;base64,${plotData}" alt="${plotTitle}" />
+                    </div>
                 </div>
-            </div>
-        `;
-        dataContainer.innerHTML = dataHtml;
+            `;
+        });
+        plotsHtml += '</div>';
+        
+        dataContainer.innerHTML = plotsHtml;
     }
 });

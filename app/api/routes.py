@@ -187,10 +187,29 @@ def generate_plot(data, column_name, plot_type):
         if plot_type == 'histogram':
             sns.histplot(data=data, x=column_name, kde=True)
             plt.title(f'Distribution of {column_name}')
+        elif plot_type == 'density':
+            sns.kdeplot(data=data, x=column_name, fill=True)
+            plt.title(f'Density Plot of {column_name}')
+        elif plot_type == 'boxplot':
+            sns.boxplot(y=data[column_name])
+            plt.title(f'Box Plot of {column_name}')
+        elif plot_type == 'qqplot':
+            from scipy import stats
+            stats.probplot(data[column_name].dropna(), dist="norm", plot=plt)
+            plt.title(f'Q-Q Plot of {column_name}')
         elif plot_type == 'barplot':
             value_counts = data[column_name].value_counts()
             sns.barplot(x=value_counts.index, y=value_counts.values)
             plt.title(f'Value Distribution of {column_name}')
+            plt.xticks(rotation=45)
+        elif plot_type == 'pie':
+            value_counts = data[column_name].value_counts()
+            plt.pie(value_counts.values, labels=value_counts.index, autopct='%1.1f%%')
+            plt.title(f'Distribution of {column_name}')
+        elif plot_type == 'dotplot':
+            value_counts = data[column_name].value_counts()
+            plt.plot(value_counts.index, value_counts.values, 'o-')
+            plt.title(f'Dot Plot of {column_name}')
             plt.xticks(rotation=45)
         
         # Convert plot to base64 string
@@ -265,18 +284,27 @@ def get_column_data(column_name):
                 'Date Range': f"{column_data.max() - column_data.min()}"
             })
         
-        # Generate appropriate plot based on column type
-        plot_data = None
+        # Generate appropriate plots based on column type
+        plots = {}
         if col_type in ['numeric', 'discrete']:
-            plot_data = generate_plot(current_df, column_name, 'histogram')
+            plots = {
+                'histogram': generate_plot(current_df, column_name, 'histogram'),
+                'density': generate_plot(current_df, column_name, 'density'),
+                'boxplot': generate_plot(current_df, column_name, 'boxplot'),
+                'qqplot': generate_plot(current_df, column_name, 'qqplot')
+            }
         else:
-            plot_data = generate_plot(current_df, column_name, 'barplot')
+            plots = {
+                'barplot': generate_plot(current_df, column_name, 'barplot'),
+                'pie': generate_plot(current_df, column_name, 'pie'),
+                'dotplot': generate_plot(current_df, column_name, 'dotplot')
+            }
         
         return jsonify({
             'success': True,
             'column_data': {
                 'stats': stats,
-                'plot': plot_data
+                'plots': plots
             }
         })
         
