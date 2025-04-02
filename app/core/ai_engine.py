@@ -190,12 +190,6 @@ class AIEngine:
         # Define all possible options
         all_options = [
             {
-                'id': 'descriptive',
-                'name': 'Descriptive Statistics',
-                'description': 'Basic statistical measures including mean, median, and standard deviation.',
-                'requirements': 'Any type of data'
-            },
-            {
                 'id': 'one_sample_t',
                 'name': 'One Sample T-Test',
                 'description': 'Test if a sample mean differs from a hypothesized value.',
