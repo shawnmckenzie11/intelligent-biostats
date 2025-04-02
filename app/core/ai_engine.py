@@ -5,6 +5,7 @@ import numpy as np
 import traceback
 from typing import Tuple, List, Dict, Any
 import warnings
+from scipy import stats
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -282,3 +283,147 @@ class AIEngine:
         
         # Combine lists with available options first
         return available_options + unavailable_options
+
+    def get_distribution_insights(self, df):
+        """Analyze distribution characteristics of numeric columns."""
+        insights = {}
+        
+        # Get numeric columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        
+        for col in numeric_cols:
+            data = df[col].dropna()
+            
+            # Calculate basic statistics
+            mean = data.mean()
+            std = data.std()
+            skewness = stats.skew(data)
+            kurtosis = stats.kurtosis(data)
+            
+            # Perform normality test (Shapiro-Wilk)
+            _, p_value = stats.shapiro(data)
+            is_normal = p_value > 0.05
+            
+            # Check for outliers using IQR method
+            Q1 = data.quantile(0.25)
+            Q3 = data.quantile(0.75)
+            IQR = Q3 - Q1
+            outliers = data[(data < (Q1 - 1.5 * IQR)) | (data > (Q3 + 1.5 * IQR))]
+            has_outliers = len(outliers) > 0
+            
+            # Determine distribution type
+            distribution_type = "Normal" if is_normal else "Non-normal"
+            if not is_normal:
+                if abs(skewness) > 1:
+                    distribution_type = "Skewed"
+                elif abs(kurtosis) > 2:
+                    distribution_type = "Heavy-tailed"
+            
+            # Generate recommendations based on distribution characteristics
+            recommendations = []
+            
+            # Normality recommendations
+            if not is_normal:
+                recommendations.append({
+                    'type': 'normality',
+                    'message': f'Data is not normally distributed (p={p_value:.3f}). Consider using non-parametric tests.',
+                    'suggested_tests': ['Mann-Whitney U test', 'Wilcoxon signed-rank test', 'Kruskal-Wallis test']
+                })
+            
+            # Skewness recommendations
+            if abs(skewness) > 1:
+                recommendations.append({
+                    'type': 'skewness',
+                    'message': f'Data shows significant skewness ({skewness:.2f}). Consider data transformation.',
+                    'suggested_tests': ['Log transformation', 'Square root transformation', 'Box-Cox transformation']
+                })
+            
+            # Kurtosis recommendations
+            if abs(kurtosis) > 2:
+                recommendations.append({
+                    'type': 'kurtosis',
+                    'message': f'Data shows significant kurtosis ({kurtosis:.2f}). Consider robust statistical methods.',
+                    'suggested_tests': ['Trimmed means', 'Winsorized means', 'Robust regression']
+                })
+            
+            # Outlier recommendations
+            if has_outliers:
+                recommendations.append({
+                    'type': 'outliers',
+                    'message': f'Found {len(outliers)} outliers. Consider investigating their impact.',
+                    'suggested_tests': ['Outlier analysis', 'Robust statistical methods', 'Sensitivity analysis']
+                })
+            
+            # Store insights
+            insights[col] = {
+                'distribution_type': distribution_type,
+                'normality': 'Normal' if is_normal else 'Non-normal',
+                'skewness': f'{skewness:.2f}',
+                'kurtosis': f'{kurtosis:.2f}',
+                'outliers': f'{len(outliers)} outliers' if has_outliers else 'No outliers',
+                'recommendations': recommendations
+            }
+        
+        return insights
+
+    def get_analysis_recommendations(self, df):
+        """Get comprehensive analysis recommendations based on data characteristics."""
+        recommendations = []
+        
+        # Get column types
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+        boolean_cols = [col for col in df.columns if df[col].nunique() == 2]
+        timeseries_cols = df.select_dtypes(include=['datetime64']).columns
+        
+        # Sample size recommendations
+        n_samples = len(df)
+        if n_samples < 30:
+            recommendations.append({
+                'type': 'sample_size',
+                'message': 'Small sample size detected. Consider increasing sample size or using non-parametric tests.',
+                'suggested_tests': ['Non-parametric tests', 'Bootstrap methods', 'Exact tests']
+            })
+        
+        # Missing data recommendations
+        missing_data = df.isnull().sum()
+        if missing_data.any():
+            recommendations.append({
+                'type': 'missing_data',
+                'message': 'Missing data detected. Consider imputation or complete case analysis.',
+                'suggested_tests': ['Multiple imputation', 'Complete case analysis', 'Missing data pattern analysis']
+            })
+        
+        # Correlation recommendations
+        if len(numeric_cols) >= 2:
+            recommendations.append({
+                'type': 'correlation',
+                'message': 'Multiple numeric variables present. Consider correlation analysis.',
+                'suggested_tests': ['Pearson correlation', 'Spearman correlation', 'Correlation matrix']
+            })
+        
+        # Categorical analysis recommendations
+        if len(categorical_cols) >= 2:
+            recommendations.append({
+                'type': 'categorical',
+                'message': 'Multiple categorical variables present. Consider contingency analysis.',
+                'suggested_tests': ['Chi-square test', 'Fisher\'s exact test', 'Cramer\'s V']
+            })
+        
+        # Binary outcome recommendations
+        if len(boolean_cols) >= 1 and len(numeric_cols) >= 1:
+            recommendations.append({
+                'type': 'binary_outcome',
+                'message': 'Binary outcome with numeric predictors detected. Consider logistic regression.',
+                'suggested_tests': ['Logistic regression', 'ROC analysis', 'Classification metrics']
+            })
+        
+        # Time series recommendations
+        if len(timeseries_cols) >= 1:
+            recommendations.append({
+                'type': 'timeseries',
+                'message': 'Time series data detected. Consider time series analysis.',
+                'suggested_tests': ['Trend analysis', 'Seasonality analysis', 'Autocorrelation']
+            })
+        
+        return recommendations

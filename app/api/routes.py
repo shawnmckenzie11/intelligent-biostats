@@ -313,3 +313,134 @@ def get_column_data(column_name):
             'success': False,
             'error': str(e)
         }), 400
+
+@api.route('/smart-recommendations', methods=['GET'])
+def get_smart_recommendations():
+    """Get prioritized statistical recommendations based on data characteristics."""
+    try:
+        global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+            
+        # Get distribution insights for numeric columns
+        distribution_insights = ai_engine.get_distribution_insights(current_df)
+        
+        # Get analysis recommendations
+        analysis_recommendations = ai_engine.get_analysis_recommendations(current_df)
+        
+        # Organize recommendations by priority and strength
+        recommendations = {
+            'critical_issues': [],  # Issues that must be addressed before analysis
+            'high_priority': [],    # Strong recommendations based on data characteristics
+            'suggested_analyses': [], # Recommended analyses based on data structure
+            'data_quality': [],     # Data quality considerations
+            'methodological_notes': [] # General methodological considerations
+        }
+        
+        # Process critical issues first
+        missing_data = current_df.isnull().sum()
+        if missing_data.any():
+            recommendations['critical_issues'].append({
+                'type': 'missing_data',
+                'message': 'Missing data detected. This must be addressed before analysis.',
+                'details': {
+                    'affected_columns': missing_data[missing_data > 0].index.tolist(),
+                    'missing_counts': missing_data[missing_data > 0].to_dict()
+                },
+                'suggested_tests': ['Multiple imputation', 'Complete case analysis'],
+                'references': ['Rubin, D.B. (1976). Inference and Missing Data']
+            })
+        
+        # Process high priority recommendations
+        n_samples = len(current_df)
+        if n_samples < 30:
+            recommendations['high_priority'].append({
+                'type': 'sample_size',
+                'message': 'Small sample size detected. This may affect statistical power.',
+                'details': {
+                    'sample_size': n_samples,
+                    'minimum_recommended': 30
+                },
+                'suggested_tests': ['Power analysis', 'Non-parametric tests'],
+                'references': ['Cohen, J. (1992). Statistical Power Analysis']
+            })
+        
+        # Process distribution insights for numeric columns
+        for col, insights in distribution_insights.items():
+            if insights['distribution_type'] != "Normal":
+                recommendations['high_priority'].append({
+                    'type': 'distribution',
+                    'message': f'Non-normal distribution detected in {col}.',
+                    'details': {
+                        'column': col,
+                        'distribution_type': insights['distribution_type'],
+                        'skewness': insights['skewness'],
+                        'kurtosis': insights['kurtosis']
+                    },
+                    'suggested_tests': ['Non-parametric tests', 'Data transformation'],
+                    'references': ['Box, G.E.P. & Cox, D.R. (1964). An Analysis of Transformations']
+                })
+        
+        # Process suggested analyses based on data structure
+        numeric_cols = current_df.select_dtypes(include=[np.number]).columns
+        categorical_cols = current_df.select_dtypes(include=['object', 'category']).columns
+        boolean_cols = [col for col in current_df.columns if current_df[col].nunique() == 2]
+        
+        if len(numeric_cols) >= 2:
+            recommendations['suggested_analyses'].append({
+                'type': 'correlation',
+                'message': 'Multiple numeric variables present. Consider correlation analysis.',
+                'details': {
+                    'variable_count': len(numeric_cols)
+                },
+                'suggested_tests': ['Pearson correlation', 'Spearman correlation'],
+                'references': ['Pearson, K. (1895). Notes on regression and inheritance']
+            })
+        
+        if len(categorical_cols) >= 2:
+            recommendations['suggested_analyses'].append({
+                'type': 'categorical',
+                'message': 'Multiple categorical variables present. Consider contingency analysis.',
+                'details': {
+                    'variable_count': len(categorical_cols)
+                },
+                'suggested_tests': ['Chi-square test', 'Fisher\'s exact test'],
+                'references': ['Fisher, R.A. (1922). On the interpretation of chi-square']
+            })
+        
+        # Process data quality considerations
+        for col in current_df.columns:
+            unique_values = current_df[col].nunique()
+            if unique_values == 1:
+                recommendations['data_quality'].append({
+                    'type': 'constant_variable',
+                    'message': f'Constant values detected in {col}.',
+                    'details': {
+                        'column': col,
+                        'unique_values': unique_values
+                    },
+                    'suggested_tests': ['Variable removal', 'Data validation'],
+                    'references': ['Tukey, J.W. (1977). Exploratory Data Analysis']
+                })
+        
+        # Add methodological notes
+        recommendations['methodological_notes'].append({
+            'type': 'general',
+            'message': 'Consider documenting all data transformations and statistical methods used.',
+            'suggested_tests': ['Method documentation', 'Reproducibility check'],
+            'references': ['Wilkinson, L. (1999). Statistical Methods in Psychology Journals']
+        })
+        
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
