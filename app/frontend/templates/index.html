@@ -47,14 +47,30 @@
         <!-- Modify Data Section -->
         <div class="modify-section" id="modifySection" style="display: none;">
             <div class="modify-container">
-                <label for="modificationInput" class="modify-label">Optional: Specify columns to delete (e.g., '1, 5, 4-7, 9+' or 'Age, dept - time')</label>
-                <textarea 
-                    id="modificationInput" 
-                    placeholder="Enter column specifications here"
-                    rows="1"
-                ></textarea>
-                <button id="proceedButton" class="proceed-button">Proceed to Analysis</button>
-                <span id="modificationStatus" class="status-message"></span>
+                <div class="input-group">
+                    <label for="modificationInput" class="input-label">Optional: Specify columns to delete</label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                            id="modificationInput" 
+                            placeholder="e.g., '1, 5, 4-7, 9+' or 'Age, dept - time'"
+                            class="input-field"
+                        >
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="contextInput" class="input-label">Optional: Provide context about your data or analysis goals</label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                            id="contextInput" 
+                            placeholder="Enter any relevant context here"
+                            class="input-field"
+                        >
+                    </div>
+                </div>
+                <div class="action-group">
+                    <button id="proceedButton" class="proceed-button">Proceed to Analysis</button>
+                    <span id="modificationStatus" class="status-message"></span>
+                </div>
             </div>
         </div>
 
