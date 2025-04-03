@@ -96,6 +96,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const modifySection = document.getElementById('modifySection');
     const analysisSection = document.getElementById('analysisSection');
 
+    // Initialize overlay panel
+    const overlay = document.getElementById('analysisOverlay');
+    const toggleOverlay = document.getElementById('toggleOverlay');
+    const overlayTab = document.getElementById('overlayTab');
+    
+    // Hide overlay panel initially
+    overlay.style.display = 'none';
+
+    // Add click handler for overlay toggle
+    toggleOverlay.addEventListener('click', () => {
+        overlay.classList.toggle('expanded');
+    });
+
+    // Add click handler for overlay tab
+    overlayTab.addEventListener('click', () => {
+        overlay.classList.add('expanded');
+    });
+
     // Handle file selection via click
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -173,6 +191,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize collapsible functionality
         initializeCollapsiblePreview();
         initializeDescriptiveSection();
+
+        // Show the overlay panel when data is loaded
+        overlay.style.display = 'block';
     }
 
     function initializeCollapsiblePreview() {
@@ -369,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Modify the existing proceed button handler
+    // Modify the proceed button handler to show the overlay
     document.getElementById('proceedButton').addEventListener('click', function() {
         const modificationRequest = document.getElementById('modificationInput').value;
         
@@ -390,9 +411,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     // Update preview table with new data
                     if (data.preview) {
-                    updatePreviewTable(data.preview);
-                }
-                
+                        updatePreviewTable(data.preview);
+                    }
+                    
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
                     statusElement.textContent = 'Modifications Applied Successfully';
@@ -401,11 +422,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Hide modify section and show analysis tabs after a delay
                     setTimeout(() => {
                         document.getElementById('modifySection').style.display = 'none';
-                        document.getElementById('descriptiveStatsSection').style.display = 'block'; // Show descriptive stats section
-                        showAnalysisTabs(); // Show tabs and initialize
-                        getAnalysisOptions(); // Refresh analysis options
-                        loadDescriptiveStats(); // Load descriptive stats into collapsible section
-                        loadSmartRecommendations(); // Load smart recommendations
+                        document.getElementById('descriptiveStatsSection').style.display = 'block';
+                        overlay.classList.add('expanded'); // Show the overlay
+                        showAnalysisTabs();
+                        getAnalysisOptions();
+                        loadDescriptiveStats();
+                        loadSmartRecommendations();
                     }, 1500);
                 } else {
                     throw new Error(data.error || 'Failed to apply modifications');
@@ -420,11 +442,12 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             // If no modifications, directly show analysis tabs
             document.getElementById('modifySection').style.display = 'none';
-            document.getElementById('descriptiveStatsSection').style.display = 'block'; // Show descriptive stats section
-            showAnalysisTabs(); // Show tabs and initialize
+            document.getElementById('descriptiveStatsSection').style.display = 'block';
+            overlay.classList.add('expanded'); // Show the overlay
+            showAnalysisTabs();
             getAnalysisOptions();
-            loadDescriptiveStats(); // Load descriptive stats into collapsible section
-            loadSmartRecommendations(); // Load smart recommendations
+            loadDescriptiveStats();
+            loadSmartRecommendations();
         }
     });
 
