@@ -44,7 +44,7 @@ body {
 
 /* Main Content */
 .container {
-    max-width: 1200px;
+    max-width: 90%;
     margin: 2rem auto;
     padding: 0 1rem;
 }
@@ -172,15 +172,25 @@ body {
 .modify-section {
     background-color: white;
     border-radius: 8px;
-    padding: 0.75rem 1rem;
+    padding: 1.5rem;
     margin-top: 1rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .modify-container {
     display: flex;
+    flex-direction: row;
     gap: 1rem;
     align-items: center;
+}
+
+.modify-label {
+    display: inline-block;
+    margin-bottom: 0;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .modify-container textarea {
