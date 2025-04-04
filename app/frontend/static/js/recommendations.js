@@ -337,21 +337,50 @@ function createSkewedDataCard(stats) {
         const skewness = analysis.skewness;
         const kurtosis = analysis.kurtosis;
 
-        // Check each condition independently
+        // Prioritize severe skewness first
         if (skewness > 1) {
-            skewGroups.strongPositive.push({ col, ...analysis });
+            skewGroups.strongPositive.push({ 
+                col, 
+                ...analysis,
+                priority: 1,
+                transformation_suggestion: "Log transformation (recommended for strong positive skew)"
+            });
+        } else if (skewness < -1) {
+            skewGroups.strongNegative.push({ 
+                col, 
+                ...analysis,
+                priority: 1,
+                transformation_suggestion: "Square transformation (recommended for strong negative skew)"
+            });
+        } 
+        // Then moderate skewness
+        else if (skewness > 0.5 && skewness <= 1) {
+            skewGroups.moderatePositive.push({ 
+                col, 
+                ...analysis,
+                priority: 2,
+                transformation_suggestion: "Square root transformation (recommended for moderate positive skew)"
+            });
+        } else if (skewness < -0.5 && skewness >= -1) {
+            skewGroups.moderateNegative.push({ 
+                col, 
+                ...analysis,
+                priority: 2,
+                transformation_suggestion: "Square transformation (recommended for moderate negative skew)"
+            });
         }
-        if (skewness > 0.5 && skewness <= 1) {
-            skewGroups.moderatePositive.push({ col, ...analysis });
-        }
-        if (skewness < -1) {
-            skewGroups.strongNegative.push({ col, ...analysis });
-        }
-        if (skewness < -0.5 && skewness >= -1) {
-            skewGroups.moderateNegative.push({ col, ...analysis });
-        }
-        if (kurtosis > 3.5) {
-            skewGroups.heavyTails.push({ col, ...analysis });
+        
+        // Finally, check for heavy tails if not already in a skewness group
+        if (kurtosis > 3.5 && !skewGroups.strongPositive.some(item => item.col === col) && 
+            !skewGroups.strongNegative.some(item => item.col === col) &&
+            !skewGroups.moderatePositive.some(item => item.col === col) &&
+            !skewGroups.moderateNegative.some(item => item.col === col)) {
+            skewGroups.heavyTails.push({ 
+                col, 
+                ...analysis,
+                priority: 3,
+                transformation_suggestion: "Box-Cox transformation (recommended for heavy tails)"
+            });
         }
     });
 
@@ -362,8 +391,18 @@ function createSkewedDataCard(stats) {
     if (skewGroups.strongPositive.length > 0) {
         cards.push(createSkewCard(
             'Strong Positive Skew Detected',
-            'These columns show strong positive skewness (S > 1). Log transformation is recommended.',
+            'These columns show strong positive skewness (S > 1). Log transformation is recommended as it often helps with both skewness and kurtosis issues.',
             skewGroups.strongPositive,
+            'high-priority'
+        ));
+    }
+
+    // Strong Negative Skew Card
+    if (skewGroups.strongNegative.length > 0) {
+        cards.push(createSkewCard(
+            'Strong Negative Skew Detected',
+            'These columns show strong negative skewness (S < -1). Square transformation is recommended as it often helps with both skewness and kurtosis issues.',
+            skewGroups.strongNegative,
             'high-priority'
         ));
     }
@@ -375,16 +414,6 @@ function createSkewedDataCard(stats) {
             'These columns show moderate positive skewness (0.5 < S ≤ 1). Square root transformation is recommended.',
             skewGroups.moderatePositive,
             'suggested'
-        ));
-    }
-
-    // Strong Negative Skew Card
-    if (skewGroups.strongNegative.length > 0) {
-        cards.push(createSkewCard(
-            'Strong Negative Skew Detected',
-            'These columns show strong negative skewness (S < -1). Square transformation is recommended.',
-            skewGroups.strongNegative,
-            'high-priority'
         ));
     }
 
@@ -402,9 +431,9 @@ function createSkewedDataCard(stats) {
     if (skewGroups.heavyTails.length > 0) {
         cards.push(createSkewCard(
             'Heavy-Tailed Distribution Detected',
-            'These columns show heavy tails (K > 3.5). Box-Cox transformation is recommended.',
+            'These columns show heavy tails (K > 3.5) without significant skewness. Box-Cox transformation is recommended.',
             skewGroups.heavyTails,
-            'high-priority'
+            'suggested'
         ));
     }
 
