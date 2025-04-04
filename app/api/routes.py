@@ -287,6 +287,7 @@ def get_descriptive_stats():
         column_types_list = []
         missing_values_by_column = {}
         distribution_analysis = {}  # New dictionary to store distribution analysis
+        outlier_info = {}  # New dictionary to store outlier information
         
         for i, col in enumerate(current_df.columns):
             # Determine column type
@@ -302,6 +303,31 @@ def get_descriptive_stats():
                         'skewness': float(skewness),
                         'kurtosis': float(kurtosis),
                         'transformation_suggestion': get_transformation_suggestion(skewness, kurtosis)
+                    }
+                    
+                    # Calculate outliers for numeric columns
+                    mean = current_df[col].mean()
+                    std = current_df[col].std()
+                    q1 = current_df[col].quantile(0.25)
+                    q3 = current_df[col].quantile(0.75)
+                    iqr = q3 - q1
+                    
+                    # Determine distribution type and set appropriate thresholds
+                    if abs(skewness) < 0.5 and abs(kurtosis) < 2:  # Normal
+                        lower_bound = mean - 3 * std
+                        upper_bound = mean + 3 * std
+                    elif abs(skewness) > 1:  # Skewed
+                        lower_bound = q1 - 1.5 * iqr
+                        upper_bound = q3 + 1.5 * iqr
+                    else:  # Heavy-tailed
+                        lower_bound = q1 - 2.5 * iqr
+                        upper_bound = q3 + 2.5 * iqr
+                    
+                    # Count outliers
+                    outliers = current_df[col][(current_df[col] < lower_bound) | (current_df[col] > upper_bound)]
+                    outlier_info[col] = {
+                        'count': int(len(outliers)),
+                        'percentage': float(len(outliers) / len(current_df[col]) * 100)
                     }
             elif pd.api.types.is_datetime64_any_dtype(current_df[col]):
                 column_types_list.append('timeseries')
@@ -341,7 +367,8 @@ def get_descriptive_stats():
                 'column_types_list': column_types_list
             },
             'missing_values_by_column': missing_values_by_column,
-            'distribution_analysis': distribution_analysis  # Add distribution analysis to stats
+            'distribution_analysis': distribution_analysis,
+            'outlier_info': outlier_info  # Add outlier information to the response
         }
         
         return jsonify({
@@ -482,16 +509,57 @@ def get_column_data(column_name):
         
         # Add type-specific statistics
         if col_type in ['numeric', 'discrete']:
+            # Calculate basic statistics
+            mean = column_data.mean()
+            median = column_data.median()
+            std = column_data.std()
+            q1 = column_data.quantile(0.25)
+            q3 = column_data.quantile(0.75)
+            iqr = q3 - q1
+            skewness = column_data.skew()
+            kurtosis = column_data.kurtosis()
+            
+            # Determine distribution type
+            distribution_type = get_distribution_type(column_data)
+            
+            # Initialize outlier flags array
+            outlier_flags = np.zeros(len(column_data), dtype=bool)
+            
+            # Detect outliers based on distribution type
+            if distribution_type == "Normal":
+                # For normal distributions: use mean ± 3 SD
+                lower_bound = mean - 3 * std
+                upper_bound = mean + 3 * std
+                outlier_flags = (column_data < lower_bound) | (column_data > upper_bound)
+            elif distribution_type in ["Right-skewed", "Left-skewed"]:
+                # For skewed distributions: use IQR method with adjusted thresholds
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
+                outlier_flags = (column_data < lower_bound) | (column_data > upper_bound)
+            elif distribution_type == "Heavy-tailed":
+                # For heavy-tailed distributions: use more conservative approach
+                lower_bound = q1 - 2.5 * iqr
+                upper_bound = q3 + 2.5 * iqr
+                outlier_flags = (column_data < lower_bound) | (column_data > upper_bound)
+            
+            # Count outliers
+            outlier_count = outlier_flags.sum()
+            
             stats.update({
-                'Mean': f"{column_data.mean():.2f}",
-                'Median': f"{column_data.median():.2f}",
-                'Std Dev': f"{column_data.std():.2f}",
+                'Mean': f"{mean:.2f}",
+                'Median': f"{median:.2f}",
+                'Std Dev': f"{std:.2f}",
                 'Min': f"{column_data.min():.2f}",
                 'Max': f"{column_data.max():.2f}",
                 'Range': f"{column_data.max() - column_data.min():.2f}",
-                'Skewness': f"{column_data.skew():.2f}",
-                'Kurtosis': f"{column_data.kurtosis():.2f}",
-                'Distribution': get_distribution_type(column_data)
+                'Skewness': f"{skewness:.2f}",
+                'Kurtosis': f"{kurtosis:.2f}",
+                'Distribution': distribution_type,
+                'Outliers': {
+                    'count': int(outlier_count),
+                    'percentage': f"{(outlier_count / len(column_data) * 100):.2f}%",
+                    'flags': outlier_flags.tolist()
+                }
             })
         elif col_type == 'categorical':
             value_counts = column_data.value_counts()
@@ -542,14 +610,19 @@ def get_distribution_type(column_data):
     skewness = column_data.skew()
     kurtosis = column_data.kurtosis()
     
+    # Normal distribution: |skewness| < 0.5 and |kurtosis| < 2
     if abs(skewness) < 0.5 and abs(kurtosis) < 2:
         return "Normal"
+    # Right-skewed: skewness > 1
     elif skewness > 1:
         return "Right-skewed"
+    # Left-skewed: skewness < -1
     elif skewness < -1:
         return "Left-skewed"
+    # Heavy-tailed: kurtosis > 3
     elif kurtosis > 3:
         return "Heavy-tailed"
+    # Light-tailed: kurtosis < 1
     elif kurtosis < 1:
         return "Light-tailed"
     else:

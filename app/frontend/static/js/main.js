@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h4>Columns</h4>
                     <div class="column-menu-list">
                         ${stats.column_types.columns.map(col => `
-                            <div class="column-menu-item" data-column="${col}">${col}</div>
+                            <div class="column-menu-item ${stats.outlier_info[col]?.count > 0 ? 'has-outliers' : ''}" data-column="${col}">${col}</div>
                         `).join('')}
                     </div>
                 </div>
@@ -688,168 +688,190 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add event listeners for column menu items
         document.querySelectorAll('.column-menu-item').forEach(item => {
+            const columnName = item.dataset.column;
+            
+            // Add click event listener
             item.addEventListener('click', () => {
                 // Remove active class from all items
                 document.querySelectorAll('.column-menu-item').forEach(i => i.classList.remove('active'));
                 // Add active class to clicked item
                 item.classList.add('active');
                 // Fetch and display column data
-                fetchColumnData(item.dataset.column);
+                fetchColumnData(columnName);
             });
         });
     }
 
     function initializeColumnPicker(columns) {
-        const select = document.getElementById('columnSelect');
-        select.innerHTML = '<option value="">Select a column...</option>' +
-            columns.map(col => `<option value="${col}">${col}</option>`).join('');
+        const columnMenu = document.querySelector('.column-menu-list');
+        columnMenu.innerHTML = '';
+        
+        columns.forEach(column => {
+            const columnItem = document.createElement('div');
+            columnItem.className = 'column-menu-item';
+            columnItem.textContent = column;
             
-        select.addEventListener('change', (e) => {
-            if (e.target.value) {
-                fetchColumnData(e.target.value);
-            } else {
-                document.getElementById('columnStats').innerHTML = '';
-                document.getElementById('columnData').innerHTML = '';
-            }
+            // Add click event listener
+            columnItem.addEventListener('click', () => {
+                // Remove active class from all items
+                document.querySelectorAll('.column-menu-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Add active class to clicked item
+                columnItem.classList.add('active');
+                
+                // Fetch and display column data
+                fetchColumnData(column);
+            });
+            
+            // Check for outliers immediately
+            fetch(`/api/column-data/${encodeURIComponent(column)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.column_data.stats.Outliers && data.column_data.stats.Outliers.count > 0) {
+                        columnItem.classList.add('has-outliers');
+                    }
+                })
+                .catch(error => console.error('Error checking for outliers:', error));
+            
+            columnMenu.appendChild(columnItem);
         });
     }
 
     function fetchColumnData(columnName) {
         fetch(`/api/column-data/${encodeURIComponent(columnName)}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     displayColumnData(data.column_data);
+                    
+                    // Update active state in column menu
+                    const columnItems = document.querySelectorAll('.column-menu-item');
+                    columnItems.forEach(item => {
+                        if (item.textContent.trim() === columnName) {
+                            item.classList.add('active');
+                            // Check for outliers and add marker if present
+                            if (data.column_data.stats.Outliers && data.column_data.stats.Outliers.count > 0) {
+                                item.classList.add('has-outliers');
+                            } else {
+                                item.classList.remove('has-outliers');
+                            }
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
                 } else {
-                    throw new Error(data.error || 'Failed to load column data');
+                    console.error('Error fetching column data:', data.error);
                 }
             })
             .catch(error => {
-                console.error('Error loading column data:', error);
-                const statsContainer = document.getElementById('columnStats');
-                const dataContainer = document.getElementById('columnData');
-                
-                statsContainer.innerHTML = `
-                    <div class="error-message">
-                        Error loading column data: ${error.message}
-                        <br>
-                        Please try refreshing the page or selecting a different column.
-                    </div>
-                `;
-                dataContainer.innerHTML = '';
+                console.error('Error fetching column data:', error);
             });
+    }
+
+    function showPlotModal(plotType, plotData) {
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.className = 'plot-modal';
+        
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'plot-modal-content';
+        
+        // Create close button
+        const closeButton = document.createElement('span');
+        closeButton.className = 'close-modal';
+        closeButton.innerHTML = '&times;';
+        
+        // Create image element
+        const img = document.createElement('img');
+        img.src = `data:image/png;base64,${plotData}`;
+        img.alt = `${plotType} plot`;
+        
+        // Assemble modal
+        modalContent.appendChild(closeButton);
+        modalContent.appendChild(img);
+        modal.appendChild(modalContent);
+        
+        // Add to document
+        document.body.appendChild(modal);
+        
+        // Show modal
+        modal.classList.add('active');
+        
+        // Add event listeners
+        closeButton.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
     }
 
     function displayColumnData(columnData) {
         const columnDetails = document.querySelector('.column-details');
         const stats = columnData.stats;
-        const plots = columnData.plots;
-
-        // Create stats HTML
-        let statsHtml = `
-            <div class="stats-summary">
-                <p><strong>Type:</strong> ${stats.Type} | 
-                <strong>Missing Values:</strong> ${stats['Missing Values']} | 
-                <strong>Unique Values:</strong> ${stats['Unique Values']}</p>
-            </div>
-            <div class="column-stats">
-        `;
-
-        // Add type-specific statistics
+        
+        // Create stats summary
+        let statsHTML = '<div class="stats-summary">';
+        
         if (stats.Type === 'numeric' || stats.Type === 'discrete') {
-            statsHtml += `
-                <p><strong>Mean:</strong> ${stats.Mean} | 
-                <strong>Median:</strong> ${stats.Median} | 
-                <strong>Std Dev:</strong> ${stats['Std Dev']}</p>
-                <p><strong>Min:</strong> ${stats.Min} | 
-                <strong>Max:</strong> ${stats.Max} | 
-                <strong>Range:</strong> ${stats.Range}</p>
-                <p><strong>Skewness:</strong> ${stats.Skewness} | 
-                <strong>Kurtosis:</strong> ${stats.Kurtosis} | 
-                <strong>Distribution:</strong> ${stats.Distribution}</p>
+            statsHTML += `
+                <p><strong>Mean:</strong> ${stats.Mean} | <strong>Median:</strong> ${stats.Median} | <strong>Std Dev:</strong> ${stats.Std_Dev}</p>
+                <p><strong>Min:</strong> ${stats.Min} | <strong>Max:</strong> ${stats.Max} | <strong>Range:</strong> ${stats.Range}</p>
+                <p><strong>Skewness:</strong> ${stats.Skewness} | <strong>Kurtosis:</strong> ${stats.Kurtosis} | <strong>Distribution:</strong> ${stats.Distribution} | <strong>Outliers:</strong> ${stats.Outliers.count}</p>
             `;
         } else if (stats.Type === 'categorical') {
-            statsHtml += `<p><strong>Most Common:</strong> ${stats['Most Common']}</p>`;
+            statsHTML += `
+                <p><strong>Most Common:</strong> ${stats['Most Common']}</p>
+                <p><strong>Value Distribution:</strong></p>
+                <ul class="value-distribution">
+                    ${Object.entries(stats['Value Distribution']).map(([value, count]) => 
+                        `<li>${value}: ${count}</li>`
+                    ).join('')}
+                </ul>
+            `;
         } else if (stats.Type === 'boolean') {
-            statsHtml += `
-                <p><strong>True Count:</strong> ${stats['True Count']} | 
-                <strong>False Count:</strong> ${stats['False Count']}</p>
+            statsHTML += `
+                <p><strong>True Count:</strong> ${stats['True Count']}</p>
+                <p><strong>False Count:</strong> ${stats['False Count']}</p>
             `;
         } else if (stats.Type === 'timeseries') {
-            statsHtml += `
-                <p><strong>Start Date:</strong> ${stats['Start Date']} | 
-                <strong>End Date:</strong> ${stats['End Date']} | 
-                <strong>Date Range:</strong> ${stats['Date Range']}</p>
+            statsHTML += `
+                <p><strong>Start Date:</strong> ${stats['Start Date']}</p>
+                <p><strong>End Date:</strong> ${stats['End Date']}</p>
+                <p><strong>Date Range:</strong> ${stats['Date Range']}</p>
             `;
         }
-
-        statsHtml += '</div>';
-
-        // Create plots HTML
-        let plotsHtml = '<div class="plots-container">';
-        for (const [plotType, plotData] of Object.entries(plots)) {
-            let plotTitle = '';
-            switch(plotType) {
-                case 'histogram':
-                    plotTitle = 'Histogram';
-                    break;
-                case 'density':
-                    plotTitle = 'Density Plot';
-                    break;
-                case 'boxplot':
-                    plotTitle = 'Box Plot';
-                    break;
-                case 'qqplot':
-                    plotTitle = 'Q-Q Plot';
-                    break;
-            }
-            plotsHtml += `
-                <div class="plot-thumbnail">
-                    <img src="data:image/png;base64,${plotData}" alt="${plotTitle}" title="${plotTitle}">
-                </div>
-            `;
-        }
-        plotsHtml += '</div>';
-
-        // Add modal for plot popup
-        plotsHtml += `
-            <div class="plot-modal">
-                <div class="plot-modal-content">
-                    <span class="close-modal">&times;</span>
-                    <img src="" alt="Large Plot">
-                </div>
-            </div>
-        `;
-
-        // Combine all HTML
-        columnDetails.innerHTML = statsHtml + plotsHtml;
-
-        // Add event listeners for plot thumbnails
-        const thumbnails = columnDetails.querySelectorAll('.plot-thumbnail');
-        const modal = columnDetails.querySelector('.plot-modal');
-        const modalImg = modal.querySelector('img');
-        const closeBtn = modal.querySelector('.close-modal');
-
-        thumbnails.forEach(thumb => {
-            thumb.addEventListener('click', () => {
-                modal.classList.add('active');
-                modalImg.src = thumb.querySelector('img').src;
+        
+        statsHTML += '</div>';
+        
+        // Create plots container
+        let plotsHTML = '<div class="plots-container">';
+        if (columnData.plots) {
+            Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
+                plotsHTML += `
+                    <div class="plot-thumbnail" data-plot-type="${plotType}">
+                        <img src="data:image/png;base64,${plotData}" alt="${plotType} plot">
+                    </div>
+                `;
             });
-        });
-
-        closeBtn.addEventListener('click', () => {
-            modal.classList.remove('active');
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
+        }
+        plotsHTML += '</div>';
+        
+        columnDetails.innerHTML = statsHTML + plotsHTML;
+        
+        // Add click handlers for plot thumbnails
+        document.querySelectorAll('.plot-thumbnail').forEach(thumbnail => {
+            thumbnail.addEventListener('click', () => {
+                const plotType = thumbnail.dataset.plotType;
+                const plotData = columnData.plots[plotType];
+                showPlotModal(plotType, plotData);
+            });
         });
     }
 
