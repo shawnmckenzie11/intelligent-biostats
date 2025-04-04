@@ -4,8 +4,23 @@ class RecommendationsManager {
         this.recommendations = [];
         this.analysisHistory = [];
         this.currentAnalysis = null;
-        // API key should be loaded from environment variables or server-side
         this.openaiApiKey = null;
+        this.initApiKey();
+    }
+
+    // Initialize the API key
+    async initApiKey() {
+        try {
+            const response = await fetch('/api/get-openai-key');
+            const data = await response.json();
+            if (data.success) {
+                this.openaiApiKey = data.api_key;
+            } else {
+                console.error('Failed to initialize API key');
+            }
+        } catch (error) {
+            console.error('Error fetching API key:', error);
+        }
     }
 
     // Initialize the recommendations system
@@ -119,6 +134,14 @@ class RecommendationsManager {
                         }
                     });
                 }
+
+                // Check for skewed data using the new createSkewedDataCard function
+                const skewedCards = createSkewedDataCard(stats);
+                if (skewedCards && skewedCards.length > 0) {
+                    skewedCards.forEach(card => {
+                        this.overlayContent.appendChild(card);
+                    });
+                }
             }
         } catch (error) {
             console.error('Error fetching data-based recommendations:', error);
@@ -218,6 +241,33 @@ class RecommendationsManager {
                     </div>
                 `;
             }
+            if (recommendation.details.distribution_analysis) {
+                detailsHtml += `
+                    <div class="details-section">
+                        <h4>Distribution Analysis:</h4>
+                        <table class="details-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th style="width: 20px;">S</th>
+                                    <th style="width: 20px;">K</th>
+                                    <th>Suggested Transformation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Object.entries(recommendation.details.distribution_analysis).map(([col, analysis]) => `
+                                    <tr>
+                                        <td>${col}</td>
+                                        <td style="text-align: right;">${analysis.skewness.toFixed(2)}</td>
+                                        <td style="text-align: right;">${analysis.kurtosis.toFixed(2)}</td>
+                                        <td>${analysis.transformation_suggestion}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
         }
         
         card.innerHTML = `
@@ -268,4 +318,174 @@ class RecommendationsManager {
 const recommendationsManager = new RecommendationsManager();
 document.addEventListener('DOMContentLoaded', () => {
     recommendationsManager.init();
-}); 
+});
+
+function createSkewedDataCard(stats) {
+    if (!stats.distribution_analysis) return null;
+
+    // Group columns by skewness type
+    const skewGroups = {
+        strongPositive: [],  // S > 1
+        moderatePositive: [], // 0.5 < S <= 1
+        strongNegative: [],  // S < -1
+        moderateNegative: [], // -1 <= S < -0.5
+        heavyTails: []      // K > 3.5
+    };
+
+    // Categorize columns based on skewness and kurtosis
+    Object.entries(stats.distribution_analysis).forEach(([col, analysis]) => {
+        const skewness = analysis.skewness;
+        const kurtosis = analysis.kurtosis;
+
+        // Prioritize severe skewness first
+        if (skewness > 1) {
+            skewGroups.strongPositive.push({ 
+                col, 
+                ...analysis,
+                priority: 1,
+                transformation_suggestion: "Log transformation (recommended for strong positive skew)"
+            });
+        } else if (skewness < -1) {
+            skewGroups.strongNegative.push({ 
+                col, 
+                ...analysis,
+                priority: 1,
+                transformation_suggestion: "Square transformation (recommended for strong negative skew)"
+            });
+        } 
+        // Then moderate skewness
+        else if (skewness > 0.5 && skewness <= 1) {
+            skewGroups.moderatePositive.push({ 
+                col, 
+                ...analysis,
+                priority: 2,
+                transformation_suggestion: "Square root transformation (recommended for moderate positive skew)"
+            });
+        } else if (skewness < -0.5 && skewness >= -1) {
+            skewGroups.moderateNegative.push({ 
+                col, 
+                ...analysis,
+                priority: 2,
+                transformation_suggestion: "Square transformation (recommended for moderate negative skew)"
+            });
+        }
+        
+        // Finally, check for heavy tails if not already in a skewness group
+        if (kurtosis > 3.5 && !skewGroups.strongPositive.some(item => item.col === col) && 
+            !skewGroups.strongNegative.some(item => item.col === col) &&
+            !skewGroups.moderatePositive.some(item => item.col === col) &&
+            !skewGroups.moderateNegative.some(item => item.col === col)) {
+            skewGroups.heavyTails.push({ 
+                col, 
+                ...analysis,
+                priority: 3,
+                transformation_suggestion: "Box-Cox transformation (recommended for heavy tails)"
+            });
+        }
+    });
+
+    // Create cards for each non-empty group
+    const cards = [];
+    
+    // Strong Positive Skew Card
+    if (skewGroups.strongPositive.length > 0) {
+        cards.push(createSkewCard(
+            'Strong Positive Skew Detected',
+            'These columns show strong positive skewness (S > 1). Log transformation is recommended as it often helps with both skewness and kurtosis issues.',
+            skewGroups.strongPositive,
+            'high-priority'
+        ));
+    }
+
+    // Strong Negative Skew Card
+    if (skewGroups.strongNegative.length > 0) {
+        cards.push(createSkewCard(
+            'Strong Negative Skew Detected',
+            'These columns show strong negative skewness (S < -1). Square transformation is recommended as it often helps with both skewness and kurtosis issues.',
+            skewGroups.strongNegative,
+            'high-priority'
+        ));
+    }
+
+    // Moderate Positive Skew Card
+    if (skewGroups.moderatePositive.length > 0) {
+        cards.push(createSkewCard(
+            'Moderate Positive Skew Detected',
+            'These columns show moderate positive skewness (0.5 < S ≤ 1). Square root transformation is recommended.',
+            skewGroups.moderatePositive,
+            'suggested'
+        ));
+    }
+
+    // Moderate Negative Skew Card
+    if (skewGroups.moderateNegative.length > 0) {
+        cards.push(createSkewCard(
+            'Moderate Negative Skew Detected',
+            'These columns show moderate negative skewness (-1 ≤ S < -0.5). Square transformation is recommended.',
+            skewGroups.moderateNegative,
+            'suggested'
+        ));
+    }
+
+    // Heavy Tails Card
+    if (skewGroups.heavyTails.length > 0) {
+        cards.push(createSkewCard(
+            'Heavy-Tailed Distribution Detected',
+            'These columns show heavy tails (K > 3.5) without significant skewness. Box-Cox transformation is recommended.',
+            skewGroups.heavyTails,
+            'suggested'
+        ));
+    }
+
+    return cards;
+}
+
+function createSkewCard(title, message, columns, priority) {
+    const card = document.createElement('div');
+    card.className = `recommendation-card ${priority}`;
+    
+    card.innerHTML = `
+        <div class="card-header">
+            <h3>${title}</h3>
+            <span class="priority-badge ${priority}">${priority}</span>
+        </div>
+        <div class="card-content">
+            <p>${message}</p>
+            <div class="details" style="display: none;">
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th style="width: 20px;">S</th>
+                            <th style="width: 20px;">K</th>
+                            <th>Suggested Transformation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${columns.map(col => `
+                            <tr>
+                                <td>${col.col}</td>
+                                <td style="text-align: right;">${col.skewness.toFixed(2)}</td>
+                                <td style="text-align: right;">${col.kurtosis.toFixed(2)}</td>
+                                <td>${col.transformation_suggestion}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-actions">
+            <button class="action-button">View Details</button>
+        </div>
+    `;
+
+    // Add click handler for the action button
+    const actionButton = card.querySelector('.action-button');
+    const details = card.querySelector('.details');
+    actionButton.addEventListener('click', () => {
+        details.style.display = details.style.display === 'none' ? 'block' : 'none';
+        actionButton.textContent = details.style.display === 'none' ? 'View Details' : 'Hide Details';
+    });
+
+    return card;
+} 

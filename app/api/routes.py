@@ -13,6 +13,12 @@ import base64
 from scipy import stats
 import json
 from datetime import datetime
+import logging
+from app.config import OPENAI_API_KEY
+
+# Disable Flask's default request logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 api = Blueprint('api', __name__)
 
@@ -26,6 +32,20 @@ if not hasattr(api, '_initialized'):
     ai_engine = AIEngine()
     db = AnalysisHistoryDB()
     api._initialized = True
+
+@api.route('/get-openai-key', methods=['GET'])
+def get_openai_key():
+    """Return the OpenAI API key from config."""
+    try:
+        return jsonify({
+            'success': True,
+            'api_key': OPENAI_API_KEY
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
 @api.route('/upload', methods=['POST'])
 def upload_file():
@@ -263,35 +283,65 @@ def get_descriptive_stats():
                 'error': 'No data loaded'
             }), 400
             
-        # Get column types
+        # Get column types and missing values in a single pass
         column_types_list = []
-        for col in current_df.columns:
+        missing_values_by_column = {}
+        distribution_analysis = {}  # New dictionary to store distribution analysis
+        
+        for i, col in enumerate(current_df.columns):
+            # Determine column type
             if pd.api.types.is_numeric_dtype(current_df[col]):
                 if current_df[col].nunique() < 20:  # threshold for discrete
                     column_types_list.append('discrete')
                 else:
                     column_types_list.append('numeric')
-            elif current_df[col].nunique() == 2:
-                column_types_list.append('boolean')
+                    # Calculate skewness and kurtosis for numeric columns
+                    skewness = current_df[col].skew()
+                    kurtosis = current_df[col].kurtosis()
+                    distribution_analysis[col] = {
+                        'skewness': float(skewness),
+                        'kurtosis': float(kurtosis),
+                        'transformation_suggestion': get_transformation_suggestion(skewness, kurtosis)
+                    }
             elif pd.api.types.is_datetime64_any_dtype(current_df[col]):
                 column_types_list.append('timeseries')
             else:
-                column_types_list.append('categorical')
+                # For non-numeric, non-datetime columns
+                if current_df[col].nunique() == 2:
+                    # Check if the values are actually boolean-like
+                    unique_values = current_df[col].dropna().unique()
+                    if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
+                        column_types_list.append('boolean')
+                    else:
+                        column_types_list.append('categorical')
+                else:
+                    column_types_list.append('categorical')
+            
+            # Count missing values
+            missing_count = current_df[col].isna().sum()
+            if missing_count > 0:
+                missing_values_by_column[col] = int(missing_count)
+            
+        # Calculate total missing values
+        missing_values = sum(missing_values_by_column.values())
             
         stats = {
             'file_stats': {
                 'rows': len(current_df),
                 'columns': len(current_df.columns),
-                'memory_usage': f"{current_df.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
+                'memory_usage': f"{current_df.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
+                'missing_values': int(missing_values)
             },
             'column_types': {
-                'numeric': len(current_df.select_dtypes(include=[np.number]).columns),
-                'categorical': len(current_df.select_dtypes(include=['object', 'category']).columns),
-                'boolean': len([col for col in current_df.columns if current_df[col].nunique() == 2]),
-                'datetime': len(current_df.select_dtypes(include=['datetime64']).columns),
+                'numeric': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'numeric']),
+                'categorical': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'categorical']),
+                'boolean': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'boolean']),
+                'datetime': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'timeseries']),
                 'columns': current_df.columns.tolist(),
                 'column_types_list': column_types_list
-            }
+            },
+            'missing_values_by_column': missing_values_by_column,
+            'distribution_analysis': distribution_analysis  # Add distribution analysis to stats
         }
         
         return jsonify({
@@ -304,6 +354,51 @@ def get_descriptive_stats():
             'success': False,
             'error': str(e)
         }), 400
+
+def get_transformation_suggestion(skewness, kurtosis):
+    """Determine appropriate transformation based on skewness and kurtosis values."""
+    suggestions = []
+    
+    # Handle skewness
+    if abs(skewness) > 1:
+        if skewness > 1:
+            suggestions.append("Log transformation (for strong positive skew)")
+            if skewness > 2:
+                suggestions.append("Consider reciprocal transformation for very severe positive skew")
+            else:
+                suggestions.append("Square root transformation as alternative")
+        else:  # skewness < -1
+            suggestions.append("Square transformation (for strong negative skew)")
+            if skewness < -2:
+                suggestions.append("Consider cube transformation for very severe negative skew")
+            else:
+                suggestions.append("Exponential transformation as alternative")
+    elif 0.5 < abs(skewness) <= 1:
+        if skewness > 0:
+            suggestions.append("Square root transformation (for moderate positive skew)")
+        else:
+            suggestions.append("Square transformation (for moderate negative skew)")
+    
+    # Handle kurtosis
+    if kurtosis > 3.5:
+        suggestions.append("Box-Cox transformation (for heavy tails)")
+        if kurtosis > 4:
+            suggestions.append("Consider Yeo-Johnson transformation for very heavy tails")
+    elif kurtosis < 2.5:
+        suggestions.append("Consider checking for outliers (for light tails)")
+    
+    if not suggestions:
+        return "No transformation needed - distribution appears normal"
+    
+    # Prioritize the most appropriate transformation
+    if "Log transformation" in suggestions:
+        return "Log transformation (recommended for positive skew)"
+    elif "Square transformation" in suggestions:
+        return "Square transformation (recommended for negative skew)"
+    elif "Box-Cox transformation" in suggestions:
+        return "Box-Cox transformation (recommended for heavy tails)"
+    else:
+        return " | ".join(suggestions)
 
 def generate_plot(data, column_name, plot_type):
     """Generate a plot and return it as a base64 encoded string."""
@@ -585,3 +680,58 @@ def get_smart_recommendations():
             'success': False,
             'error': str(e)
         }), 400
+
+@api.route('/ai-recommendations', methods=['POST'])
+def get_ai_recommendations():
+    try:
+        data = request.get_json()
+        current_analysis = data.get('current_analysis')
+        analysis_history = data.get('analysis_history', [])
+        data_stats = data.get('data_stats')
+
+        # Prepare context for AI
+        context = {
+            'current_analysis': current_analysis,
+            'analysis_history': analysis_history,
+            'data_stats': data_stats
+        }
+
+        # Get recommendations from AI service
+        recommendations = get_ai_insights(context)
+
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+def get_ai_insights(context):
+    """Get AI-generated insights based on the current context."""
+    # This is a placeholder for the actual AI integration
+    # You would implement the OpenAI API call here
+    recommendations = []
+
+    # Example recommendations based on context
+    if context['current_analysis']:
+        recommendations.append({
+            'type': 'ai',
+            'title': 'AI Suggestion',
+            'message': f"Based on your current {context['current_analysis']['type']} analysis, consider these additional insights...",
+            'priority': 'medium',
+            'action': 'View AI insights'
+        })
+
+    if context['data_stats']:
+        recommendations.append({
+            'type': 'ai',
+            'title': 'Data Pattern Detected',
+            'message': "The AI has identified interesting patterns in your data that might be worth exploring...",
+            'priority': 'high',
+            'action': 'Explore patterns'
+        })
+
+    return recommendations
