@@ -487,7 +487,11 @@ def get_column_data(column_name):
                 'Median': f"{column_data.median():.2f}",
                 'Std Dev': f"{column_data.std():.2f}",
                 'Min': f"{column_data.min():.2f}",
-                'Max': f"{column_data.max():.2f}"
+                'Max': f"{column_data.max():.2f}",
+                'Range': f"{column_data.max() - column_data.min():.2f}",
+                'Skewness': f"{column_data.skew():.2f}",
+                'Kurtosis': f"{column_data.kurtosis():.2f}",
+                'Distribution': get_distribution_type(column_data)
             })
         elif col_type == 'categorical':
             value_counts = column_data.value_counts()
@@ -527,12 +531,29 @@ def get_column_data(column_name):
                 'plots': plots
             }
         })
-        
     except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400
+        }), 500
+
+def get_distribution_type(column_data):
+    """Determine the type of distribution based on skewness and kurtosis."""
+    skewness = column_data.skew()
+    kurtosis = column_data.kurtosis()
+    
+    if abs(skewness) < 0.5 and abs(kurtosis) < 2:
+        return "Normal"
+    elif skewness > 1:
+        return "Right-skewed"
+    elif skewness < -1:
+        return "Left-skewed"
+    elif kurtosis > 3:
+        return "Heavy-tailed"
+    elif kurtosis < 1:
+        return "Light-tailed"
+    else:
+        return "Non-normal"
 
 @api.route('/smart-recommendations', methods=['GET'])
 def get_smart_recommendations():

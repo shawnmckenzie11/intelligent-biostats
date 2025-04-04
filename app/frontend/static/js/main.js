@@ -747,42 +747,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayColumnData(columnData) {
         const columnDetails = document.querySelector('.column-details');
-        
-        // Create stats HTML with inline format
+        const stats = columnData.stats;
+        const plots = columnData.plots;
+
+        // Create stats HTML
         let statsHtml = `
+            <div class="stats-summary">
+                <p><strong>Type:</strong> ${stats.Type} | 
+                <strong>Missing Values:</strong> ${stats['Missing Values']} | 
+                <strong>Unique Values:</strong> ${stats['Unique Values']}</p>
+            </div>
             <div class="column-stats">
-                <p>Type: ${columnData.stats.Type} | Missing: ${columnData.stats['Missing Values']} | Unique: ${columnData.stats['Unique Values']}</p>
         `;
 
         // Add type-specific statistics
-        if (columnData.stats.Type === 'numeric' || columnData.stats.Type === 'discrete') {
+        if (stats.Type === 'numeric' || stats.Type === 'discrete') {
             statsHtml += `
-                <p>Mean: ${columnData.stats.Mean} | Median: ${columnData.stats.Median} | Std Dev: ${columnData.stats['Std Dev']}</p>
-                <p>Min: ${columnData.stats.Min} | Max: ${columnData.stats.Max} | Range: ${columnData.stats.Max - columnData.stats.Min}</p>
+                <p><strong>Mean:</strong> ${stats.Mean} | 
+                <strong>Median:</strong> ${stats.Median} | 
+                <strong>Std Dev:</strong> ${stats['Std Dev']}</p>
+                <p><strong>Min:</strong> ${stats.Min} | 
+                <strong>Max:</strong> ${stats.Max} | 
+                <strong>Range:</strong> ${stats.Range}</p>
+                <p><strong>Skewness:</strong> ${stats.Skewness} | 
+                <strong>Kurtosis:</strong> ${stats.Kurtosis} | 
+                <strong>Distribution:</strong> ${stats.Distribution}</p>
             `;
-        } else if (columnData.stats.Type === 'categorical') {
+        } else if (stats.Type === 'categorical') {
+            statsHtml += `<p><strong>Most Common:</strong> ${stats['Most Common']}</p>`;
+        } else if (stats.Type === 'boolean') {
             statsHtml += `
-                <p>Most Common: ${columnData.stats['Most Common']}</p>
+                <p><strong>True Count:</strong> ${stats['True Count']} | 
+                <strong>False Count:</strong> ${stats['False Count']}</p>
             `;
-        } else if (columnData.stats.Type === 'boolean') {
+        } else if (stats.Type === 'timeseries') {
             statsHtml += `
-                <p>True: ${columnData.stats['True Count']} | False: ${columnData.stats['False Count']}</p>
-            `;
-        } else if (columnData.stats.Type === 'timeseries') {
-            statsHtml += `
-                <p>Start: ${columnData.stats['Start Date']} | End: ${columnData.stats['End Date']} | Range: ${columnData.stats['Date Range']}</p>
+                <p><strong>Start Date:</strong> ${stats['Start Date']} | 
+                <strong>End Date:</strong> ${stats['End Date']} | 
+                <strong>Date Range:</strong> ${stats['Date Range']}</p>
             `;
         }
 
         statsHtml += '</div>';
 
-        // Create plots HTML with thumbnails
+        // Create plots HTML
         let plotsHtml = '<div class="plots-container">';
-        Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
+        for (const [plotType, plotData] of Object.entries(plots)) {
             let plotTitle = '';
             switch(plotType) {
                 case 'histogram':
-                    plotTitle = 'Distribution';
+                    plotTitle = 'Histogram';
                     break;
                 case 'density':
                     plotTitle = 'Density Plot';
@@ -794,49 +808,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     plotTitle = 'Q-Q Plot';
                     break;
             }
-            
             plotsHtml += `
-                <div class="plot-thumbnail" data-plot-type="${plotType}">
-                    <img src="data:image/png;base64,${plotData}" alt="${plotTitle}" title="${plotTitle}" />
+                <div class="plot-thumbnail">
+                    <img src="data:image/png;base64,${plotData}" alt="${plotTitle}" title="${plotTitle}">
                 </div>
             `;
-        });
+        }
         plotsHtml += '</div>';
 
-        // Add modal HTML
+        // Add modal for plot popup
         plotsHtml += `
             <div class="plot-modal">
                 <div class="plot-modal-content">
                     <span class="close-modal">&times;</span>
-                    <img src="" alt="" />
+                    <img src="" alt="Large Plot">
                 </div>
             </div>
         `;
-        
+
+        // Combine all HTML
         columnDetails.innerHTML = statsHtml + plotsHtml;
 
-        // Add click handlers for thumbnails
-        document.querySelectorAll('.plot-thumbnail').forEach(thumbnail => {
-            thumbnail.addEventListener('click', () => {
-                const modal = document.querySelector('.plot-modal');
-                const modalImg = modal.querySelector('img');
-                const thumbnailImg = thumbnail.querySelector('img');
-                
-                modalImg.src = thumbnailImg.src;
-                modalImg.alt = thumbnailImg.alt;
+        // Add event listeners for plot thumbnails
+        const thumbnails = columnDetails.querySelectorAll('.plot-thumbnail');
+        const modal = columnDetails.querySelector('.plot-modal');
+        const modalImg = modal.querySelector('img');
+        const closeBtn = modal.querySelector('.close-modal');
+
+        thumbnails.forEach(thumb => {
+            thumb.addEventListener('click', () => {
                 modal.classList.add('active');
+                modalImg.src = thumb.querySelector('img').src;
             });
         });
 
-        // Add click handler for close button
-        document.querySelector('.close-modal').addEventListener('click', () => {
-            document.querySelector('.plot-modal').classList.remove('active');
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
         });
 
-        // Close modal when clicking outside
-        document.querySelector('.plot-modal').addEventListener('click', (e) => {
-            if (e.target === document.querySelector('.plot-modal')) {
-                document.querySelector('.plot-modal').classList.remove('active');
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
             }
         });
     }
