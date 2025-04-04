@@ -5,6 +5,7 @@ import os
 from importlib.metadata import version, PackageNotFoundError
 import importlib
 from typing import List, Set
+from dotenv import load_dotenv
 
 def check_python_version():
     """Check if Python version meets requirements."""
@@ -57,6 +58,10 @@ def initialize_environment():
     """Initialize the application environment."""
     if not hasattr(initialize_environment, '_initialized'):
         print("Initializing Intelligent Biostats...")
+        
+        # Load environment variables from .env file
+        load_dotenv()
+        
         check_python_version()
         check_system_dependencies()
         check_and_install_packages()

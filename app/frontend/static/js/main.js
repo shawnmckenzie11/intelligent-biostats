@@ -141,21 +141,34 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function handleFile(file) {
-        if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        if (!file.name.endsWith('.csv')) {
             alert('Please upload a CSV file');
             return;
         }
 
-        // Display preview using first chunk
-        const previewReader = new FileReader();
-        const previewChunk = file.slice(0, 1024 * 1024); // First 1MB for preview
-        
-        previewReader.onload = function(e) {
-            const text = e.target.result;
-            displayPreview(text);
-            uploadFullFile(file);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csvText = e.target.result;
+            displayPreview(csvText);
+            
+            // Upload the full file
+            uploadFullFile(file)
+                .then(() => {
+                    // Show the overlay panel
+                    document.querySelector('.analysis-overlay').classList.add('expanded');
+                    
+                    // Dispatch fileUploaded event to trigger recommendations
+                    document.dispatchEvent(new CustomEvent('fileUploaded'));
+                    
+                    // Load descriptive stats immediately
+                    loadDescriptiveStats();
+                })
+                .catch(error => {
+                    console.error('Error uploading file:', error);
+                    alert('Error uploading file');
+                });
         };
-        previewReader.readAsText(previewChunk);
+        reader.readAsText(file);
     }
 
     function displayPreview(csvText) {
@@ -324,23 +337,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function uploadFullFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('file', file);
 
-        fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Upload successful:', data);
-            if (!data.success) {
-                throw new Error(data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error uploading file: ' + error.message);
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    resolve(data);
+                } else {
+                    reject(new Error(data.error || 'Upload failed'));
+                }
+            })
+            .catch(error => {
+                reject(error);
+            });
         });
     }
 
@@ -661,15 +681,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     displayDescriptiveStats(data.stats);
-                    initializeColumnPicker(data.stats.column_types.columns);
-                } else {
-                    throw new Error(data.error || 'Failed to load statistics');
                 }
             })
             .catch(error => {
                 console.error('Error loading descriptive stats:', error);
-                document.querySelector('.stats-summary').innerHTML = 
-                    `<div class="error-message">Error loading statistics: ${error.message}</div>`;
             });
     }
 

@@ -48,3 +48,9 @@ data/analysis_history.db
 uploads/
 logs/
 temp/
+
+# Configuration files
+app/config.py
+
+# OS
+Thumbs.db
