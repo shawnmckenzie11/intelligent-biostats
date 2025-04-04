@@ -172,84 +172,83 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function displayPreview(csvText) {
-        const rows = csvText.split('\n');
-        const headers = rows[0].split(',');
+        const previewTable = document.getElementById('previewTable');
+        let tableHtml = '';
         
-        // Create table HTML
-        let tableHtml = '<table><thead><tr>';
-        headers.forEach(header => {
-            tableHtml += `<th>${header.trim()}</th>`;
-        });
-        tableHtml += '</tr></thead><tbody>';
-
-        // Add first 5 rows of data
-        for (let i = 1; i < Math.min(rows.length, 6); i++) {
-            const cells = rows[i].split(',');
-            tableHtml += '<tr>';
-            cells.forEach(cell => {
-                tableHtml += `<td>${cell.trim()}</td>`;
+        // Check if csvText is a string (raw CSV) or an object (modified preview)
+        if (typeof csvText === 'string') {
+            // Handle raw CSV text
+            const rows = csvText.split('\n');
+            const headers = rows[0].split(',');
+            
+            tableHtml = '<table><thead><tr>';
+            headers.forEach(header => {
+                tableHtml += `<th>${header.trim()}</th>`;
             });
-            tableHtml += '</tr>';
-        }
-        tableHtml += '</tbody></table>';
+            tableHtml += '</tr></thead><tbody>';
 
+            // Add first 5 rows of data
+            for (let i = 1; i < Math.min(rows.length, 6); i++) {
+                const cells = rows[i].split(',');
+                tableHtml += '<tr>';
+                cells.forEach(cell => {
+                    tableHtml += `<td>${cell.trim()}</td>`;
+                });
+                tableHtml += '</tr>';
+            }
+            tableHtml += '</tbody></table>';
+        } else {
+            // Handle modified preview object
+            const headers = Object.keys(csvText);
+            const rowCount = csvText[headers[0]].length;
+            
+            tableHtml = '<table><thead><tr>';
+            headers.forEach(header => {
+                tableHtml += `<th>${header}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
+
+            // Add first 5 rows of data
+            for (let i = 0; i < Math.min(rowCount, 5); i++) {
+                tableHtml += '<tr>';
+                headers.forEach(header => {
+                    tableHtml += `<td>${csvText[header][i]}</td>`;
+                });
+                tableHtml += '</tr>';
+            }
+            tableHtml += '</tbody></table>';
+        }
+        
         previewTable.innerHTML = tableHtml;
         
-        // Show preview sections
-        uploadSection.style.display = 'none';
-        dataPreview.style.display = 'block';
-        document.getElementById('descriptiveStatsSection').style.display = 'none'; // Hide initially
-        modifySection.style.display = 'block';
-
+        // Show preview section
+        document.getElementById('dataPreview').style.display = 'block';
+        document.getElementById('uploadSection').style.display = 'none';
+        
         // Initialize collapsible functionality
         initializeCollapsiblePreview();
-        initializeDescriptiveSection();
-
+        
         // Show the overlay panel when data is loaded
+        const overlay = document.querySelector('.analysis-overlay');
         overlay.style.display = 'block';
     }
 
     function initializeCollapsiblePreview() {
         const toggleButton = document.getElementById('togglePreview');
-        const previewHeader = toggleButton.parentElement;
         const previewContent = document.getElementById('previewContent');
         const toggleIcon = toggleButton.querySelector('.toggle-icon');
         
         // Set initial state (expanded)
-        previewContent.style.maxHeight = '500px';
+        previewContent.style.maxHeight = 'none';
         
-        // Add click handler to the entire header
-        previewHeader.addEventListener('click', (e) => {
-            // Prevent double-triggering if clicking the toggle button
-            if (e.target === toggleButton || e.target === toggleIcon) {
-                return;
-            }
-            
+        toggleButton.addEventListener('click', () => {
             const isCollapsed = previewContent.classList.contains('collapsed');
             
             if (isCollapsed) {
                 // Expand
                 previewContent.classList.remove('collapsed');
                 toggleIcon.style.transform = 'rotate(0deg)';
-                previewContent.style.maxHeight = '500px';
-            } else {
-                // Collapse
-                previewContent.classList.add('collapsed');
-                toggleIcon.style.transform = 'rotate(-90deg)';
-                previewContent.style.maxHeight = '0';
-            }
-        });
-        
-        // Keep the toggle button click handler
-        toggleButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent header click from triggering
-            const isCollapsed = previewContent.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-                // Expand
-                previewContent.classList.remove('collapsed');
-                toggleIcon.style.transform = 'rotate(0deg)';
-                previewContent.style.maxHeight = '500px';
+                previewContent.style.maxHeight = 'none';
             } else {
                 // Collapse
                 previewContent.classList.add('collapsed');
@@ -259,74 +258,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function initializeDescriptiveSection() {
+    function initializeDescriptiveStatsCollapsible() {
         const toggleButton = document.getElementById('toggleDescriptive');
-        const descriptiveHeader = toggleButton.parentElement;
         const descriptiveContent = document.getElementById('descriptiveContent');
         const toggleIcon = toggleButton.querySelector('.toggle-icon');
         
-        // Set initial state (collapsed)
-        descriptiveContent.classList.add('collapsed');
-        toggleIcon.style.transform = 'rotate(-90deg)';
+        // Set initial state (expanded)
+        descriptiveContent.style.maxHeight = 'none';
         
-        // Create a ResizeObserver to handle dynamic content changes
-        const resizeObserver = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                if (!descriptiveContent.classList.contains('collapsed')) {
-                    // Get the total height of all content
-                    const totalHeight = Array.from(descriptiveContent.children)
-                        .reduce((height, child) => height + child.offsetHeight, 0);
-                    descriptiveContent.style.maxHeight = `${totalHeight + 50}px`; // Add padding
-                }
-            }
-        });
-
-        // Start observing the content and its children
-        resizeObserver.observe(descriptiveContent);
-        descriptiveContent.childNodes.forEach(child => {
-            if (child.nodeType === 1) { // Only observe element nodes
-                resizeObserver.observe(child);
-            }
-        });
-        
-        // Add click handler to the entire header
-        descriptiveHeader.addEventListener('click', (e) => {
-            // Prevent double-triggering if clicking the toggle button
-            if (e.target === toggleButton || e.target === toggleIcon) {
-                return;
-            }
-            
+        toggleButton.addEventListener('click', () => {
             const isCollapsed = descriptiveContent.classList.contains('collapsed');
             
             if (isCollapsed) {
                 // Expand
                 descriptiveContent.classList.remove('collapsed');
                 toggleIcon.style.transform = 'rotate(0deg)';
-                // Calculate and set the height needed for all content
-                const totalHeight = Array.from(descriptiveContent.children)
-                    .reduce((height, child) => height + child.offsetHeight, 0);
-                descriptiveContent.style.maxHeight = `${totalHeight + 50}px`;
-            } else {
-                // Collapse
-                descriptiveContent.classList.add('collapsed');
-                toggleIcon.style.transform = 'rotate(-90deg)';
-                descriptiveContent.style.maxHeight = '0';
-            }
-        });
-        
-        // Keep the toggle button click handler
-        toggleButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent header click from triggering
-            const isCollapsed = descriptiveContent.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-                // Expand
-                descriptiveContent.classList.remove('collapsed');
-                toggleIcon.style.transform = 'rotate(0deg)';
-                // Calculate and set the height needed for all content
-                const totalHeight = Array.from(descriptiveContent.children)
-                    .reduce((height, child) => height + child.offsetHeight, 0);
-                descriptiveContent.style.maxHeight = `${totalHeight + 50}px`;
+                descriptiveContent.style.maxHeight = 'none';
             } else {
                 // Collapse
                 descriptiveContent.classList.add('collapsed');
@@ -410,9 +357,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Modify the proceed button handler to show the overlay
+    // Update the proceed button handler
     document.getElementById('proceedButton').addEventListener('click', function() {
         const modificationRequest = document.getElementById('modificationInput').value;
+        const contextInput = document.getElementById('contextInput').value;
         
         if (modificationRequest.trim()) {
             fetch('/api/modify-data', {
@@ -421,34 +369,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
-                    modification: modificationRequest 
+                    modification: modificationRequest,
+                    context: contextInput
                 })
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Modification response:', data);
-                
                 if (data.success) {
                     // Update preview table with new data
                     if (data.preview) {
-                        updatePreviewTable(data.preview);
+                        displayPreview(data.preview);
                     }
                     
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
                     statusElement.textContent = 'Modifications Applied Successfully';
-                    statusElement.className = 'status-message success';
+                    statusElement.className = 'status-message';
                     
-                    // Hide modify section and show analysis tabs after a delay
-                    setTimeout(() => {
-                        document.getElementById('modifySection').style.display = 'none';
-                        document.getElementById('descriptiveStatsSection').style.display = 'block';
-                        overlay.classList.add('expanded'); // Show the overlay
-                        showAnalysisTabs();
-                        getAnalysisOptions();
-                        loadDescriptiveStats();
-                        loadSmartRecommendations();
-                    }, 1500);
+                    // Hide the preview actions section
+                    document.querySelector('.preview-actions').style.display = 'none';
+                    
+                    // Show analysis sections
+                    document.getElementById('descriptiveStatsSection').style.display = 'block';
+                    document.getElementById('analysisTabsSection').style.display = 'block';
+                    
+                    // Initialize collapsible functionality for descriptive stats
+                    initializeDescriptiveStatsCollapsible();
+                    
+                    // Reinitialize the preview collapsible functionality
+                    initializeCollapsiblePreview();
+                    
+                    // Initialize tabs
+                    initializeTabs();
+                    
+                    // Show the overlay panel
+                    const overlay = document.querySelector('.analysis-overlay');
+                    overlay.classList.add('expanded');
+                    
+                    // Load initial data
+                    loadDescriptiveStats();
+                    loadSmartRecommendations();
                 } else {
                     throw new Error(data.error || 'Failed to apply modifications');
                 }
@@ -460,12 +420,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusElement.className = 'status-message error';
             });
         } else {
-            // If no modifications, directly show analysis tabs
-            document.getElementById('modifySection').style.display = 'none';
+            // If no modifications, directly show analysis sections
             document.getElementById('descriptiveStatsSection').style.display = 'block';
-            overlay.classList.add('expanded'); // Show the overlay
-            showAnalysisTabs();
-            getAnalysisOptions();
+            document.getElementById('analysisTabsSection').style.display = 'block';
+            
+            // Hide the preview actions section
+            document.querySelector('.preview-actions').style.display = 'none';
+            
+            // Initialize collapsible functionality for descriptive stats
+            initializeDescriptiveStatsCollapsible();
+            
+            // Reinitialize the preview collapsible functionality
+            initializeCollapsiblePreview();
+            
+            // Initialize tabs
+            initializeTabs();
+            
+            // Show the overlay panel
+            const overlay = document.querySelector('.analysis-overlay');
+            overlay.classList.add('expanded');
+            
+            // Load initial data
             loadDescriptiveStats();
             loadSmartRecommendations();
         }
