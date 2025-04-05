@@ -1676,3 +1676,79 @@ body {
 .close-modal:hover {
     background-color: #f8f9fa;
 }
+
+.analysis-controls {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.outlier-control {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.outlier-control input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.outlier-control label {
+    font-size: 14px;
+    color: #495057;
+    cursor: pointer;
+}
+
+.column-modifications {
+    margin-bottom: 15px;
+}
+
+.column-modifications h4 {
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.outcome-variables {
+    margin-bottom: 15px;
+}
+
+.outcome-variables h4 {
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.outcome-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.outcome-controls input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.outcome-controls .action-button {
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.outcome-controls .action-button:hover {
+    background-color: #0056b3;
+}

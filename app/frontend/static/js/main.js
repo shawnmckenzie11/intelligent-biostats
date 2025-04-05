@@ -683,20 +683,34 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
 
-        // Combine summary and column analysis
-        descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml;
+        // Create outlier exclusion and analysis controls
+        const analysisControlsHtml = `
+            <div class="analysis-controls">
+                <div class="outlier-control">
+                    <input type="checkbox" id="excludeOutliers" name="excludeOutliers">
+                    <label for="excludeOutliers">Exclude outlier data from all analyses</label>
+                </div>
+                <div class="column-modifications">
+                    <h4>Column Data Modifications:</h4>
+                </div>
+                <div class="outcome-variables">
+                    <h4>Specify your outcome (dependent) variable(s):</h4>
+                    <div class="outcome-controls">
+                        <input type="text" id="outcomeVariables" placeholder="Enter column names separated by commas">
+                        <button id="analyzeOutcomeVariables" class="action-button">Analyze Outcome Variables</button>
+                    </div>
+                </div>
+            </div>
+        `;
 
+        // Combine all sections
+        descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml + analysisControlsHtml;
+        
         // Add event listeners for column menu items
-        document.querySelectorAll('.column-menu-item').forEach(item => {
-            const columnName = item.dataset.column;
-            
-            // Add click event listener
+        const columnMenuItems = document.querySelectorAll('.column-menu-item');
+        columnMenuItems.forEach(item => {
             item.addEventListener('click', () => {
-                // Remove active class from all items
-                document.querySelectorAll('.column-menu-item').forEach(i => i.classList.remove('active'));
-                // Add active class to clicked item
-                item.classList.add('active');
-                // Fetch and display column data
+                const columnName = item.getAttribute('data-column');
                 fetchColumnData(columnName);
             });
         });
