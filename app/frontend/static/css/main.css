@@ -474,17 +474,47 @@ body {
 
 /* Stats Summary */
 .stats-summary {
-    background-color: white;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
     border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.stats-summary p {
-    margin: 0.5rem 0;
+.stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 5px;
+    padding: 5px 0;
+    border-bottom: 1px solid #e9ecef;
     font-size: 0.9rem;
     color: #333;
+}
+
+.stats-row:last-child {
+    border-bottom: none;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.stat-item strong {
+    color: #495057;
+    font-weight: 500;
+}
+
+.boundary-value {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.boundary-value:hover {
+    color: #0056b3;
 }
 
 /* Column Stats */
@@ -1508,7 +1538,7 @@ body {
 }
 
 .column-menu {
-    width: 200px;
+    width: 150px;
     background-color: var(--background-color);
     padding: 0.4rem;
     border-right: 1px solid var(--border-color);
@@ -1751,4 +1781,121 @@ body {
 
 .outcome-controls .action-button:hover {
     background-color: #0056b3;
+}
+
+.boundary-value {
+    cursor: pointer;
+    color: var(--secondary-color);
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.boundary-value:hover {
+    color: var(--primary-color);
+}
+
+.boundary-form {
+    padding: 1.5rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.boundary-form h3 {
+    margin: 0 0 1.5rem 0;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.boundary-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.boundary-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.boundary-form input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.boundary-form input[type="number"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+.boundary-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.boundary-form .action-button {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.boundary-form .action-button:hover {
+    background-color: var(--primary-color);
+}
+
+.boundary-form .close-modal {
+    padding: 0.75rem 1.5rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.boundary-form .close-modal:hover {
+    background-color: #5a6268;
+}
+
+.boundary-explanation {
+    font-size: 0.85rem;
+    color: #666;
+    margin: 0.75rem 0;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.boundary-changes {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.boundary-changes ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+}
+
+.boundary-changes li {
+    font-size: 0.85rem;
+    color: #495057;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.boundary-changes li:last-child {
+    border-bottom: none;
 }

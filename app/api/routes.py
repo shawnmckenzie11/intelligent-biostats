@@ -829,3 +829,66 @@ def get_ai_insights(context):
         })
 
     return recommendations
+
+@api.route('/update-boundary', methods=['POST'])
+def update_boundary():
+    """Update the boundary for a column and return updated outlier flags."""
+    try:
+        global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+
+        data = request.json
+        column_name = data.get('column')
+        boundary_type = data.get('type')  # 'min' or 'max'
+        new_value = float(data.get('value'))
+
+        if column_name not in current_df.columns:
+            return jsonify({
+                'success': False,
+                'error': 'Column not found'
+            }), 400
+
+        # Get the column data
+        column_data = current_df[column_name]
+
+        # Initialize or get existing flags
+        if 'outlier_flags' not in current_df.attrs:
+            current_df.attrs['outlier_flags'] = {}
+
+        if column_name not in current_df.attrs['outlier_flags']:
+            current_df.attrs['outlier_flags'][column_name] = {
+                'min': None,
+                'max': None,
+                'flags': np.zeros(len(column_data), dtype=bool)
+            }
+
+        # Update the boundary
+        current_df.attrs['outlier_flags'][column_name][boundary_type] = new_value
+
+        # Update the flags
+        flags = current_df.attrs['outlier_flags'][column_name]['flags']
+        if boundary_type == 'min':
+            flags |= (column_data < new_value)
+        else:  # max
+            flags |= (column_data > new_value)
+
+        # Count outliers
+        outlier_count = int(flags.sum())
+        outlier_percentage = float((outlier_count / len(column_data)) * 100)
+
+        return jsonify({
+            'success': True,
+            'outlier_count': outlier_count,
+            'outlier_percentage': outlier_percentage,
+            'flags': flags.tolist()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400

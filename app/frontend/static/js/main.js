@@ -828,65 +828,175 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayColumnData(columnData) {
         const columnDetails = document.querySelector('.column-details');
-        const stats = columnData.stats;
-        
-        // Create stats summary
-        let statsHTML = '<div class="stats-summary">';
-        
-        if (stats.Type === 'numeric' || stats.Type === 'discrete') {
-            statsHTML += `
-                <p><strong>Mean:</strong> ${stats.Mean} | <strong>Median:</strong> ${stats.Median} | <strong>Std Dev:</strong> ${stats.Std_Dev}</p>
-                <p><strong>Min:</strong> ${stats.Min} | <strong>Max:</strong> ${stats.Max} | <strong>Range:</strong> ${stats.Range}</p>
-                <p><strong>Skewness:</strong> ${stats.Skewness} | <strong>Kurtosis:</strong> ${stats.Kurtosis} | <strong>Distribution:</strong> ${stats.Distribution} | <strong>Outliers:</strong> ${stats.Outliers.count}</p>
+        columnDetails.innerHTML = '';
+
+        // Create summary HTML
+        let summaryHTML = '<div class="stats-summary">';
+        if (columnData.stats.Type === 'numeric') {
+            summaryHTML += `
+                <div class="stats-row">
+                    <span class="stat-item"><strong>Type:</strong> ${columnData.stats.Type}</span>
+                    <span class="stat-item"><strong>Mean:</strong> ${columnData.stats.Mean}</span>
+                    <span class="stat-item"><strong>Median:</strong> ${columnData.stats.Median}</span>
+                    <span class="stat-item"><strong>Std Dev:</strong> ${columnData.stats['Std Dev']}</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item"><strong>Min:</strong> <span class="boundary-value" data-type="min" data-value="${columnData.stats.Min}">${columnData.stats.Min}</span></span>
+                    <span class="stat-item"><strong>Max:</strong> <span class="boundary-value" data-type="max" data-value="${columnData.stats.Max}">${columnData.stats.Max}</span></span>
+                    <span class="stat-item"><strong>Skewness:</strong> ${columnData.stats.Skewness}</span>
+                    <span class="stat-item"><strong>Kurtosis:</strong> ${columnData.stats.Kurtosis}</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item"><strong>Outliers:</strong> ${columnData.stats.Outliers.count} (${columnData.stats.Outliers.percentage})</span>
+                </div>
             `;
-        } else if (stats.Type === 'categorical') {
-            statsHTML += `
-                <p><strong>Most Common:</strong> ${stats['Most Common']}</p>
-                <p><strong>Value Distribution:</strong></p>
-                <ul class="value-distribution">
-                    ${Object.entries(stats['Value Distribution']).map(([value, count]) => 
-                        `<li>${value}: ${count}</li>`
-                    ).join('')}
-                </ul>
+        } else if (columnData.stats.Type === 'categorical') {
+            summaryHTML += `
+                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
+                <p><strong>Unique Values:</strong> ${columnData.stats['Unique Values']}</p>
+                <p><strong>Most Common:</strong> ${columnData.stats['Most Common']}</p>
             `;
-        } else if (stats.Type === 'boolean') {
-            statsHTML += `
-                <p><strong>True Count:</strong> ${stats['True Count']}</p>
-                <p><strong>False Count:</strong> ${stats['False Count']}</p>
+        } else if (columnData.stats.Type === 'boolean') {
+            summaryHTML += `
+                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
+                <p><strong>True Count:</strong> ${columnData.stats['True Count']}</p>
+                <p><strong>False Count:</strong> ${columnData.stats['False Count']}</p>
             `;
-        } else if (stats.Type === 'timeseries') {
-            statsHTML += `
-                <p><strong>Start Date:</strong> ${stats['Start Date']}</p>
-                <p><strong>End Date:</strong> ${stats['End Date']}</p>
-                <p><strong>Date Range:</strong> ${stats['Date Range']}</p>
+        } else if (columnData.stats.Type === 'timeseries') {
+            summaryHTML += `
+                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
+                <p><strong>Start Date:</strong> ${columnData.stats['Start Date']}</p>
+                <p><strong>End Date:</strong> ${columnData.stats['End Date']}</p>
             `;
         }
-        
-        statsHTML += '</div>';
-        
-        // Create plots container
-        let plotsHTML = '<div class="plots-container">';
-        if (columnData.plots) {
-            Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
-                plotsHTML += `
-                    <div class="plot-thumbnail" data-plot-type="${plotType}">
-                        <img src="data:image/png;base64,${plotData}" alt="${plotType} plot">
-                    </div>
-                `;
-            });
-        }
-        plotsHTML += '</div>';
-        
-        columnDetails.innerHTML = statsHTML + plotsHTML;
-        
-        // Add click handlers for plot thumbnails
-        document.querySelectorAll('.plot-thumbnail').forEach(thumbnail => {
-            thumbnail.addEventListener('click', () => {
-                const plotType = thumbnail.dataset.plotType;
-                const plotData = columnData.plots[plotType];
-                showPlotModal(plotType, plotData);
+        summaryHTML += '</div>';
+
+        // Add click event listeners to boundary values
+        columnDetails.innerHTML = summaryHTML;
+        const boundaryValues = columnDetails.querySelectorAll('.boundary-value');
+        boundaryValues.forEach(value => {
+            value.addEventListener('click', () => {
+                showBoundaryModal(value.dataset.type, value.dataset.value);
             });
         });
+
+        // Create plots container
+        const plotsContainer = document.createElement('div');
+        plotsContainer.className = 'plots-container';
+        
+        // Add plots if available
+        if (columnData.plots) {
+            Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
+                const plotThumbnail = document.createElement('div');
+                plotThumbnail.className = 'plot-thumbnail';
+                plotThumbnail.innerHTML = `<img src="data:image/png;base64,${plotData}" alt="${plotType}">`;
+                plotThumbnail.addEventListener('click', () => {
+                    showPlotModal(plotType, plotData);
+                });
+                plotsContainer.appendChild(plotThumbnail);
+            });
+        }
+        
+        columnDetails.appendChild(plotsContainer);
+    }
+
+    function showBoundaryModal(type, currentValue) {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'plot-modal';
+        
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'plot-modal-content';
+        
+        // Create form for boundary update
+        const form = document.createElement('form');
+        form.className = 'boundary-form';
+        form.innerHTML = `
+            <h3>Update ${type === 'min' ? 'Minimum' : 'Maximum'} Boundary</h3>
+            <div class="form-group">
+                <label for="boundaryValue">New ${type === 'min' ? 'Minimum' : 'Maximum'} Value:</label>
+                <input type="number" id="boundaryValue" value="${currentValue}" step="any" required>
+            </div>
+            <p class="boundary-explanation">Adjust the value to flag (ignore) all datapoints outside this new range during the analysis phase. Note: The data preview above and graphical summaries below will not reflect this change</p>
+            <div class="form-actions">
+                <button type="submit" class="action-button">Update</button>
+                <button type="button" class="close-modal">Cancel</button>
+            </div>
+        `;
+        
+        // Add form submission handler
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newValue = document.getElementById('boundaryValue').value;
+            updateBoundary(type, newValue);
+            modal.remove();
+        });
+        
+        // Add close button handler
+        const closeButton = form.querySelector('.close-modal');
+        closeButton.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Assemble modal
+        modalContent.appendChild(form);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Show modal
+        modal.classList.add('active');
+    }
+
+    let boundaryChanges = [];  // Add this at the top with other global variables
+
+    function updateBoundary(type, newValue) {
+        const columnName = document.querySelector('.column-menu-item.active').getAttribute('data-column');
+        const currentValue = document.querySelector(`.boundary-value.${type}`)?.textContent || '0';
+        
+        // Store the change
+        boundaryChanges.push({
+            column: columnName,
+            type: type,
+            oldValue: parseFloat(currentValue),
+            newValue: parseFloat(newValue)
+        });
+        
+        // Update the display
+        updateBoundaryChangesDisplay();
+        
+        // Close the modal
+        const modal = document.querySelector('.boundary-form');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    function updateBoundaryChangesDisplay() {
+        const modificationsContainer = document.querySelector('.column-modifications');
+        if (!modificationsContainer) return;
+        
+        // Clear existing changes
+        const existingChanges = modificationsContainer.querySelector('.boundary-changes');
+        if (existingChanges) {
+            existingChanges.remove();
+        }
+        
+        if (boundaryChanges.length > 0) {
+            const changesHtml = `
+                <div class="boundary-changes">
+                    <h4>Column Data Modifications:</h4>
+                    <ul>
+                        ${boundaryChanges.map(change => `
+                            <li>${change.type === 'min' ? 'Min' : 'Max'} ${change.column} changed from ${change.oldValue} to ${change.newValue}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+            modificationsContainer.innerHTML = changesHtml;
+        } else {
+            modificationsContainer.innerHTML = '<h4>Column Data Modifications:</h4>';
+        }
     }
 
     // Add function to load and display smart recommendations
