@@ -694,11 +694,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h4>Column Data Modifications:</h4>
                 </div>
                 <div class="outcome-variables">
-                    <h4>Specify your outcome (dependent) variable(s):</h4>
-                    <div class="outcome-controls">
-                        <input type="text" id="outcomeVariables" placeholder="Enter column names separated by commas">
-                        <button id="analyzeOutcomeVariables" class="action-button">Analyze Outcome Variables</button>
-                    </div>
+                    <button id="analyzeOutcomeVariables" class="action-button">BEGIN</button>
                 </div>
             </div>
         `;

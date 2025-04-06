@@ -1745,13 +1745,34 @@ body {
 }
 
 .outcome-variables {
-    margin-bottom: 15px;
+    margin: 20px 0;
+    text-align: center;
 }
 
-.outcome-variables h4 {
-    font-size: 14px;
-    color: #495057;
-    margin-bottom: 10px;
+.outcome-variables .action-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.outcome-variables .action-button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.outcome-variables .action-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .outcome-controls {
