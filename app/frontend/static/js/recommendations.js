@@ -4,23 +4,7 @@ class RecommendationsManager {
         this.recommendations = [];
         this.analysisHistory = [];
         this.currentAnalysis = null;
-        this.openaiApiKey = null;
-        this.initApiKey();
-    }
-
-    // Initialize the API key
-    async initApiKey() {
-        try {
-            const response = await fetch('/api/get-openai-key');
-            const data = await response.json();
-            if (data.success) {
-                this.openaiApiKey = data.api_key;
-            } else {
-                console.error('Failed to initialize API key');
-            }
-        } catch (error) {
-            console.error('Error fetching API key:', error);
-        }
+        this.init();
     }
 
     // Initialize the recommendations system

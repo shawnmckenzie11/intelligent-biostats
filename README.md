@@ -1,33 +1,99 @@
-# intelligent-biostats
+# Intelligent Biostats
 
-A smart biostatistics analysis tool powered by AI that provides comprehensive statistical analysis for biological data.
+A modern web application for intelligent statistical analysis and data visualization. This tool provides automated statistical recommendations and analysis workflows based on your data characteristics.
+
+## Features
+
+- Automated statistical analysis recommendations
+- Interactive data visualization
+- Support for various statistical tests:
+  - One Sample T-Test
+  - One Sample Median Test
+  - Binomial Test
+  - Chi-Square Goodness of Fit
+  - Correlation Analysis
+  - Simple Linear Regression
+  - Multiple Regression
+  - Independent Samples T-Test
+  - Logistic Regression
+- Data quality assessment
+- Missing value analysis
+- Distribution analysis and transformation suggestions
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/intelligent-biostats.git
+cd intelligent-biostats
+```
+
+2. Create a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+1. Start the application:
+```bash
+python run.py
+```
+
+2. Open your web browser and navigate to `http://localhost:5000`
+
+3. Upload your CSV data file and follow the interactive analysis workflow
 
 ## Project Structure
 
-This structure follows best practices and allows for scalable development. Here's what each main component does:
+```
+intelligent-biostats/
+├── app/                    # Main application package
+│   ├── api/               # API endpoints
+│   ├── core/              # Core business logic
+│   ├── frontend/          # Frontend assets
+│   └── utils/             # Utility functions
+├── config/                # Configuration files
+├── logs/                  # Log files
+├── tests/                 # Test suite
+├── uploads/              # Uploaded files directory
+└── temp/                 # Temporary files
+```
 
-1. `app/core/`: Contains the main logic
-   - `data_manager.py`: Handles the enhanced Pandas DataFrame with metadata
-   - `ai_engine.py`: Manages AI recommendations and learning
-   - `stats_engine.py`: Implements statistical analyses
+## Development
 
-2. `app/api/`: REST API implementation for web interface communication
+### Running Tests
+```bash
+python -m pytest tests/
+```
 
-3. `app/frontend/`: Web interface components
-   - Separate static files (CSS, JS, assets)
-   - Templates for dynamic content
+### Code Style
+This project follows PEP 8 style guidelines. To check your code:
+```bash
+flake8 .
+```
 
-4. `tests/`: Comprehensive test suite matching the core structure
+## Contributing
 
-5. `docs/`: Both API documentation and user guides
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-6. `config/`: Configuration management
+## License
 
-This structure allows you to:
-- Maintain separation of concerns
-- Scale features independently
-- Add new statistical analyses easily
-- Implement comprehensive testing
-- Provide clear documentation
-- Handle frontend and backend separately
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with Flask and Python
+- Uses pandas for data manipulation
+- Visualization powered by matplotlib and seaborn
 
