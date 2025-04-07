@@ -1,17 +1,56 @@
+"""
+Data Manager Module
+
+This module provides enhanced data management capabilities for biostatistical analysis.
+It extends pandas DataFrame functionality with metadata tracking and advanced data
+manipulation features.
+
+Key Features:
+- Enhanced DataFrame with metadata
+- Automatic data type detection
+- Data modification tracking
+- Column-specific analysis
+"""
+
 import pandas as pd
 import os
 import numpy as np
 from datetime import datetime
+from typing import Dict, Any, Optional, Union
 
 class EnhancedDataFrame:
-    """Enhanced Pandas DataFrame with metadata for biostatistical analysis."""
+    """
+    Enhanced Pandas DataFrame with metadata for biostatistical analysis.
+    
+    This class extends pandas DataFrame functionality by adding metadata tracking
+    and advanced data manipulation features. It maintains information about the
+    data's structure, types, and modifications.
+    
+    Attributes:
+        data (pd.DataFrame): The underlying pandas DataFrame
+        metadata (dict): Dictionary containing metadata about the data
+    """
     
     def __init__(self):
+        """
+        Initialize an empty EnhancedDataFrame.
+        
+        Creates a new instance with no data and empty metadata.
+        """
         self.data = None
         self.metadata = {}
         
-    def load_data(self, file_path):
-        """Load data and compute basic statistics."""
+    def load_data(self, file_path: str) -> None:
+        """
+        Load data from a file and compute basic statistics.
+        
+        Args:
+            file_path (str): Path to the data file
+            
+        Raises:
+            FileNotFoundError: If the file does not exist
+            ValueError: If the file format is not supported
+        """
         self.data = pd.read_csv(file_path)
         self.metadata = {
             'file_stats': {
@@ -23,8 +62,16 @@ class EnhancedDataFrame:
             'column_types': self._analyze_column_types()
         }
     
-    def _analyze_column_types(self):
-        """Analyze and categorize columns, returning column types and counts."""
+    def _analyze_column_types(self) -> Dict[str, int]:
+        """
+        Analyze and categorize columns, returning column types and counts.
+        
+        Returns:
+            Dict[str, int]: Dictionary mapping column types to their counts
+            
+        Note:
+            Column types include: numeric, boolean, categorical, timeseries, discrete
+        """
         if self.data is None:
             return {}
             
