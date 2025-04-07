@@ -1,5 +1,5 @@
 from flask import Flask
-from config.settings import DevelopmentConfig
+from app.config.settings import DevelopmentConfig
 import logging
 import os
 

@@ -14,7 +14,6 @@ from scipy import stats
 import json
 from datetime import datetime
 import logging
-from app.config import OPENAI_API_KEY
 
 # Disable Flask's default request logging
 log = logging.getLogger('werkzeug')
@@ -32,20 +31,6 @@ if not hasattr(api, '_initialized'):
     ai_engine = AIEngine()
     db = AnalysisHistoryDB()
     api._initialized = True
-
-@api.route('/get-openai-key', methods=['GET'])
-def get_openai_key():
-    """Return the OpenAI API key from config."""
-    try:
-        return jsonify({
-            'success': True,
-            'api_key': OPENAI_API_KEY
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
 
 @api.route('/upload', methods=['POST'])
 def upload_file():
