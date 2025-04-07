@@ -39,6 +39,13 @@ def create_app(config_class=DevelopmentConfig):
         # Verify required directories
         verify_directories()
         
+        # Setup debugging utilities
+        from app.utils.request_tracking import setup_request_tracking
+        from app.utils.error_handling import setup_error_handling
+        
+        setup_request_tracking(app)
+        setup_error_handling(app)
+        
         # Register blueprints
         from app.api.routes import api
         from app.routes import main
