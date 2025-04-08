@@ -6,6 +6,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 import logging
+from app.utils.state_logger import StateLogger
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,13 @@ class ColumnType(Enum):
     DISCRETE = "discrete"
     ORDINAL = "ordinal"
     CENSORED = "censored"
+
+class DataPointFlag(Enum):
+    """Flags for individual data points."""
+    NORMAL = "normal"  # Default value - no issues
+    OUTLIER = "outlier"
+    MISSING = "missing"
+    UNEXPECTED_TYPE = "unexpected_type"
 
 @dataclass
 class ColumnMetadata:
@@ -38,6 +46,8 @@ class EnhancedDataFrame:
         self.column_metadata: Dict[str, ColumnMetadata] = {}
         self.validation_rules: Dict[str, List[Dict[str, Any]]] = {}
         self.cached_statistics: Dict[str, Any] = {}
+        self._state_logger = StateLogger()
+        self.point_flags: Optional[np.ndarray] = None  # Will be (n_rows, n_cols) array of DataPointFlag
         
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
@@ -47,33 +57,45 @@ class EnhancedDataFrame:
                 self.data = pd.concat(chunks, ignore_index=True)
                 self.current_file = file_obj.filename
             elif file_path is not None:
-                self.data = pd.read_csv(file_path)
+        self.data = pd.read_csv(file_path)
                 self.current_file = os.path.basename(file_path)
             else:
                 raise ValueError("Either file_path or file_obj must be provided")
                 
             self.modifications_history = []
-            self._update_metadata()
+            self._update_metadata()  # This will recursively update all metadata
             self._validate_data()
+            
+            # Log state after loading
+            self._state_logger.capture_state(self.data, "load_data")
             return True, None
         except Exception as e:
             logger.error(f"Error loading data: {str(e)}")
+            self._state_logger.capture_state(None, f"load_error: {str(e)}")
             return False, str(e)
     
     def _update_metadata(self) -> None:
         """Update metadata after data changes."""
-        if self.data is not None:
-            self.metadata = {
-                'file_stats': {
-                    'filename': self.current_file,
-                    'rows': len(self.data),
-                    'columns': len(self.data.columns),
-                    'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
-                },
-                'column_types': self._analyze_column_types(),
-                'data_quality': self._assess_data_quality()
-            }
-            self._update_column_metadata()
+        if self.data is None:
+            return
+            
+        # Update basic metadata
+        self.metadata = {
+            'file_stats': {
+                'filename': self.current_file,
+                'rows': len(self.data),
+                'columns': len(self.data.columns),
+                'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
+            },
+            'column_types': self._analyze_column_types(),
+            'data_quality': self._assess_data_quality()
+        }
+        
+        # Update column metadata (which may trigger additional updates)
+        self._update_column_metadata()
+        
+        # Update point flags
+        self._update_point_flags()
     
     def _update_column_metadata(self) -> None:
         """Update metadata for each column."""
@@ -93,6 +115,9 @@ class EnhancedDataFrame:
                 validation_rules=self._get_validation_rules(col, col_type),
                 statistical_properties=self._calculate_statistical_properties(col, col_type)
             )
+            
+        # After updating column metadata, ensure point flags are in sync
+        self._update_point_flags()
     
     def _determine_column_type(self, series: pd.Series) -> ColumnType:
         """Determine the most appropriate column type."""
@@ -152,15 +177,168 @@ class EnhancedDataFrame:
                 'std': float(series.std()),
                 'skewness': float(series.skew()),
                 'kurtosis': float(series.kurtosis()),
-                'distribution_type': self._determine_distribution(series)
+                'distribution_type': self._determine_distribution(column, col_type)
             })
             
         return properties
     
-    def _determine_distribution(self, series: pd.Series) -> str:
-        """Determine the statistical distribution of a series."""
-        # Implementation for distribution testing
-        return "unknown"
+    def _determine_distribution(self, column: str, col_type: ColumnType, ignore_flags: bool = False) -> Dict[str, Any]:
+        """Determine the statistical distribution of a numerical column.
+        
+        Args:
+            column: Name of the column to analyze
+            col_type: Type of the column
+            ignore_flags: If True, ignore values flagged as outliers or missing
+            
+        Returns:
+            Dictionary containing distribution information including:
+            - distribution_type: The identified distribution type
+            - parameters: Distribution-specific parameters
+            - goodness_of_fit: Goodness of fit metrics
+            - confidence: Confidence level in the identification
+        """
+        if self.data is None or column not in self.data.columns:
+            return {
+                'distribution_type': 'unknown',
+                'error': 'Column not found or no data loaded'
+            }
+            
+        if col_type not in [ColumnType.NUMERIC, ColumnType.DISCRETE]:
+            return {
+                'distribution_type': 'non_numeric',
+                'error': 'Distribution analysis only applicable to numeric data'
+            }
+            
+        try:
+            # Get the data series
+            series = self.data[column].copy()
+            
+            # If ignoring flags, remove flagged values
+            if ignore_flags and self.point_flags is not None:
+                col_idx = self.data.columns.get_loc(column)
+                valid_mask = self.point_flags[:, col_idx] == DataPointFlag.NORMAL
+                series = series[valid_mask]
+            
+            # Remove any remaining NaN values
+            series = series.dropna()
+            
+            if len(series) < 30:
+                return {
+                    'distribution_type': 'insufficient_data',
+                    'error': 'Insufficient data points for distribution analysis'
+                }
+            
+            # Calculate basic statistics
+            mean = series.mean()
+            std = series.std()
+            skewness = series.skew()
+            kurtosis = series.kurtosis()
+            
+            # Initialize result dictionary
+            result = {
+                'distribution_type': 'unknown',
+                'parameters': {},
+                'goodness_of_fit': {},
+                'confidence': 0.0
+            }
+            
+            # Test for normal distribution
+            if abs(skewness) < 0.5 and abs(kurtosis) < 2:
+                # Perform Shapiro-Wilk test for normality
+                from scipy import stats
+                shapiro_stat, shapiro_p = stats.shapiro(series)
+                
+                if shapiro_p > 0.05:  # Cannot reject null hypothesis of normality
+                    result['distribution_type'] = 'normal'
+                    result['parameters'] = {
+                        'mean': float(mean),
+                        'std': float(std)
+                    }
+                    result['goodness_of_fit'] = {
+                        'shapiro_wilk_stat': float(shapiro_stat),
+                        'shapiro_wilk_p': float(shapiro_p)
+                    }
+                    result['confidence'] = 1.0 - shapiro_p
+                    return result
+            
+            # Test for log-normal distribution
+            if skewness > 0:  # Positive skew suggests log-normal
+                log_series = np.log(series[series > 0])
+                if len(log_series) > 30:  # Ensure enough data points
+                    log_shapiro_stat, log_shapiro_p = stats.shapiro(log_series)
+                    if log_shapiro_p > 0.05:
+                        result['distribution_type'] = 'log_normal'
+                        result['parameters'] = {
+                            'mu': float(log_series.mean()),
+                            'sigma': float(log_series.std())
+                        }
+                        result['goodness_of_fit'] = {
+                            'shapiro_wilk_stat': float(log_shapiro_stat),
+                            'shapiro_wilk_p': float(log_shapiro_p)
+                        }
+                        result['confidence'] = 1.0 - log_shapiro_p
+                        return result
+            
+            # Test for exponential distribution
+            if skewness > 1 and kurtosis > 6:  # Exponential-like characteristics
+                exp_scale = 1.0 / mean
+                ks_stat, ks_p = stats.kstest(series, 'expon', args=(0, 1/exp_scale))
+                if ks_p > 0.05:
+                    result['distribution_type'] = 'exponential'
+                    result['parameters'] = {
+                        'scale': float(1/exp_scale)
+                    }
+                    result['goodness_of_fit'] = {
+                        'ks_stat': float(ks_stat),
+                        'ks_p': float(ks_p)
+                    }
+                    result['confidence'] = 1.0 - ks_p
+                    return result
+            
+            # Test for uniform distribution
+            if abs(skewness) < 0.5 and abs(kurtosis) < 1.8:  # Uniform-like characteristics
+                ks_stat, ks_p = stats.kstest(series, 'uniform', args=(series.min(), series.max() - series.min()))
+                if ks_p > 0.05:
+                    result['distribution_type'] = 'uniform'
+                    result['parameters'] = {
+                        'min': float(series.min()),
+                        'max': float(series.max())
+                    }
+                    result['goodness_of_fit'] = {
+                        'ks_stat': float(ks_stat),
+                        'ks_p': float(ks_p)
+                    }
+                    result['confidence'] = 1.0 - ks_p
+                    return result
+            
+            # If no specific distribution is identified, classify based on skewness and kurtosis
+            if skewness > 1:
+                result['distribution_type'] = 'right_skewed'
+            elif skewness < -1:
+                result['distribution_type'] = 'left_skewed'
+            elif kurtosis > 3:
+                result['distribution_type'] = 'heavy_tailed'
+            elif kurtosis < 1.8:
+                result['distribution_type'] = 'light_tailed'
+            else:
+                result['distribution_type'] = 'unknown'
+            
+            # Add descriptive statistics
+            result['descriptive_stats'] = {
+                'skewness': float(skewness),
+                'kurtosis': float(kurtosis),
+                'mean': float(mean),
+                'std': float(std)
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error determining distribution for column {column}: {str(e)}")
+            return {
+                'distribution_type': 'error',
+                'error': str(e)
+            }
     
     def _validate_data(self) -> None:
         """Validate the data against defined rules."""
@@ -281,23 +459,7 @@ class EnhancedDataFrame:
                     
         return outliers
     
-    def _find_suspicious_values(self) -> Dict[str, Any]:
-        """Find potentially suspicious values."""
-        suspicious = {}
-        
-        for col, metadata in self.column_metadata.items():
-            if metadata.type == ColumnType.NUMERIC:
-                series = self.data[col]
-                zero_count = (series == 0).sum()
-                if zero_count > len(series) * 0.5:  # More than 50% zeros
-                    suspicious[col] = {
-                        'issue': 'high_zero_count',
-                        'count': int(zero_count),
-                        'percentage': float(zero_count / len(series) * 100)
-                    }
-                    
-        return suspicious
-
+    
     def _analyze_column_types(self):
         """Analyze and categorize columns, returning column types and counts."""
         if self.data is None:
@@ -372,7 +534,7 @@ class EnhancedDataFrame:
             
             # Apply modifications using the AI engine if provided
             if ai_engine is not None:
-                modified_df, was_modified = ai_engine.modify_data(self.data, modification_request)
+            modified_df, was_modified = ai_engine.modify_data(self.data, modification_request)
             else:
                 # Simple modification without AI engine
                 modified_df = self.data.copy()
@@ -392,7 +554,7 @@ class EnhancedDataFrame:
                     }
                 })
                 
-                # Update metadata
+                # Update all metadata recursively
                 self._update_metadata()
                 
                 # Create preview dict
@@ -404,11 +566,15 @@ class EnhancedDataFrame:
                         for x in preview_df[column].tolist()
                     ]
                 
+                # Log state after modification
+                self._state_logger.capture_state(self.data, f"modify: {modification_request[:50]}...")
                 return True, "Modifications applied successfully", preview_dict
             else:
                 return False, "No modifications were made", None
                 
         except Exception as e:
+            logger.error(f"Error modifying data: {str(e)}")
+            self._state_logger.capture_state(None, f"modify_error: {str(e)}")
             return False, f"Error applying modifications: {str(e)}", None
 
     def get_column_data(self, column_name):
@@ -475,3 +641,96 @@ class EnhancedDataFrame:
                 for x in preview_df[column].tolist()
             ]
         return preview_dict
+
+    def _update_point_flags(self) -> None:
+        """Update flags for all data points."""
+        if self.data is None:
+            return
+            
+        # Create array of NORMAL flags with same shape as data
+        self.point_flags = np.full(self.data.shape, DataPointFlag.NORMAL, dtype=object)
+        
+        # Update flags based on data values
+        for col_idx, col in enumerate(self.data.columns):
+            col_data = self.data[col]
+            
+            # Check for missing values
+            missing_mask = col_data.isna()
+            self.point_flags[missing_mask, col_idx] = DataPointFlag.MISSING
+            
+            # For numeric columns, check for other anomalies
+            if pd.api.types.is_numeric_dtype(col_data):
+                # Check for outliers
+                if len(col_data.dropna()) > 0:  # Only if we have non-missing values
+                    q1 = col_data.quantile(0.25)
+                    q3 = col_data.quantile(0.75)
+                    iqr = q3 - q1
+                    lower_bound = q1 - 1.5 * iqr
+                    upper_bound = q3 + 1.5 * iqr
+                    
+                    outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
+                    self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
+            
+            # Check for unexpected types
+            if pd.api.types.is_numeric_dtype(col_data):
+                # For numeric columns, check for non-numeric strings
+                non_numeric_mask = col_data.astype(str).str.match(r'[^0-9.-]') & ~missing_mask
+                self.point_flags[non_numeric_mask, col_idx] = DataPointFlag.UNEXPECTED_TYPE
+                
+    def get_point_flags(self, row_idx: int, col_idx: int) -> DataPointFlag:
+        """Get the flag for a specific data point."""
+        if self.point_flags is None:
+            return DataPointFlag.NORMAL
+        return self.point_flags[row_idx, col_idx]
+        
+    def get_column_flags(self, col_idx: int) -> np.ndarray:
+        """Get flags for all points in a column."""
+        if self.point_flags is None:
+            return np.array([])
+        return self.point_flags[:, col_idx]
+        
+    def get_row_flags(self, row_idx: int) -> np.ndarray:
+        """Get flags for all points in a row."""
+        if self.point_flags is None:
+            return np.array([])
+        return self.point_flags[row_idx, :]
+
+    def delete_column(self, column_name: str) -> Tuple[bool, Optional[str]]:
+        """Delete a column from the DataFrame and update metadata."""
+        try:
+            if self.data is None:
+                return False, "No data loaded"
+                
+            if column_name not in self.data.columns:
+                return False, f"Column '{column_name}' not found"
+                
+            # Delete the column
+            self.data = self.data.drop(columns=[column_name])
+            
+            # Update all metadata recursively
+            self._update_metadata()
+            
+            return True, None
+        except Exception as e:
+            logger.error(f"Error deleting column: {str(e)}")
+            return False, str(e)
+            
+    def delete_row(self, row_index: int) -> Tuple[bool, Optional[str]]:
+        """Delete a row from the DataFrame and update metadata."""
+        try:
+            if self.data is None:
+                return False, "No data loaded"
+                
+            if row_index < 0 or row_index >= len(self.data):
+                return False, f"Row index {row_index} out of bounds"
+                
+            # Delete the row
+            self.data = self.data.drop(index=row_index)
+            
+            # Update all metadata recursively
+            self._update_metadata()
+            
+            return True, None
+        except Exception as e:
+            logger.error(f"Error deleting row: {str(e)}")
+            return False, str(e)

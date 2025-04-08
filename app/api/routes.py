@@ -1,10 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 import pandas as pd
 import numpy as np
 import io
 from app.core.ai_engine import AIEngine
 from app.core.database import AnalysisHistoryDB
-from app.core.data_manager import EnhancedDataFrame
+from app.core.data_manager import EnhancedDataFrame, DataPointFlag
 from collections import OrderedDict
 import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'
@@ -16,11 +16,7 @@ import json
 from datetime import datetime
 import logging
 
-# Disable Flask's default request logging
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
-
-# Configure logging
+# Get the logger configured in app/__init__.py
 logger = logging.getLogger(__name__)
 
 api = Blueprint('api', __name__)

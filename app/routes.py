@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, jsonify
-from .core.data_manager import EnhancedDataFrame
+from flask import Blueprint, render_template, jsonify, request
+from .core.data_manager import EnhancedDataFrame, DataPointFlag
 import pandas as pd
+import numpy as np
 
 main = Blueprint('main', __name__)
 data_manager = EnhancedDataFrame()
@@ -19,7 +20,14 @@ def get_descriptive_stats():
             
         stats = {
             'file_stats': data_manager.metadata.get('file_stats', {}),
-            'column_types': data_manager.metadata.get('column_types', {})
+            'column_types': data_manager.metadata.get('column_types', {}),
+            'flag_counts': {
+                col: {
+                    flag.value: int(np.sum(data_manager.point_flags[:, idx] == flag))
+                    for flag in DataPointFlag
+                }
+                for idx, col in enumerate(data_manager.data.columns)
+            }
         }
         return jsonify({'success': True, 'stats': stats})
     except Exception as e:
@@ -35,6 +43,7 @@ def get_column_stats(column_name):
         if column_name not in data_manager.data.columns:
             return jsonify({'success': False, 'error': 'Column not found'})
             
+        col_idx = data_manager.data.columns.get_loc(column_name)
         column_data = data_manager.data[column_name]
         stats = {}
         
@@ -55,6 +64,55 @@ def get_column_stats(column_name):
                 'Missing Values': str(column_data.isna().sum())
             }
             
+        # Add flag information
+        if data_manager.point_flags is not None:
+            flags = data_manager.point_flags[:, col_idx]
+            stats['flags'] = {
+                flag.value: {
+                    'count': int(np.sum(flags == flag)),
+                    'indices': np.where(flags == flag)[0].tolist()
+                }
+                for flag in DataPointFlag
+            }
+            
         return jsonify({'success': True, 'stats': stats})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.route('/api/point-flags', methods=['POST'])
+def get_point_flags():
+    """Get flags for specific data points."""
+    try:
+        if data_manager.data is None:
+            return jsonify({'success': False, 'error': 'No data loaded'})
+            
+        data = request.get_json()
+        if not data or 'points' not in data:
+            return jsonify({'success': False, 'error': 'No points specified'})
+            
+        points = data['points']
+        results = []
+        
+        for point in points:
+            row_idx = point.get('row')
+            col_name = point.get('column')
+            
+            if row_idx is None or col_name is None:
+                continue
+                
+            if col_name not in data_manager.data.columns:
+                continue
+                
+            col_idx = data_manager.data.columns.get_loc(col_name)
+            flag = data_manager.get_point_flags(row_idx, col_idx)
+            
+            results.append({
+                'row': row_idx,
+                'column': col_name,
+                'value': str(data_manager.data.iloc[row_idx, col_idx]),
+                'flag': flag.value
+            })
+            
+        return jsonify({'success': True, 'flags': results})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}) 
