@@ -273,6 +273,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function initializeOutcomeInsightsCollapsible() {
+        const toggleButton = document.getElementById('toggleOutcomeInsights');
+        const outcomeContent = document.getElementById('outcomeInsightsContent');
+        const toggleIcon = toggleButton.querySelector('.toggle-icon');
+        
+        // Set initial state (expanded)
+        outcomeContent.style.maxHeight = 'none';
+        
+        toggleButton.addEventListener('click', () => {
+            const isCollapsed = outcomeContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // Expand
+                outcomeContent.classList.remove('collapsed');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                outcomeContent.style.maxHeight = 'none';
+            } else {
+                // Collapse
+                outcomeContent.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(-90deg)';
+                outcomeContent.style.maxHeight = '0';
+            }
+        });
+    }
+
     function uploadFullFile(file) {
         return new Promise((resolve, reject) => {
             const formData = new FormData();
@@ -787,6 +812,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 descriptiveToggleIcon.style.transform = 'rotate(-90deg)';
                 descriptiveContent.style.maxHeight = '0';
             }
+            
+            // Show the outcome insights section
+            document.getElementById('outcomeInsightsSection').style.display = 'block';
+            initializeOutcomeInsightsCollapsible();
             
             // Proceed with analysis
             loadSmartRecommendations();
