@@ -19,6 +19,9 @@ import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 api = Blueprint('api', __name__)
 
 # Define global variable at module level
@@ -84,10 +87,11 @@ def upload_file():
             }
         })
     except Exception as e:
+        logger.error(f"Error uploading file: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400
+        }), 500
 
 @api.route('/modify-data', methods=['POST'])
 def modify_data():
@@ -95,10 +99,13 @@ def modify_data():
     try:
         global current_df, modifications_history
         modification = request.json.get('modification')
-        print(f"Received modification request: {modification}")
+        logger.info(f"Received modification request: {modification}")
         
         if current_df is None:
-            raise ValueError("No data has been uploaded yet")
+            return jsonify({
+                'success': False,
+                'error': 'No data has been uploaded yet'
+            }), 400
             
         # Use AI engine to interpret and apply modification
         modified_df, was_modified = ai_engine.modify_data(current_df, modification)
@@ -130,17 +137,23 @@ def modify_data():
         return jsonify(response)
         
     except Exception as e:
-        print(f"Error in modify_data: {str(e)}")
+        logger.error(f"Error modifying data: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400
+        }), 500
 
 @api.route('/analyze-options', methods=['GET'])
 def get_analysis_options():
     """Get available analysis options based on current data."""
     try:
         global current_df
+        if current_df is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data has been uploaded yet'
+            }), 400
+            
         # Use AI engine to determine appropriate analyses
         options = ai_engine.get_analysis_options(current_df)
         
@@ -149,10 +162,11 @@ def get_analysis_options():
             'options': options
         })
     except Exception as e:
+        logger.error(f"Error getting analysis options: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400
+        }), 500
 
 @api.route('/analyze', methods=['POST'])
 def analyze_data():
