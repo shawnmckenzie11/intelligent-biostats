@@ -720,9 +720,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="column-menu">
                     <h4>Columns</h4>
                     <div class="column-menu-list">
-                        ${stats.column_types.columns.map(col => `
-                            <div class="column-menu-item" data-column="${col}">${col}</div>
-                        `).join('')}
+                        ${stats.column_types.columns.map((col, index) => {
+                            const type = stats.column_types.column_types_list[index];
+                            const hasOutliers = stats.outlier_info[col] && stats.outlier_info[col].count > 0;
+                            return `
+                                <div class="column-menu-item${hasOutliers ? ' has-outliers' : ''}" data-column="${col}">
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" class="column-checkbox" id="checkbox-${col}" data-column="${col}">
+                                    </div>
+                                    <div class="column-label">${col}</div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
                 <div class="column-details">
@@ -751,7 +760,10 @@ document.addEventListener('DOMContentLoaded', function() {
         descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml + analysisControlsHtml;
         
         // Add event listener for the BEGIN button
-        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function() {
+        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent default behavior
+            e.stopPropagation(); // Stop event bubbling
+            
             const excludeOutliers = document.getElementById('excludeOutliers').checked;
             
             // Log BEGIN button click

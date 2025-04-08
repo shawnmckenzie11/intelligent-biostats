@@ -308,23 +308,19 @@ body {
 }
 
 .analysis-menu-item {
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-    font-size: 0.85rem;
-    line-height: 1.2;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
 }
 
 .analysis-menu-item:hover {
-    background: #e9ecef;
+    background-color: #f5f5f5;
 }
 
 .analysis-menu-item.active {
-    background: #e3f2fd;
-    border-color: #2196f3;
-    color: #1976d2;
+    background-color: #e3f2fd;
 }
 
 .analysis-details {
@@ -1559,30 +1555,45 @@ body {
 }
 
 .column-menu-item {
-    padding: 0.5rem;
-    cursor: pointer;
-    border-radius: 4px;
-    margin-bottom: 0.25rem;
+    padding: 0;
+    display: flex;
+    align-items: stretch;
     transition: background-color 0.2s;
-    position: relative;
 }
 
 .column-menu-item:hover {
-    background-color: var(--hover-color);
+    background-color: #f5f5f5;
 }
 
 .column-menu-item.active {
-    background-color: var(--primary-color);
-    color: white;
+    background-color: #e3f2fd;
 }
 
-.column-menu-item.has-outliers::after {
+.checkbox-container {
+    padding: 8px;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.column-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+.column-label {
+    flex: 1.2;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+}
+
+.column-menu-item.has-outliers .column-label::after {
     content: "⚠️";
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.9rem;
+    margin-left: 8px;
+    color: #ff9800;
 }
 
 .column-details {
