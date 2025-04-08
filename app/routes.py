@@ -2,9 +2,11 @@ from flask import Blueprint, render_template, jsonify, request
 from .core.data_manager import EnhancedDataFrame, DataPointFlag
 import pandas as pd
 import numpy as np
+import logging
 
 main = Blueprint('main', __name__)
 data_manager = EnhancedDataFrame()
+logger = logging.getLogger(__name__)
 
 @main.route('/')
 def index():
@@ -115,4 +117,21 @@ def get_point_flags():
             
         return jsonify({'success': True, 'flags': results})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.route('/api/update-outlier-flags', methods=['POST'])
+def update_outlier_flags():
+    try:
+        data = request.get_json()
+        if not data or 'update_flags' not in data:
+            return jsonify({'success': False, 'error': 'Invalid request data'})
+            
+        if data['update_flags']:
+            data_manager._update_numeric_IQR_outlier_flags()
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'No update requested'})
+            
+    except Exception as e:
+        logger.error(f"Error updating outlier flags: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}) 

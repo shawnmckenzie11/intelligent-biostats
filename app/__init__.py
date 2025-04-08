@@ -1,5 +1,6 @@
 from flask import Flask
 from app.config.settings import DevelopmentConfig
+from app.core.data_manager import EnhancedDataFrame
 import logging
 import os
 
@@ -38,6 +39,9 @@ def create_app(config_class=DevelopmentConfig):
         
         # Verify required directories
         verify_directories()
+        
+        # Initialize data manager
+        app.data_manager = EnhancedDataFrame()
         
         # Setup non-intrusive debugging features
         from app.utils.debug_utils import setup_debug_features

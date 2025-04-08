@@ -32,6 +32,7 @@ class ColumnMetadata:
     type: ColumnType
     missing_count: int
     unique_values: int
+    outlier_count: int
     validation_rules: Dict[str, Any]
     statistical_properties: Dict[str, Any]
 
@@ -57,13 +58,13 @@ class EnhancedDataFrame:
                 self.data = pd.concat(chunks, ignore_index=True)
                 self.current_file = file_obj.filename
             elif file_path is not None:
-        self.data = pd.read_csv(file_path)
+                self.data = pd.read_csv(file_path)
                 self.current_file = os.path.basename(file_path)
             else:
                 raise ValueError("Either file_path or file_obj must be provided")
                 
             self.modifications_history = []
-            self._update_metadata()  # This will recursively update all metadata
+            self._initialize_point_flags()
             self._validate_data()
             
             # Log state after loading
@@ -104,20 +105,22 @@ class EnhancedDataFrame:
             
         for col in self.data.columns:
             col_type = self._determine_column_type(self.data[col])
-            missing_count = self.data[col].isna().sum()
-            unique_values = self.data[col].nunique()
+            col_idx = self.data.columns.get_loc(col)
+            
+            # Get counts from point flags array
+            col_flags = self.get_column_flags(col_idx)
+            missing_count = np.sum(col_flags == DataPointFlag.MISSING)
+            outlier_count = np.sum(col_flags == DataPointFlag.OUTLIER)
             
             self.column_metadata[col] = ColumnMetadata(
                 name=col,
                 type=col_type,
                 missing_count=int(missing_count),
-                unique_values=int(unique_values),
+                unique_values=int(self.data[col].nunique()),
+                outlier_count=int(outlier_count),
                 validation_rules=self._get_validation_rules(col, col_type),
                 statistical_properties=self._calculate_statistical_properties(col, col_type)
             )
-            
-        # After updating column metadata, ensure point flags are in sync
-        self._update_point_flags()
     
     def _determine_column_type(self, series: pd.Series) -> ColumnType:
         """Determine the most appropriate column type."""
@@ -165,7 +168,7 @@ class EnhancedDataFrame:
             
         return rules
     
-    def _calculate_statistical_properties(self, column: str, col_type: ColumnType) -> Dict[str, Any]:
+    def _calculate_statistical_properties(self, column: str, col_type: ColumnType, ignore_flags: bool = False) -> Dict[str, Any]:
         """Calculate statistical properties for a column."""
         properties = {}
         
@@ -177,11 +180,10 @@ class EnhancedDataFrame:
                 'std': float(series.std()),
                 'skewness': float(series.skew()),
                 'kurtosis': float(series.kurtosis()),
-                'distribution_type': self._determine_distribution(column, col_type)
+                'distribution_type': self._determine_distribution(column, col_type, ignore_flags)
             })
             
         return properties
-    
     def _determine_distribution(self, column: str, col_type: ColumnType, ignore_flags: bool = False) -> Dict[str, Any]:
         """Determine the statistical distribution of a numerical column.
         
@@ -436,9 +438,14 @@ class EnhancedDataFrame:
         }
         
         return accuracy_metrics
-    
+   
     def _detect_outliers(self) -> Dict[str, Any]:
-        """Detect outliers in numeric columns."""
+        """Detect outliers in numeric columns using the IQR method.
+        Returns:
+            Dict mapping column names to outlier statistics:
+            - count: Number of outliers detected
+            - percentage: Percentage of values that are outliers
+        """
         outliers = {}
         
         for col, metadata in self.column_metadata.items():
@@ -458,7 +465,6 @@ class EnhancedDataFrame:
                     }
                     
         return outliers
-    
     
     def _analyze_column_types(self):
         """Analyze and categorize columns, returning column types and counts."""
@@ -534,7 +540,7 @@ class EnhancedDataFrame:
             
             # Apply modifications using the AI engine if provided
             if ai_engine is not None:
-            modified_df, was_modified = ai_engine.modify_data(self.data, modification_request)
+                modified_df, was_modified = ai_engine.modify_data(self.data, modification_request)
             else:
                 # Simple modification without AI engine
                 modified_df = self.data.copy()
@@ -642,41 +648,54 @@ class EnhancedDataFrame:
             ]
         return preview_dict
 
+    def _initialize_point_flags(self) -> None:
+        """Initialize point flags array with NORMAL values."""
+        if self.data is None:
+            return
+        self.point_flags = np.full(self.data.shape, DataPointFlag.NORMAL, dtype=object)
+
     def _update_point_flags(self) -> None:
-        """Update flags for all data points."""
+        """Update flags for all data points based on data validation."""
         if self.data is None:
             return
             
-        # Create array of NORMAL flags with same shape as data
-        self.point_flags = np.full(self.data.shape, DataPointFlag.NORMAL, dtype=object)
-        
         # Update flags based on data values
+        for col_idx, col in enumerate(self.data.columns):
+            self._update_missing_and_unexpected_flags(col_idx, col)
+            
+            
+    def _update_missing_and_unexpected_flags(self, col_idx: int, col: str) -> None:
+        """Update flags for missing and unexpected type values in a column."""
+        col_data = self.data[col]
+        
+        # Check for missing values
+        missing_mask = col_data.isna()
+        self.point_flags[missing_mask, col_idx] = DataPointFlag.MISSING
+        
+        # Check for unexpected types in numeric columns
+        if pd.api.types.is_numeric_dtype(col_data):
+            # For numeric columns, check for non-numeric strings
+            non_numeric_mask = col_data.astype(str).str.match(r'[^0-9.-]') & ~missing_mask
+            self.point_flags[non_numeric_mask, col_idx] = DataPointFlag.UNEXPECTED_TYPE
+            
+    def _update_numeric_IQR_outlier_flags(self) -> None:
+        """Update flags for outlier values in numeric columns."""
+
         for col_idx, col in enumerate(self.data.columns):
             col_data = self.data[col]
             
-            # Check for missing values
-            missing_mask = col_data.isna()
-            self.point_flags[missing_mask, col_idx] = DataPointFlag.MISSING
-            
-            # For numeric columns, check for other anomalies
-            if pd.api.types.is_numeric_dtype(col_data):
-                # Check for outliers
-                if len(col_data.dropna()) > 0:  # Only if we have non-missing values
-                    q1 = col_data.quantile(0.25)
-                    q3 = col_data.quantile(0.75)
-                    iqr = q3 - q1
-                    lower_bound = q1 - 1.5 * iqr
-                    upper_bound = q3 + 1.5 * iqr
-                    
-                    outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
-                    self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
-            
-            # Check for unexpected types
-            if pd.api.types.is_numeric_dtype(col_data):
-                # For numeric columns, check for non-numeric strings
-                non_numeric_mask = col_data.astype(str).str.match(r'[^0-9.-]') & ~missing_mask
-                self.point_flags[non_numeric_mask, col_idx] = DataPointFlag.UNEXPECTED_TYPE
+            # Only check outliers for numeric columns with non-missing values
+            if pd.api.types.is_numeric_dtype(col_data) and len(col_data.dropna()) > 0:
+                q1 = col_data.quantile(0.25)
+                q3 = col_data.quantile(0.75)
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
                 
+                missing_mask = col_data.isna()
+                outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
+                self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
+    
     def get_point_flags(self, row_idx: int, col_idx: int) -> DataPointFlag:
         """Get the flag for a specific data point."""
         if self.point_flags is None:

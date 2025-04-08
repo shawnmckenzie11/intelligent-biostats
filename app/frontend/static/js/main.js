@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h4>Columns</h4>
                     <div class="column-menu-list">
                         ${stats.column_types.columns.map(col => `
-                            <div class="column-menu-item ${stats.outlier_info[col]?.count > 0 ? 'has-outliers' : ''}" data-column="${col}">${col}</div>
+                            <div class="column-menu-item" data-column="${col}">${col}</div>
                         `).join('')}
                     </div>
                 </div>
@@ -701,6 +701,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Combine all sections
         descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml + analysisControlsHtml;
+        
+        // Add event listener for the BEGIN button
+        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function() {
+            const excludeOutliers = document.getElementById('excludeOutliers').checked;
+            
+            if (excludeOutliers) {
+                // Call the API to update outlier flags
+                fetch('/api/update-outlier-flags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ update_flags: true })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error updating outlier flags:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating outlier flags:', error);
+                });
+            }
+            
+            // Proceed with analysis
+            loadSmartRecommendations();
+        });
         
         // Add event listeners for column menu items
         const columnMenuItems = document.querySelectorAll('.column-menu-item');
