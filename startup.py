@@ -40,7 +40,7 @@ def check_and_install_packages():
         
         if missing:
             print(f"Installing missing packages: {missing}")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_path])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "-r", requirements_path])
             print("Package installation complete.")
         else:
             print("All required packages are already installed.")
