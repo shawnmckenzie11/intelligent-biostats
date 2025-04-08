@@ -58,6 +58,9 @@ class DataManager:
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
         try:
+            # Always create a new StateLogger instance for each load
+            self._state_logger = StateLogger()
+            
             if file_obj is not None:
                 # Reset file pointer to beginning
                 file_obj.seek(0)
@@ -83,6 +86,10 @@ class DataManager:
             self._initialize_point_flags()
             self._validate_data()
             self.initialize_metadata()
+            
+            # Create a new log file for this CSV load
+            if self.current_file:
+                self._state_logger.on_csv_load(self.current_file)
             
             # Log state after all initialization is complete
             self._state_logger.capture_state(self, "load_data")

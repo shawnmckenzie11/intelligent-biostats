@@ -16,16 +16,43 @@ class StateLogger:
     def __init__(self, log_dir: str = "debug_logs"):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(exist_ok=True)
+        self.current_log_file = None
+        self.current_csv_name = None
         
         # Setup logging
         self.logger = logging.getLogger('state_logger')
         self.logger.setLevel(logging.DEBUG)
         
-        # Create a file handler
-        log_file = self.log_dir / 'state_log.jsonl'
-        handler = logging.FileHandler(str(log_file), mode='a')
+        # Remove any existing handlers to prevent duplicate logging
+        for handler in self.logger.handlers[:]:
+            self.logger.removeHandler(handler)
+    
+    def on_csv_load(self, csv_name: str) -> None:
+        """Create a new log file when a CSV is loaded.
+        
+        Args:
+            csv_name: Name of the CSV file being loaded
+        """
+        # Create a new log file with timestamp and CSV name
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.current_csv_name = csv_name
+        self.current_log_file = self.log_dir / f'state_{timestamp}_{csv_name}.log'
+        
+        # Remove any existing handlers
+        for handler in self.logger.handlers[:]:
+            self.logger.removeHandler(handler)
+        
+        # Create a new file handler for the current log file
+        handler = logging.FileHandler(str(self.current_log_file), mode='a')
         handler.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
+        
+        # Log the CSV load event
+        self.logger.debug(json.dumps({
+            'timestamp': datetime.now().isoformat(),
+            'operation': 'csv_load',
+            'csv_name': csv_name
+        }))
         
     def capture_state(self, df: Optional[Union[pd.DataFrame, 'DataManager']], operation: str = "state_check", additional_info: Optional[Dict[str, Any]] = None) -> None:
         """Capture the current state of the DataFrame or DataManager.
@@ -53,10 +80,8 @@ class StateLogger:
                 'additional_info': additional_info
             }
             
-            # Write to log file
-            log_file = os.path.join(self.log_dir, f"state_{datetime.now().strftime('%Y%m%d')}.log")
-            with open(log_file, 'a') as f:
-                f.write(json.dumps(log_entry) + '\n')
+            # Log using the logger
+            self.logger.debug(json.dumps(log_entry))
                 
         except Exception as e:
             logger.error(f"Error logging state: {str(e)}")
@@ -71,13 +96,18 @@ class StateLogger:
             List of recent state logs
         """
         try:
-            today = datetime.now().strftime('%Y%m%d')
-            log_file = os.path.join(self.log_dir, f"state_{today}.log")
+            # Get all log files and sort by modification time
+            log_files = sorted(
+                [f for f in os.listdir(self.log_dir) if f.startswith('state_') and f.endswith('.log')],
+                key=lambda x: os.path.getmtime(os.path.join(self.log_dir, x)),
+                reverse=True
+            )
             
-            if not os.path.exists(log_file):
+            if not log_files:
                 return []
                 
-            with open(log_file, 'r') as f:
+            # Read the most recent log file
+            with open(os.path.join(self.log_dir, log_files[0]), 'r') as f:
                 lines = f.readlines()
                 
             states = [json.loads(line) for line in lines[-limit:]]
@@ -155,5 +185,5 @@ class StateLogger:
         if additional_info:
             state["additional_info"] = additional_info
         
-        # Log the state
+        # Log using the logger
         self.logger.debug(json.dumps(state)) 
