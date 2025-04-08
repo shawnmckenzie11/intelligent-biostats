@@ -4,6 +4,7 @@ import numpy as np
 import io
 from app.core.ai_engine import AIEngine
 from app.core.database import AnalysisHistoryDB
+from app.core.data_manager import EnhancedDataFrame
 from collections import OrderedDict
 import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'
@@ -24,15 +25,11 @@ logger = logging.getLogger(__name__)
 
 api = Blueprint('api', __name__)
 
-# Define global variable at module level
-current_df = None
-current_file = None  # Store the current file name
-modifications_history = []  # Store modifications history
-
-# Add this check to prevent duplicate initialization
+# Initialize components
 if not hasattr(api, '_initialized'):
     ai_engine = AIEngine()
     db = AnalysisHistoryDB()
+    data_manager = EnhancedDataFrame()
     api._initialized = True
 
 @api.route('/upload', methods=['POST'])
@@ -52,36 +49,29 @@ def upload_file():
                 'error': 'File must be a CSV'
             }), 400
 
-        # Store the file name
-        global current_file, modifications_history
-        current_file = file.filename
-        modifications_history = []  # Reset modifications history
-
-        # Read CSV in chunks using pandas
-        global current_df
-        current_df = pd.read_csv(file, chunksize=10000)
-        current_df = pd.concat(current_df, ignore_index=True)
+        # Load data using data manager
+        success, error = data_manager.load_data(file_obj=file)
+        if not success:
+            return jsonify({
+                'success': False,
+                'error': error
+            }), 400
         
-        # Create preview dict from first 5 rows
-        preview_dict = OrderedDict()
-        preview_df = current_df.head()
-        for column in preview_df.columns:
-            preview_dict[str(column)] = [
-                None if pd.isna(x) else x 
-                for x in preview_df[column].tolist()
-            ]
+        # Get data preview
+        preview_dict = data_manager.get_data_preview()
         
-        # Convert dtypes to strings to make them JSON serializable
+        # Get column types from metadata
         column_types = {
             str(col): str(dtype) 
-            for col, dtype in current_df.dtypes.items()
+            for col, dtype in zip(data_manager.data.columns, 
+                                data_manager.metadata['column_types']['column_types_list'])
         }
         
         return jsonify({
             'success': True,
             'info': {
-                'rows': len(current_df),
-                'columns': len(current_df.columns),
+                'rows': len(data_manager.data),
+                'columns': len(data_manager.data.columns),
                 'column_types': column_types,
                 'preview': preview_dict
             }
@@ -97,42 +87,22 @@ def upload_file():
 def modify_data():
     """Handle AI-powered data modification requests."""
     try:
-        global current_df, modifications_history
         modification = request.json.get('modification')
         logger.info(f"Received modification request: {modification}")
         
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data has been uploaded yet'
             }), 400
             
-        # Use AI engine to interpret and apply modification
-        modified_df, was_modified = ai_engine.modify_data(current_df, modification)
+        # Use data manager to apply modifications
+        success, message, preview = data_manager.modify_data(modification, ai_engine)
         
-        # Only update stored DataFrame if changes were made
-        if was_modified:
-            current_df = modified_df
-            # Track the modification
-            modifications_history.append({
-                'timestamp': datetime.now().isoformat(),
-                'modification': modification
-            })
-            # Convert to dictionary format for preview, maintaining column order
-            preview_dict = OrderedDict()
-            for column in modified_df.columns:
-                # Handle NaN values and convert to Python native types
-                preview_dict[str(column)] = [
-                    None if pd.isna(x) else x 
-                    for x in modified_df[column].head().tolist()
-                ]
-        else:
-            preview_dict = None  # Don't send preview if no changes
-            
         response = {
-            'success': True,
-            'preview': preview_dict if was_modified else None,
-            'message': 'Modifications applied successfully!' if was_modified else 'No changes were made to the data'
+            'success': success,
+            'message': message,
+            'preview': preview
         }
         return jsonify(response)
         
@@ -147,15 +117,14 @@ def modify_data():
 def get_analysis_options():
     """Get available analysis options based on current data."""
     try:
-        global current_df
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data has been uploaded yet'
             }), 400
             
         # Use AI engine to determine appropriate analyses
-        options = ai_engine.get_analysis_options(current_df)
+        options = ai_engine.get_analysis_options(data_manager.data)
         
         return jsonify({
             'success': True,
@@ -172,8 +141,7 @@ def get_analysis_options():
 def analyze_data():
     """Perform statistical analysis."""
     try:
-        global current_df, current_file, modifications_history
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data loaded'
@@ -187,14 +155,14 @@ def analyze_data():
             hypothesis_value = float(data.get('hypothesis_value'))
             confidence_level = float(data.get('confidence_level'))
             
-            if column not in current_df.columns:
+            if column not in data_manager.data.columns:
                 return jsonify({
                     'success': False,
                     'error': f'Column {column} not found'
                 }), 400
                 
             # Get the data for the selected column
-            sample_data = current_df[column].dropna()
+            sample_data = data_manager.data[column].dropna()
             
             # Perform one-sample t-test
             t_statistic, p_value = stats.ttest_1samp(sample_data, hypothesis_value)
@@ -226,8 +194,8 @@ def analyze_data():
             
             # Store analysis in database
             db.add_analysis(
-                input_file=current_file or "Unknown",
-                modifications=json.dumps(modifications_history) if modifications_history else None,
+                input_file=data_manager.current_file or "Unknown",
+                modifications=json.dumps(data_manager.modifications_history) if data_manager.modifications_history else None,
                 test_name="One-Sample T-Test",
                 test_details=results,
                 conclusion=conclusion
@@ -239,17 +207,17 @@ def analyze_data():
                 'conclusion': conclusion
             })
             
-        else:
-            return jsonify({
-                'success': False,
-                'error': f'Analysis type {analysis_type} not supported'
-            }), 400
-            
+        return jsonify({
+            'success': False,
+            'error': 'Invalid analysis type'
+        }), 400
+        
     except Exception as e:
+        logger.error(f"Error performing analysis: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400
+        }), 500
 
 @api.route('/analysis-history', methods=['GET'])
 def get_analysis_history():
@@ -275,8 +243,7 @@ def get_recommendations():
 def get_descriptive_stats():
     """Get descriptive statistics for the current dataset."""
     try:
-        global current_df
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data loaded'
@@ -288,16 +255,16 @@ def get_descriptive_stats():
         distribution_analysis = {}  # New dictionary to store distribution analysis
         outlier_info = {}  # New dictionary to store outlier information
         
-        for i, col in enumerate(current_df.columns):
+        for i, col in enumerate(data_manager.data.columns):
             # Determine column type
-            if pd.api.types.is_numeric_dtype(current_df[col]):
-                if current_df[col].nunique() < 20:  # threshold for discrete
+            if pd.api.types.is_numeric_dtype(data_manager.data[col]):
+                if data_manager.data[col].nunique() < 20:  # threshold for discrete
                     column_types_list.append('discrete')
                 else:
                     column_types_list.append('numeric')
                     # Calculate skewness and kurtosis for numeric columns
-                    skewness = current_df[col].skew()
-                    kurtosis = current_df[col].kurtosis()
+                    skewness = data_manager.data[col].skew()
+                    kurtosis = data_manager.data[col].kurtosis()
                     distribution_analysis[col] = {
                         'skewness': float(skewness),
                         'kurtosis': float(kurtosis),
@@ -305,10 +272,10 @@ def get_descriptive_stats():
                     }
                     
                     # Calculate outliers for numeric columns
-                    mean = current_df[col].mean()
-                    std = current_df[col].std()
-                    q1 = current_df[col].quantile(0.25)
-                    q3 = current_df[col].quantile(0.75)
+                    mean = data_manager.data[col].mean()
+                    std = data_manager.data[col].std()
+                    q1 = data_manager.data[col].quantile(0.25)
+                    q3 = data_manager.data[col].quantile(0.75)
                     iqr = q3 - q1
                     
                     # Determine distribution type and set appropriate thresholds
@@ -323,18 +290,18 @@ def get_descriptive_stats():
                         upper_bound = q3 + 2.5 * iqr
                     
                     # Count outliers
-                    outliers = current_df[col][(current_df[col] < lower_bound) | (current_df[col] > upper_bound)]
+                    outliers = data_manager.data[col][(data_manager.data[col] < lower_bound) | (data_manager.data[col] > upper_bound)]
                     outlier_info[col] = {
                         'count': int(len(outliers)),
-                        'percentage': float(len(outliers) / len(current_df[col]) * 100)
+                        'percentage': float(len(outliers) / len(data_manager.data[col]) * 100)
                     }
-            elif pd.api.types.is_datetime64_any_dtype(current_df[col]):
+            elif pd.api.types.is_datetime64_any_dtype(data_manager.data[col]):
                 column_types_list.append('timeseries')
             else:
                 # For non-numeric, non-datetime columns
-                if current_df[col].nunique() == 2:
+                if data_manager.data[col].nunique() == 2:
                     # Check if the values are actually boolean-like
-                    unique_values = current_df[col].dropna().unique()
+                    unique_values = data_manager.data[col].dropna().unique()
                     if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
                         column_types_list.append('boolean')
                     else:
@@ -343,7 +310,7 @@ def get_descriptive_stats():
                     column_types_list.append('categorical')
             
             # Count missing values
-            missing_count = current_df[col].isna().sum()
+            missing_count = data_manager.data[col].isna().sum()
             if missing_count > 0:
                 missing_values_by_column[col] = int(missing_count)
             
@@ -352,17 +319,17 @@ def get_descriptive_stats():
             
         stats = {
             'file_stats': {
-                'rows': len(current_df),
-                'columns': len(current_df.columns),
-                'memory_usage': f"{current_df.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
+                'rows': len(data_manager.data),
+                'columns': len(data_manager.data.columns),
+                'memory_usage': f"{data_manager.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
                 'missing_values': int(missing_values)
             },
             'column_types': {
-                'numeric': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'numeric']),
-                'categorical': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'categorical']),
-                'boolean': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'boolean']),
-                'datetime': len([col for col, type_ in zip(current_df.columns, column_types_list) if type_ == 'timeseries']),
-                'columns': current_df.columns.tolist(),
+                'numeric': len([col for col, type_ in zip(data_manager.data.columns, column_types_list) if type_ == 'numeric']),
+                'categorical': len([col for col, type_ in zip(data_manager.data.columns, column_types_list) if type_ == 'categorical']),
+                'boolean': len([col for col, type_ in zip(data_manager.data.columns, column_types_list) if type_ == 'boolean']),
+                'datetime': len([col for col, type_ in zip(data_manager.data.columns, column_types_list) if type_ == 'timeseries']),
+                'columns': data_manager.data.columns.tolist(),
                 'column_types_list': column_types_list
             },
             'missing_values_by_column': missing_values_by_column,
@@ -470,21 +437,20 @@ def generate_plot(data, column_name, plot_type):
 def get_column_data(column_name):
     """Get detailed data and statistics for a specific column."""
     try:
-        global current_df
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data loaded'
             }), 400
             
-        if column_name not in current_df.columns:
+        if column_name not in data_manager.data.columns:
             return jsonify({
                 'success': False,
                 'error': 'Column not found'
             }), 400
             
         # Get column data and statistics
-        column_data = current_df[column_name]
+        column_data = data_manager.data[column_name]
         
         # Determine column type
         col_type = None
@@ -579,16 +545,16 @@ def get_column_data(column_name):
         plots = {}
         if col_type in ['numeric', 'discrete']:
             plots = {
-                'histogram': generate_plot(current_df, column_name, 'histogram'),
-                'density': generate_plot(current_df, column_name, 'density'),
-                'boxplot': generate_plot(current_df, column_name, 'boxplot'),
-                'qqplot': generate_plot(current_df, column_name, 'qqplot')
+                'histogram': generate_plot(data_manager.data, column_name, 'histogram'),
+                'density': generate_plot(data_manager.data, column_name, 'density'),
+                'boxplot': generate_plot(data_manager.data, column_name, 'boxplot'),
+                'qqplot': generate_plot(data_manager.data, column_name, 'qqplot')
             }
         else:
             plots = {
-                'barplot': generate_plot(current_df, column_name, 'barplot'),
-                'pie': generate_plot(current_df, column_name, 'pie'),
-                'dotplot': generate_plot(current_df, column_name, 'dotplot')
+                'barplot': generate_plot(data_manager.data, column_name, 'barplot'),
+                'pie': generate_plot(data_manager.data, column_name, 'pie'),
+                'dotplot': generate_plot(data_manager.data, column_name, 'dotplot')
             }
         
         return jsonify({
@@ -631,33 +597,32 @@ def get_distribution_type(column_data):
 def get_smart_recommendations():
     """Get prioritized statistical recommendations based on data characteristics."""
     try:
-        global current_df
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data loaded'
             }), 400
             
         # Get column types
-        numeric_cols = current_df.select_dtypes(include=[np.number]).columns
-        categorical_cols = current_df.select_dtypes(include=['object', 'category']).columns
-        boolean_cols = [col for col in current_df.columns if current_df[col].nunique() == 2]
+        numeric_cols = data_manager.data.select_dtypes(include=[np.number]).columns
+        categorical_cols = data_manager.data.select_dtypes(include=['object', 'category']).columns
+        boolean_cols = [col for col in data_manager.data.columns if data_manager.data[col].nunique() == 2]
         
         # For large datasets, limit analysis to most relevant columns
         MAX_COLS_PER_TYPE = 20  # Maximum number of columns to analyze per type
         
         # Select most relevant numeric columns (those with highest variance)
         if len(numeric_cols) > MAX_COLS_PER_TYPE:
-            variances = current_df[numeric_cols].var()
+            variances = data_manager.data[numeric_cols].var()
             numeric_cols = variances.nlargest(MAX_COLS_PER_TYPE).index
         
         # Select most relevant categorical columns (those with most unique values)
         if len(categorical_cols) > MAX_COLS_PER_TYPE:
-            unique_counts = current_df[categorical_cols].nunique()
+            unique_counts = data_manager.data[categorical_cols].nunique()
             categorical_cols = unique_counts.nlargest(MAX_COLS_PER_TYPE).index
         
         # Get distribution insights only for selected numeric columns
-        distribution_insights = ai_engine.get_distribution_insights(current_df[numeric_cols])
+        distribution_insights = ai_engine.get_distribution_insights(data_manager.data[numeric_cols])
         
         # Organize recommendations by priority and strength
         recommendations = {
@@ -669,7 +634,7 @@ def get_smart_recommendations():
         }
         
         # Process critical issues first
-        missing_data = current_df.isnull().sum()
+        missing_data = data_manager.data.isnull().sum()
         if missing_data.any():
             # Only show top 5 columns with missing data
             top_missing = missing_data[missing_data > 0].nlargest(5)
@@ -686,7 +651,7 @@ def get_smart_recommendations():
             })
         
         # Process high priority recommendations
-        n_samples = len(current_df)
+        n_samples = len(data_manager.data)
         if n_samples < 30:
             recommendations['high_priority'].append({
                 'type': 'sample_size',
@@ -741,7 +706,7 @@ def get_smart_recommendations():
             })
         
         # Process data quality considerations
-        constant_cols = [col for col in current_df.columns if current_df[col].nunique() == 1]
+        constant_cols = [col for col in data_manager.data.columns if data_manager.data[col].nunique() == 1]
         if constant_cols:
             # Only show first 5 constant columns
             recommendations['data_quality'].append({
@@ -833,8 +798,7 @@ def get_ai_insights(context):
 def update_boundary():
     """Update the boundary for a column and return updated outlier flags."""
     try:
-        global current_df
-        if current_df is None:
+        if data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data loaded'
@@ -845,31 +809,31 @@ def update_boundary():
         boundary_type = data.get('type')  # 'min' or 'max'
         new_value = float(data.get('value'))
 
-        if column_name not in current_df.columns:
+        if column_name not in data_manager.data.columns:
             return jsonify({
                 'success': False,
                 'error': 'Column not found'
             }), 400
 
         # Get the column data
-        column_data = current_df[column_name]
+        column_data = data_manager.data[column_name]
 
         # Initialize or get existing flags
-        if 'outlier_flags' not in current_df.attrs:
-            current_df.attrs['outlier_flags'] = {}
+        if 'outlier_flags' not in data_manager.data.attrs:
+            data_manager.data.attrs['outlier_flags'] = {}
 
-        if column_name not in current_df.attrs['outlier_flags']:
-            current_df.attrs['outlier_flags'][column_name] = {
+        if column_name not in data_manager.data.attrs['outlier_flags']:
+            data_manager.data.attrs['outlier_flags'][column_name] = {
                 'min': None,
                 'max': None,
                 'flags': np.zeros(len(column_data), dtype=bool)
             }
 
         # Update the boundary
-        current_df.attrs['outlier_flags'][column_name][boundary_type] = new_value
+        data_manager.data.attrs['outlier_flags'][column_name][boundary_type] = new_value
 
         # Update the flags
-        flags = current_df.attrs['outlier_flags'][column_name]['flags']
+        flags = data_manager.data.attrs['outlier_flags'][column_name]['flags']
         if boundary_type == 'min':
             flags |= (column_data < new_value)
         else:  # max
