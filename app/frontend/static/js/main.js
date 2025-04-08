@@ -764,6 +764,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
+            // Remove the analysis controls section
+            const analysisControls = document.querySelector('.analysis-controls');
+            if (analysisControls) {
+                analysisControls.remove();
+            }
+            
+            // Collapse both preview sections
+            const previewContent = document.getElementById('previewContent');
+            const descriptiveContent = document.getElementById('descriptiveContent');
+            const previewToggleIcon = document.querySelector('#togglePreview .toggle-icon');
+            const descriptiveToggleIcon = document.querySelector('#toggleDescriptive .toggle-icon');
+            
+            if (previewContent) {
+                previewContent.classList.add('collapsed');
+                previewToggleIcon.style.transform = 'rotate(-90deg)';
+                previewContent.style.maxHeight = '0';
+            }
+            
+            if (descriptiveContent) {
+                descriptiveContent.classList.add('collapsed');
+                descriptiveToggleIcon.style.transform = 'rotate(-90deg)';
+                descriptiveContent.style.maxHeight = '0';
+            }
+            
             // Proceed with analysis
             loadSmartRecommendations();
         });
