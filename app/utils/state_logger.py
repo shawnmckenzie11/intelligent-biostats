@@ -1,12 +1,17 @@
+from __future__ import annotations
 import logging
 import json
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, TYPE_CHECKING
 from app.core.enums import DataPointFlag
 import os
+
+if TYPE_CHECKING:
+    from app.core.data_manager import DataManager
+    from app.core.enhanced_dataframe import EnhancedDataFrame
 
 logger = logging.getLogger(__name__)
 
