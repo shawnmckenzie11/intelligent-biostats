@@ -32,7 +32,17 @@ class ColumnMetadata:
     statistical_properties: Dict[str, Any]
 
 class EnhancedDataFrame:
-    """Enhanced Pandas DataFrame with metadata for biostatistical analysis."""
+    """
+    Enhanced Pandas DataFrame with metadata for biostatistical analysis.
+    
+    This class extends pandas DataFrame functionality by adding metadata tracking
+    and advanced data manipulation features. It maintains information about the
+    data's structure, types, and modifications.
+    
+    Attributes:
+        data (pd.DataFrame): The underlying pandas DataFrame
+        metadata (dict): Dictionary containing metadata about the data
+    """
     
     def __init__(self):
         self.data: Optional[pd.DataFrame] = None
@@ -536,8 +546,16 @@ class EnhancedDataFrame:
                     
         return outliers
     
-    def _analyze_column_types(self):
-        """Analyze and categorize columns, returning column types and counts."""
+    def _analyze_column_types(self) -> Dict[str, int]:
+        """
+        Analyze and categorize columns, returning column types and counts.
+        
+        Returns:
+            Dict[str, int]: Dictionary mapping column types to their counts
+            
+        Note:
+            Column types include: numeric, boolean, categorical, timeseries, discrete
+        """
         if self.data is None:
             return {}
         

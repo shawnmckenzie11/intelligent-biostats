@@ -50,10 +50,10 @@ def create_app(config_class=DevelopmentConfig):
         setup_debug_features(app)
         
         # Register blueprints
-        from app.api.routes import api
+        from app.api.routes import api_bp
         from app.routes import main
         
-        app.register_blueprint(api, url_prefix='/api')
+        app.register_blueprint(api_bp, url_prefix='/api')
         app.register_blueprint(main)  # This handles the root URL
         
         logger.info("Application initialization completed successfully")

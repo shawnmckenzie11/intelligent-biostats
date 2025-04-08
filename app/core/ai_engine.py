@@ -1,3 +1,17 @@
+"""
+AI Engine Module
+
+This module provides AI-powered analysis and recommendations for statistical data analysis.
+It uses machine learning and statistical methods to provide insights and recommendations
+for data analysis workflows.
+
+Key Features:
+- Automated analysis recommendations
+- Data distribution insights
+- Statistical test suggestions
+- Data transformation recommendations
+"""
+
 import pandas as pd
 import re
 from collections import OrderedDict
@@ -11,10 +25,25 @@ from scipy import stats
 warnings.filterwarnings('ignore')
 
 class AIEngine:
-    """Manages AI recommendations and learning for statistical analyses."""
+    """
+    AI Engine class for intelligent statistical analysis.
+    
+    This class provides AI-powered recommendations and insights for data analysis.
+    It maintains a history of analyses and uses this information to provide
+    increasingly accurate recommendations over time.
+    
+    Attributes:
+        analysis_history (list): List of previous analyses performed
+        recommendations (dict): Cached recommendations for different data types
+    """
     
     def __init__(self):
-        """Initialize the AI Engine with necessary imports and configurations."""
+        """
+        Initialize the AI Engine with necessary imports and configurations.
+        
+        Sets up the core attributes and imports required packages for
+        statistical analysis and machine learning.
+        """
         # Ensure single initialization
         if not hasattr(self, '_initialized'):
             # Initialize core attributes
@@ -27,7 +56,12 @@ class AIEngine:
             self._initialized = True
     
     def _import_required_packages(self):
-        """Import all required packages for statistical analysis."""
+        """
+        Import all required packages for statistical analysis.
+        
+        Raises:
+            ImportError: If any required package cannot be imported
+        """
         try:
             global pd, np, stats
             import pandas as pd
@@ -37,10 +71,19 @@ class AIEngine:
             print(f"Error importing required packages: {str(e)}")
             raise
         
-    def modify_data(self, df, modification_request):
+    def modify_data(self, df: pd.DataFrame, modification_request: Dict[str, Any]) -> Tuple[pd.DataFrame, bool]:
         """
-        Handle column deletion based on user specification.
-        Returns tuple: (modified_dataframe, was_modified)
+        Handle data modifications based on user specifications.
+        
+        Args:
+            df (pd.DataFrame): The input DataFrame to modify
+            modification_request (Dict[str, Any]): Dictionary containing modification instructions
+            
+        Returns:
+            Tuple[pd.DataFrame, bool]: Modified DataFrame and boolean indicating if changes were made
+            
+        Raises:
+            ValueError: If the modification request is invalid
         """
         print("\n=== Starting Column Deletion ===")
         print(f"Original request: {modification_request}")
