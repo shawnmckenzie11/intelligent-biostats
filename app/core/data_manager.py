@@ -54,8 +54,15 @@ class EnhancedDataFrame:
         """Load data from file path or file object and compute basic statistics."""
         try:
             if file_obj is not None:
-                chunks = pd.read_csv(file_obj, chunksize=10000)
-                self.data = pd.concat(chunks, ignore_index=True)
+                # Reset file pointer to beginning
+                file_obj.seek(0)
+                # Read the file content
+                content = file_obj.read().decode('utf-8')
+                # Create a StringIO object from the content
+                from io import StringIO
+                string_buffer = StringIO(content)
+                # Read the CSV data
+                self.data = pd.read_csv(string_buffer)
                 self.current_file = file_obj.filename
             elif file_path is not None:
                 self.data = pd.read_csv(file_path)
@@ -66,12 +73,13 @@ class EnhancedDataFrame:
             self.modifications_history = []
             self._initialize_point_flags()
             self._validate_data()
+            self._update_metadata()  # Ensure metadata is updated after loading
             
             # Log state after loading
             self._state_logger.capture_state(self.data, "load_data")
             return True, None
         except Exception as e:
-            logger.error(f"Error loading data: {str(e)}")
+            logger.error(f"Error loading data: {str(e)}", exc_info=True)
             self._state_logger.capture_state(None, f"load_error: {str(e)}")
             return False, str(e)
     
@@ -753,3 +761,68 @@ class EnhancedDataFrame:
         except Exception as e:
             logger.error(f"Error deleting row: {str(e)}")
             return False, str(e)
+
+    def _find_suspicious_values(self):
+        """Identify suspicious values in the dataset."""
+        suspicious_values = {}
+        
+        for col in self.data.columns:
+            if pd.api.types.is_numeric_dtype(self.data[col]):
+                # For numeric columns, check for:
+                # 1. Values that are too many standard deviations from the mean
+                # 2. Values that are outside the IQR range
+                mean = self.data[col].mean()
+                std = self.data[col].std()
+                q1 = self.data[col].quantile(0.25)
+                q3 = self.data[col].quantile(0.75)
+                iqr = q3 - q1
+                
+                # Check for values beyond 3 standard deviations
+                std_dev_outliers = self.data[col][abs(self.data[col] - mean) > 3 * std]
+                
+                # Check for values beyond 1.5 * IQR
+                iqr_outliers = self.data[col][(self.data[col] < q1 - 1.5 * iqr) | (self.data[col] > q3 + 1.5 * iqr)]
+                
+                # Combine both types of outliers
+                outliers = pd.concat([std_dev_outliers, iqr_outliers]).unique()
+                
+                if len(outliers) > 0:
+                    suspicious_values[col] = {
+                        'count': len(outliers),
+                        'values': outliers.tolist(),
+                        'type': 'numeric_outlier'
+                    }
+            elif pd.api.types.is_string_dtype(self.data[col]):
+                # For string columns, check for:
+                # 1. Values that are too long
+                # 2. Values that contain unusual characters
+                # 3. Values that are all uppercase or all lowercase
+                suspicious = []
+                
+                for val in self.data[col].dropna().unique():
+                    # Check for unusually long strings (more than 3 standard deviations from mean length)
+                    lengths = self.data[col].str.len()
+                    mean_len = lengths.mean()
+                    std_len = lengths.std()
+                    if len(str(val)) > mean_len + 3 * std_len:
+                        suspicious.append(val)
+                        continue
+                        
+                    # Check for all uppercase or all lowercase
+                    if isinstance(val, str):
+                        if val.isupper() or val.islower():
+                            suspicious.append(val)
+                            continue
+                            
+                        # Check for unusual characters
+                        if not val.replace(' ', '').isalnum():
+                            suspicious.append(val)
+                
+                if suspicious:
+                    suspicious_values[col] = {
+                        'count': len(suspicious),
+                        'values': suspicious,
+                        'type': 'string_anomaly'
+                    }
+        
+        return suspicious_values

@@ -644,14 +644,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadDescriptiveStats() {
         fetch('/api/descriptive-stats')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     displayDescriptiveStats(data.stats);
+                } else {
+                    console.error('Error loading descriptive stats:', data.error);
+                    const descriptiveContent = document.getElementById('descriptiveContent');
+                    descriptiveContent.innerHTML = `
+                        <div class="error-message">
+                            <h3>Error Loading Statistics</h3>
+                            <p>${data.error}</p>
+                            <p>Please try uploading your data again.</p>
+                        </div>
+                    `;
                 }
             })
             .catch(error => {
                 console.error('Error loading descriptive stats:', error);
+                const descriptiveContent = document.getElementById('descriptiveContent');
+                descriptiveContent.innerHTML = `
+                    <div class="error-message">
+                        <h3>Error Loading Statistics</h3>
+                        <p>${error.message}</p>
+                        <p>Please try uploading your data again.</p>
+                    </div>
+                `;
             });
     }
 
