@@ -1,12 +1,15 @@
 from flask import Blueprint, render_template, jsonify, request
-from .core.data_manager import EnhancedDataFrame, DataPointFlag
+from .core.data_manager import DataManager, DataPointFlag
 import pandas as pd
 import numpy as np
 import logging
+import os
 
 main = Blueprint('main', __name__)
-data_manager = EnhancedDataFrame()
 logger = logging.getLogger(__name__)
+
+# Initialize data manager
+data_manager = DataManager()
 
 @main.route('/')
 def index():

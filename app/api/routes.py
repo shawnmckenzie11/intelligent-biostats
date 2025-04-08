@@ -4,7 +4,7 @@ import numpy as np
 import io
 from app.core.ai_engine import AIEngine
 from app.core.database import AnalysisHistoryDB
-from app.core.data_manager import EnhancedDataFrame, DataPointFlag
+from app.core.data_manager import DataManager, DataPointFlag
 from collections import OrderedDict
 import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive 'Agg'

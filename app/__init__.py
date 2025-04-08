@@ -1,8 +1,9 @@
 from flask import Flask
 from app.config.settings import DevelopmentConfig
-from app.core.data_manager import EnhancedDataFrame
+from app.core.data_manager import DataManager
 import logging
 import os
+from flask_cors import CORS
 
 def setup_logging():
     """Configure application logging."""
@@ -36,13 +37,14 @@ def create_app(config_class=DevelopmentConfig):
                    template_folder='frontend/templates',
                    static_folder='frontend/static')
         app.config.from_object(config_class)
+        CORS(app)
         
         # Verify required directories
         verify_directories()
         
         # Initialize data manager as a singleton
         if not hasattr(app, 'data_manager'):
-            app.data_manager = EnhancedDataFrame()
+            app.data_manager = DataManager()
             logger.info("Initialized data manager")
         
         # Setup non-intrusive debugging features
@@ -50,10 +52,10 @@ def create_app(config_class=DevelopmentConfig):
         setup_debug_features(app)
         
         # Register blueprints
-        from app.api.routes import api_bp
+        from app.api.routes import api
         from app.routes import main
         
-        app.register_blueprint(api_bp, url_prefix='/api')
+        app.register_blueprint(api, url_prefix='/api')
         app.register_blueprint(main)  # This handles the root URL
         
         logger.info("Application initialization completed successfully")

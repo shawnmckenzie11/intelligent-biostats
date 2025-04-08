@@ -6,8 +6,13 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, Union
 from app.core.enums import DataPointFlag
+import os
+
+logger = logging.getLogger(__name__)
 
 class StateLogger:
+    """Logs the state of data operations for debugging and tracking."""
+    
     def __init__(self, log_dir: str = "debug_logs"):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(exist_ok=True)
@@ -22,7 +27,67 @@ class StateLogger:
         handler.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
         
-    def capture_state(self, df: Optional[Union[pd.DataFrame, 'EnhancedDataFrame']], operation: str = "state_check", additional_info: Optional[Dict[str, Any]] = None) -> None:
+    def capture_state(self, df: Optional[Union[pd.DataFrame, 'DataManager']], operation: str = "state_check", additional_info: Optional[Dict[str, Any]] = None) -> None:
+        """Capture the current state of the DataFrame or DataManager.
+        
+        Args:
+            df: The DataFrame or DataManager instance to log
+            operation: Description of the operation being performed
+            additional_info: Any additional information to log
+        """
+        try:
+            # Get the underlying DataFrame if DataManager is passed
+            if hasattr(df, 'data'):
+                df = df.data
+                
+            if df is None:
+                logger.warning("No data to log")
+                return
+                
+            # Create log entry
+            log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'operation': operation,
+                'shape': df.shape if hasattr(df, 'shape') else None,
+                'columns': list(df.columns) if hasattr(df, 'columns') else None,
+                'additional_info': additional_info
+            }
+            
+            # Write to log file
+            log_file = os.path.join(self.log_dir, f"state_{datetime.now().strftime('%Y%m%d')}.log")
+            with open(log_file, 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+                
+        except Exception as e:
+            logger.error(f"Error logging state: {str(e)}")
+            
+    def get_recent_states(self, limit: int = 10) -> list:
+        """Get the most recent state logs.
+        
+        Args:
+            limit: Maximum number of states to return
+            
+        Returns:
+            List of recent state logs
+        """
+        try:
+            today = datetime.now().strftime('%Y%m%d')
+            log_file = os.path.join(self.log_dir, f"state_{today}.log")
+            
+            if not os.path.exists(log_file):
+                return []
+                
+            with open(log_file, 'r') as f:
+                lines = f.readlines()
+                
+            states = [json.loads(line) for line in lines[-limit:]]
+            return states
+            
+        except Exception as e:
+            logger.error(f"Error getting recent states: {str(e)}")
+            return []
+
+    def capture_state_old(self, df: Optional[Union[pd.DataFrame, 'EnhancedDataFrame']], operation: str = "state_check", additional_info: Optional[Dict[str, Any]] = None) -> None:
         """Capture current state of the DataFrame without affecting it"""
         if df is None:
             state = {

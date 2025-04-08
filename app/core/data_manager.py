@@ -31,7 +31,7 @@ class ColumnMetadata:
     validation_rules: Dict[str, Any]
     statistical_properties: Dict[str, Any]
 
-class EnhancedDataFrame:
+class DataManager:
     """
     Enhanced Pandas DataFrame with metadata for biostatistical analysis.
     
