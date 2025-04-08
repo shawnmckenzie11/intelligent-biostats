@@ -927,3 +927,30 @@ def update_outlier_flags():
             'success': False,
             'error': str(e)
         }), 500
+
+@api.route('/log-event', methods=['POST'])
+def log_event():
+    """Handle logging of user events."""
+    try:
+        data = request.get_json()
+        event = data.get('event')
+        details = data.get('details', {})
+        
+        # Log the event using the state logger
+        current_app.data_manager._state_logger.capture_state(
+            current_app.data_manager.data,
+            f"user_event: {event}",
+            additional_info=details
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Event logged successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error logging event: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

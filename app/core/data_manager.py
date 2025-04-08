@@ -8,6 +8,7 @@ from enum import Enum
 import logging
 from app.utils.state_logger import StateLogger
 from scipy import stats
+from app.core.enums import DataPointFlag
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +20,6 @@ class ColumnType(Enum):
     DISCRETE = "discrete"
     ORDINAL = "ordinal"
     CENSORED = "censored"
-
-class DataPointFlag(Enum):
-    """Flags for individual data points."""
-    NORMAL = "normal"  # Default value - no issues
-    OUTLIER = "outlier"
-    MISSING = "missing"
-    UNEXPECTED_TYPE = "unexpected_type"
 
 @dataclass
 class ColumnMetadata:
@@ -80,8 +74,8 @@ class EnhancedDataFrame:
             self._validate_data()
             self.initialize_metadata()
             
-            # Log state after loading
-            self._state_logger.capture_state(self.data, "load_data")
+            # Log state after all initialization is complete
+            self._state_logger.capture_state(self, "load_data")
             return True, None
             
         except pd.errors.EmptyDataError:
@@ -689,6 +683,15 @@ class EnhancedDataFrame:
         if self.data is None:
             return
         self.point_flags = np.full(self.data.shape, DataPointFlag.NORMAL, dtype=object)
+        
+        # Log initial state with flag counts
+        self._state_logger.capture_state(self, "initialize_flags", {
+            "flag_counts": {
+                col: {
+                    flag.value: 0 for flag in DataPointFlag
+                } for col in self.data.columns
+            }
+        })
 
     def _update_point_flags(self) -> None:
         """Update flags for all data points based on data validation."""
@@ -742,6 +745,17 @@ class EnhancedDataFrame:
                     
             # Update metadata after flagging outliers
             self._update_metadata()
+            
+            # Log state with updated flag counts
+            self._state_logger.capture_state(self, "update_outlier_flags", {
+                "flag_counts": {
+                    col: {
+                        flag.value: int(np.sum(self.point_flags[:, idx] == flag))
+                        for flag in DataPointFlag
+                    }
+                    for idx, col in enumerate(self.data.columns)
+                }
+            })
             
         except Exception as e:
             logger.error(f"Error updating outlier flags: {str(e)}", exc_info=True)

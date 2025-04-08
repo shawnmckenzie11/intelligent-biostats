@@ -729,6 +729,21 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('analyzeOutcomeVariables').addEventListener('click', function() {
             const excludeOutliers = document.getElementById('excludeOutliers').checked;
             
+            // Log BEGIN button click
+            fetch('/api/log-event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    event: 'begin_button_click',
+                    details: {
+                        exclude_outliers: excludeOutliers,
+                        timestamp: new Date().toISOString()
+                    }
+                })
+            }).catch(error => console.error('Error logging event:', error));
+            
             if (excludeOutliers) {
                 // Call the API to update outlier flags
                 fetch('/api/update-outlier-flags', {
