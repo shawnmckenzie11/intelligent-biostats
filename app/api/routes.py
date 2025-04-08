@@ -39,6 +39,13 @@ def upload_file():
             }), 400
 
         file = request.files['file']
+        if not file.filename:
+            logger.error("Empty filename")
+            return jsonify({
+                'success': False,
+                'error': 'No file selected'
+            }), 400
+            
         if not file.filename.endswith('.csv'):
             logger.error(f"Invalid file type: {file.filename}")
             return jsonify({
@@ -55,6 +62,14 @@ def upload_file():
             return jsonify({
                 'success': False,
                 'error': error
+            }), 400
+        
+        # Verify data was loaded
+        if current_app.data_manager.data is None or current_app.data_manager.data.empty:
+            logger.error("Data manager has no data after load")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to load data - file may be empty or invalid'
             }), 400
         
         logger.info("File loaded successfully, getting preview")
@@ -83,34 +98,45 @@ def upload_file():
         logger.error(f"Error in upload_file: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f"Unexpected error: {str(e)}"
         }), 500
 
 @api.route('/modify-data', methods=['POST'])
 def modify_data():
-    """Handle AI-powered data modification requests."""
+    """Handle data modification requests."""
     try:
-        modification = request.json.get('modification')
-        logger.info(f"Received modification request: {modification}")
-        
         if current_app.data_manager.data is None:
             return jsonify({
                 'success': False,
                 'error': 'No data has been uploaded yet'
             }), 400
             
-        # Use data manager to apply modifications
+        data = request.get_json()
+        modification = data.get('modification')
+        
+        if not modification:
+            return jsonify({
+                'success': False,
+                'error': 'No modification specified'
+            }), 400
+            
+        # Process the modification
         success, message, preview = current_app.data_manager.modify_data(modification, ai_engine)
         
-        response = {
-            'success': success,
-            'message': message,
-            'preview': preview
-        }
-        return jsonify(response)
-        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'preview': preview
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': message
+            }), 400
+            
     except Exception as e:
-        logger.error(f"Error modifying data: {str(e)}")
+        logger.error(f"Error in modify_data: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
@@ -876,3 +902,28 @@ def update_boundary():
             'success': False,
             'error': str(e)
         }), 400
+
+@api.route('/update-outlier-flags', methods=['POST'])
+def update_outlier_flags():
+    """Update outlier flags for numeric columns."""
+    try:
+        if current_app.data_manager.data is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data has been uploaded yet'
+            }), 400
+            
+        # Update outlier flags
+        current_app.data_manager._update_numeric_IQR_outlier_flags()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Outlier flags updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating outlier flags: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

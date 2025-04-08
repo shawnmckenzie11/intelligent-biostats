@@ -55,37 +55,42 @@ class AIEngine:
             modified_df = df.copy()
             columns_to_delete = set()
             
-            # Split by commas and process each part
-            parts = [p.strip() for p in modification_request.split(',')]
-            for part in parts:
-                # Handle numeric column specifications
-                if any(c.isdigit() for c in part):
-                    # Handle range format (e.g., "4-7" or "9+")
-                    if '-' in part:
-                        start, end = map(int, part.split('-'))
-                        columns_to_delete.update(range(start-1, end))  # Convert to 0-based index
-                    elif '+' in part:
-                        start = int(part.replace('+', ''))
-                        columns_to_delete.update(range(start-1, len(modified_df.columns)))
-                    else:
-                        # Single column number
-                        col_num = int(part)
-                        if 0 < col_num <= len(modified_df.columns):
-                            columns_to_delete.add(col_num-1)  # Convert to 0-based index
-                
-                # Handle column name specifications
-                elif any(c.isalpha() for c in part):
-                    # Handle range format (e.g., "dept - time")
-                    if '-' in part:
-                        start_col, end_col = [c.strip() for c in part.split('-')]
-                        if start_col in modified_df.columns and end_col in modified_df.columns:
-                            start_idx = modified_df.columns.get_loc(start_col)
-                            end_idx = modified_df.columns.get_loc(end_col)
-                            columns_to_delete.update(range(start_idx, end_idx + 1))
-                    else:
-                        # Single column name
-                        if part in modified_df.columns:
-                            columns_to_delete.add(modified_df.columns.get_loc(part))
+            # If modification_request is a string, treat it as a single column name
+            if isinstance(modification_request, str):
+                if modification_request in modified_df.columns:
+                    columns_to_delete.add(modified_df.columns.get_loc(modification_request))
+                else:
+                    # Try to split by commas and process each part
+                    parts = [p.strip() for p in modification_request.split(',')]
+                    for part in parts:
+                        # Handle numeric column specifications
+                        if any(c.isdigit() for c in part):
+                            # Handle range format (e.g., "4-7" or "9+")
+                            if '-' in part:
+                                start, end = map(int, part.split('-'))
+                                columns_to_delete.update(range(start-1, end))  # Convert to 0-based index
+                            elif '+' in part:
+                                start = int(part.replace('+', ''))
+                                columns_to_delete.update(range(start-1, len(modified_df.columns)))
+                            else:
+                                # Single column number
+                                col_num = int(part)
+                                if 0 < col_num <= len(modified_df.columns):
+                                    columns_to_delete.add(col_num-1)  # Convert to 0-based index
+                        
+                        # Handle column name specifications
+                        elif any(c.isalpha() for c in part):
+                            # Handle range format (e.g., "dept - time")
+                            if '-' in part:
+                                start_col, end_col = [c.strip() for c in part.split('-')]
+                                if start_col in modified_df.columns and end_col in modified_df.columns:
+                                    start_idx = modified_df.columns.get_loc(start_col)
+                                    end_idx = modified_df.columns.get_loc(end_col)
+                                    columns_to_delete.update(range(start_idx, end_idx + 1))
+                            else:
+                                # Single column name
+                                if part in modified_df.columns:
+                                    columns_to_delete.add(modified_df.columns.get_loc(part))
             
             # Convert column indices to names and drop columns
             if columns_to_delete:

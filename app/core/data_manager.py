@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 from app.utils.state_logger import StateLogger
+from scipy import stats
 
 logger = logging.getLogger(__name__)
 
@@ -70,24 +71,65 @@ class EnhancedDataFrame:
             else:
                 raise ValueError("Either file_path or file_obj must be provided")
                 
+            # Validate that data was loaded successfully
+            if self.data is None or self.data.empty:
+                raise ValueError("Failed to load data or file is empty")
+                
             self.modifications_history = []
             self._initialize_point_flags()
             self._validate_data()
-            self._update_metadata()  # Ensure metadata is updated after loading
+            self.initialize_metadata()
             
             # Log state after loading
             self._state_logger.capture_state(self.data, "load_data")
             return True, None
+            
+        except pd.errors.EmptyDataError:
+            error_msg = "The file appears to be empty"
+            logger.error(error_msg)
+            self._state_logger.capture_state(None, f"load_error: {error_msg}")
+            return False, error_msg
+        except pd.errors.ParserError as e:
+            error_msg = f"Error parsing CSV file: {str(e)}"
+            logger.error(error_msg)
+            self._state_logger.capture_state(None, f"load_error: {error_msg}")
+            return False, error_msg
+        except UnicodeDecodeError:
+            error_msg = "Error decoding file - please ensure it's a valid UTF-8 encoded CSV"
+            logger.error(error_msg)
+            self._state_logger.capture_state(None, f"load_error: {error_msg}")
+            return False, error_msg
         except Exception as e:
-            logger.error(f"Error loading data: {str(e)}", exc_info=True)
-            self._state_logger.capture_state(None, f"load_error: {str(e)}")
-            return False, str(e)
+            error_msg = f"Error loading data: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self._state_logger.capture_state(None, f"load_error: {error_msg}")
+            return False, error_msg
+    
+    def initialize_metadata(self) -> None:
+        """Initialize metadata when data is first loaded."""
+        if self.data is None:
+            return
+        
+        # Set basic metadata
+        self.metadata = {
+            'file_stats': {
+                'filename': self.current_file,
+                'rows': len(self.data),
+                'columns': len(self.data.columns),
+                'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
+            },
+            'column_types': self._analyze_column_types(),
+            'data_quality': self._assess_data_quality()
+        }
+        
+        # Update point flags
+        self._update_point_flags()
     
     def _update_metadata(self) -> None:
         """Update metadata after data changes."""
         if self.data is None:
             return
-            
+        
         # Update basic metadata
         self.metadata = {
             'file_stats': {
@@ -110,7 +152,7 @@ class EnhancedDataFrame:
         """Update metadata for each column."""
         if self.data is None:
             return
-            
+        
         for col in self.data.columns:
             col_type = self._determine_column_type(self.data[col])
             col_idx = self.data.columns.get_loc(col)
@@ -192,6 +234,7 @@ class EnhancedDataFrame:
             })
             
         return properties
+    
     def _determine_distribution(self, column: str, col_type: ColumnType, ignore_flags: bool = False) -> Dict[str, Any]:
         """Determine the statistical distribution of a numerical column.
         
@@ -212,13 +255,13 @@ class EnhancedDataFrame:
                 'distribution_type': 'unknown',
                 'error': 'Column not found or no data loaded'
             }
-            
+        
         if col_type not in [ColumnType.NUMERIC, ColumnType.DISCRETE]:
             return {
                 'distribution_type': 'non_numeric',
                 'error': 'Distribution analysis only applicable to numeric data'
             }
-            
+        
         try:
             # Get the data series
             series = self.data[column].copy()
@@ -255,7 +298,6 @@ class EnhancedDataFrame:
             # Test for normal distribution
             if abs(skewness) < 0.5 and abs(kurtosis) < 2:
                 # Perform Shapiro-Wilk test for normality
-                from scipy import stats
                 shapiro_stat, shapiro_p = stats.shapiro(series)
                 
                 if shapiro_p > 0.05:  # Cannot reject null hypothesis of normality
@@ -354,7 +396,7 @@ class EnhancedDataFrame:
         """Validate the data against defined rules."""
         if self.data is None:
             return
-            
+        
         validation_results = {
             'errors': [],
             'warnings': [],
@@ -400,7 +442,7 @@ class EnhancedDataFrame:
         """Assess overall data quality."""
         if self.data is None:
             return {}
-            
+        
         quality_metrics = {
             'completeness': self._calculate_completeness(),
             'consistency': self._check_consistency(),
@@ -439,13 +481,39 @@ class EnhancedDataFrame:
         }
     
     def _assess_accuracy(self) -> Dict[str, Any]:
-        """Assess data accuracy."""
-        accuracy_metrics = {
-            'outliers': self._detect_outliers(),
-            'suspicious_values': self._find_suspicious_values()
+        """Assess data accuracy and identify potential issues."""
+        return {
+            'suspicious_values': self._find_suspicious_values(),
+            'validation_errors': self._validate_data()
         }
+
+    def _find_suspicious_values(self) -> Dict[str, Any]:
+        """Identify potentially suspicious or anomalous values in the dataset."""
+        suspicious_values = {}
         
-        return accuracy_metrics
+        for col in self.data.columns:
+            if pd.api.types.is_numeric_dtype(self.data[col]):
+                # Calculate basic statistics
+                mean = self.data[col].mean()
+                std = self.data[col].std()
+                q1 = self.data[col].quantile(0.25)
+                q3 = self.data[col].quantile(0.75)
+                iqr = q3 - q1
+                
+                # Define thresholds for suspicious values
+                lower_threshold = q1 - 3 * iqr
+                upper_threshold = q3 + 3 * iqr
+                
+                # Find values outside thresholds
+                suspicious = self.data[col][(self.data[col] < lower_threshold) | (self.data[col] > upper_threshold)]
+                if not suspicious.empty:
+                    suspicious_values[col] = {
+                        'count': len(suspicious),
+                        'values': suspicious.tolist(),
+                        'indices': suspicious.index.tolist()
+                    }
+        
+        return suspicious_values
    
     def _detect_outliers(self) -> Dict[str, Any]:
         """Detect outliers in numeric columns using the IQR method.
@@ -478,7 +546,7 @@ class EnhancedDataFrame:
         """Analyze and categorize columns, returning column types and counts."""
         if self.data is None:
             return {}
-            
+        
         # Initialize tracking dicts
         column_types_list = []  # List of types in same order as columns
         type_counts = {    # Counts of each type
@@ -537,59 +605,19 @@ class EnhancedDataFrame:
         """Add metadata information."""
         self.metadata[key] = value
 
-    def modify_data(self, modification_request, ai_engine=None):
-        """Apply modifications to the data and update metadata."""
-        if self.data is None:
-            return False, "No data loaded", None
-            
+    def modify_data(self, modification, ai_engine):
+        """Apply modifications to the data using AI assistance."""
         try:
-            # Store original state
-            original_data = self.data.copy()
-            
-            # Apply modifications using the AI engine if provided
-            if ai_engine is not None:
-                modified_df, was_modified = ai_engine.modify_data(self.data, modification_request)
-            else:
-                # Simple modification without AI engine
-                modified_df = self.data.copy()
-                was_modified = False  # Implement basic modifications here if needed
-            
-            if was_modified:
-                # Update the data
-                self.data = modified_df
+            # Check if modification is a column deletion request
+            if isinstance(modification, (str, list)) and (isinstance(modification, str) or all(isinstance(x, str) for x in modification)):
+                return self.process_delete_columns(modification)
                 
-                # Track the modification
-                self.modifications_history.append({
-                    'timestamp': datetime.now().isoformat(),
-                    'modification': modification_request,
-                    'changes': {
-                        'rows': len(self.data) - len(original_data),
-                        'columns': len(self.data.columns) - len(original_data.columns)
-                    }
-                })
-                
-                # Update all metadata recursively
-                self._update_metadata()
-                
-                # Create preview dict
-                preview_dict = {}
-                preview_df = self.data.head()
-                for column in preview_df.columns:
-                    preview_dict[str(column)] = [
-                        None if pd.isna(x) else x 
-                        for x in preview_df[column].tolist()
-                    ]
-                
-                # Log state after modification
-                self._state_logger.capture_state(self.data, f"modify: {modification_request[:50]}...")
-                return True, "Modifications applied successfully", preview_dict
-            else:
-                return False, "No modifications were made", None
+            # For other modifications, use AI engine
+            return ai_engine.process_modification(self, modification)
                 
         except Exception as e:
-            logger.error(f"Error modifying data: {str(e)}")
-            self._state_logger.capture_state(None, f"modify_error: {str(e)}")
-            return False, f"Error applying modifications: {str(e)}", None
+            logger.error(f"Error modifying data: {str(e)}", exc_info=True)
+            return False, str(e), None
 
     def get_column_data(self, column_name):
         """Get data and statistics for a specific column."""
@@ -688,21 +716,36 @@ class EnhancedDataFrame:
             
     def _update_numeric_IQR_outlier_flags(self) -> None:
         """Update flags for outlier values in numeric columns."""
-
-        for col_idx, col in enumerate(self.data.columns):
-            col_data = self.data[col]
-            
-            # Only check outliers for numeric columns with non-missing values
-            if pd.api.types.is_numeric_dtype(col_data) and len(col_data.dropna()) > 0:
-                q1 = col_data.quantile(0.25)
-                q3 = col_data.quantile(0.75)
-                iqr = q3 - q1
-                lower_bound = q1 - 1.5 * iqr
-                upper_bound = q3 + 1.5 * iqr
+        try:
+            if self.data is None:
+                logger.error("Cannot update outlier flags: no data loaded")
+                return
                 
-                missing_mask = col_data.isna()
-                outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
-                self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
+            # Initialize point flags if not already done
+            if self.point_flags is None:
+                self._initialize_point_flags()
+                
+            for col_idx, col in enumerate(self.data.columns):
+                col_data = self.data[col]
+                
+                # Only check outliers for numeric columns with non-missing values
+                if pd.api.types.is_numeric_dtype(col_data) and len(col_data.dropna()) > 0:
+                    q1 = col_data.quantile(0.25)
+                    q3 = col_data.quantile(0.75)
+                    iqr = q3 - q1
+                    lower_bound = q1 - 1.5 * iqr
+                    upper_bound = q3 + 1.5 * iqr
+                    
+                    missing_mask = col_data.isna()
+                    outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
+                    self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
+                    
+            # Update metadata after flagging outliers
+            self._update_metadata()
+            
+        except Exception as e:
+            logger.error(f"Error updating outlier flags: {str(e)}", exc_info=True)
+            raise
     
     def get_point_flags(self, row_idx: int, col_idx: int) -> DataPointFlag:
         """Get the flag for a specific data point."""
@@ -762,67 +805,41 @@ class EnhancedDataFrame:
             logger.error(f"Error deleting row: {str(e)}")
             return False, str(e)
 
-    def _find_suspicious_values(self):
-        """Identify suspicious values in the dataset."""
-        suspicious_values = {}
+    def process_delete_columns(self, columns_to_delete):
+        """Process column deletion requests directly.
         
-        for col in self.data.columns:
-            if pd.api.types.is_numeric_dtype(self.data[col]):
-                # For numeric columns, check for:
-                # 1. Values that are too many standard deviations from the mean
-                # 2. Values that are outside the IQR range
-                mean = self.data[col].mean()
-                std = self.data[col].std()
-                q1 = self.data[col].quantile(0.25)
-                q3 = self.data[col].quantile(0.75)
-                iqr = q3 - q1
+        Args:
+            columns_to_delete (list or str or int): List of column names/indices to delete, or single column name/index
+            
+        Returns:
+            tuple: (success, message, preview)
+        """
+        try:
+            if not isinstance(columns_to_delete, list):
+                columns_to_delete = [columns_to_delete]
                 
-                # Check for values beyond 3 standard deviations
-                std_dev_outliers = self.data[col][abs(self.data[col] - mean) > 3 * std]
+            # Convert any numeric indices to column names
+            columns_to_delete = [
+                self.data.columns[col] if isinstance(col, int) else col 
+                for col in columns_to_delete
+            ]
                 
-                # Check for values beyond 1.5 * IQR
-                iqr_outliers = self.data[col][(self.data[col] < q1 - 1.5 * iqr) | (self.data[col] > q3 + 1.5 * iqr)]
+            # Validate columns exist
+            missing_cols = [col for col in columns_to_delete if col not in self.data.columns]
+            if missing_cols:
+                return False, f"Columns not found: {', '.join(missing_cols)}", None
                 
-                # Combine both types of outliers
-                outliers = pd.concat([std_dev_outliers, iqr_outliers]).unique()
-                
-                if len(outliers) > 0:
-                    suspicious_values[col] = {
-                        'count': len(outliers),
-                        'values': outliers.tolist(),
-                        'type': 'numeric_outlier'
-                    }
-            elif pd.api.types.is_string_dtype(self.data[col]):
-                # For string columns, check for:
-                # 1. Values that are too long
-                # 2. Values that contain unusual characters
-                # 3. Values that are all uppercase or all lowercase
-                suspicious = []
-                
-                for val in self.data[col].dropna().unique():
-                    # Check for unusually long strings (more than 3 standard deviations from mean length)
-                    lengths = self.data[col].str.len()
-                    mean_len = lengths.mean()
-                    std_len = lengths.std()
-                    if len(str(val)) > mean_len + 3 * std_len:
-                        suspicious.append(val)
-                        continue
-                        
-                    # Check for all uppercase or all lowercase
-                    if isinstance(val, str):
-                        if val.isupper() or val.islower():
-                            suspicious.append(val)
-                            continue
-                            
-                        # Check for unusual characters
-                        if not val.replace(' ', '').isalnum():
-                            suspicious.append(val)
-                
-                if suspicious:
-                    suspicious_values[col] = {
-                        'count': len(suspicious),
-                        'values': suspicious,
-                        'type': 'string_anomaly'
-                    }
-        
-        return suspicious_values
+            # Drop columns
+            self.data = self.data.drop(columns=columns_to_delete)
+            
+            # Update metadata
+            self._update_metadata()
+            
+            # Get preview
+            preview = self.get_data_preview()
+            
+            return True, f"Successfully deleted columns: {', '.join(columns_to_delete)}", preview
+            
+        except Exception as e:
+            logger.error(f"Error deleting columns: {str(e)}", exc_info=True)
+            return False, str(e), None

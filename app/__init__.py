@@ -40,8 +40,10 @@ def create_app(config_class=DevelopmentConfig):
         # Verify required directories
         verify_directories()
         
-        # Initialize data manager
-        app.data_manager = EnhancedDataFrame()
+        # Initialize data manager as a singleton
+        if not hasattr(app, 'data_manager'):
+            app.data_manager = EnhancedDataFrame()
+            logger.info("Initialized data manager")
         
         # Setup non-intrusive debugging features
         from app.utils.debug_utils import setup_debug_features

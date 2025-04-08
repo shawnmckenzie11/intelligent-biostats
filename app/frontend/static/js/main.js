@@ -1408,4 +1408,40 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    function modifyData() {
+        const modification = document.getElementById('modificationInput').value;
+        if (!modification) {
+            alert('Please enter a modification request');
+            return;
+        }
+
+        fetch('/api/modify-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ modification: modification })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                updatePreviewTable(data.preview);
+                document.getElementById('modificationInput').value = '';
+                alert('Modifications applied successfully');
+            } else {
+                console.error('Modification error:', data.error);
+                alert(`Modification error: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error applying modifications. Please try again.');
+        });
+    }
 });
