@@ -701,12 +701,16 @@ class DataManager:
             
         preview_dict = {}
         preview_df = self.data.head()
-        for column in preview_df.columns:
+        # Use the DataFrame's columns in their original order
+        for column in self.data.columns:
             preview_dict[str(column)] = [
                 None if pd.isna(x) else x 
                 for x in preview_df[column].tolist()
             ]
-        return preview_dict
+        return {
+            'data': preview_dict,
+            'column_order': self.data.columns.tolist()
+        }
 
     def _initialize_point_flags(self) -> None:
         """Initialize point flags array with NORMAL values."""
@@ -842,25 +846,51 @@ class DataManager:
             if not isinstance(column_to_delete, list):
                 column_to_delete = [column_to_delete]
                 
+            print("\n=== BEFORE COLUMN DELETION ===")
+            print("Original columns:", self.data.columns.tolist())
+            print("Columns to delete:", column_to_delete)
+                
             # Convert any numeric indices to column names
             column_to_delete = [
                 self.data.columns[col] if isinstance(col, int) else col 
                 for col in column_to_delete
             ]
+            print("\nAfter converting indices:")
+            print("Columns to delete:", column_to_delete)
                 
             # Validate columns exist
             missing_cols = [col for col in column_to_delete if col not in self.data.columns]
             if missing_cols:
                 return False, f"Columns not found: {', '.join(missing_cols)}", None
                 
-            # Drop columns
+            # Get the original column order
+            original_columns = self.data.columns.tolist()
+            print("\nOriginal column order:", original_columns)
+            
+            # Remove the columns to delete from the original order
+            remaining_columns = [col for col in original_columns if col not in column_to_delete]
+            print("\nRemaining columns in order:", remaining_columns)
+            
+            # Drop columns and reorder to maintain original order using reindex
+            print("\nBefore drop and reindex:")
+            print("DataFrame columns:", self.data.columns.tolist())
+            
             self.data = self.data.drop(columns=column_to_delete)
+            print("\nAfter drop:")
+            print("DataFrame columns:", self.data.columns.tolist())
+            
+            self.data = self.data.reindex(columns=remaining_columns)
+            print("\nAfter reindex:")
+            print("DataFrame columns:", self.data.columns.tolist())
             
             # Update metadata
             self._update_metadata()
             
             # Get preview
             preview = self.get_data_preview()
+            print("\n=== AFTER COLUMN DELETION ===")
+            print("Final DataFrame columns:", self.data.columns.tolist())
+            print("Preview columns:", list(preview.keys()))
             
             return True, f"Successfully deleted columns: {', '.join(column_to_delete)}", preview
             

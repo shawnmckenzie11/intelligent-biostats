@@ -1933,8 +1933,8 @@ body {
 }
 
 .stats-summary .numbered-item {
-    font-size: 1.2em;
+    font-size: 1.05em;
     font-weight: 500;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
+    margin-top: 0.6em;
+    margin-bottom: 0.4em;
 }

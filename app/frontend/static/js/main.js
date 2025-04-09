@@ -189,11 +189,14 @@ document.addEventListener('DOMContentLoaded', function() {
             tableHtml += '</tbody></table>';
         } else {
             // Handle modified preview object
-            const headers = Object.keys(csvText);
-            const rowCount = csvText[headers[0]].length;
+            // Get the column order from the backend
+            const columnOrder = csvText.column_order;
+            const data = csvText.data;
+            const rowCount = data[columnOrder[0]].length;
             
             tableHtml = '<table><thead><tr>';
-            headers.forEach(header => {
+            // Use the exact order from the backend
+            columnOrder.forEach(header => {
                 tableHtml += `<th>${header}</th>`;
             });
             tableHtml += '</tr></thead><tbody>';
@@ -201,8 +204,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add first 5 rows of data
             for (let i = 0; i < Math.min(rowCount, 5); i++) {
                 tableHtml += '<tr>';
-                headers.forEach(header => {
-                    tableHtml += `<td>${csvText[header][i]}</td>`;
+                // Use the exact order from the backend
+                columnOrder.forEach(header => {
+                    tableHtml += `<td>${data[header][i]}</td>`;
                 });
                 tableHtml += '</tr>';
             }
@@ -629,33 +633,24 @@ document.addEventListener('DOMContentLoaded', function() {
     function updatePreviewTable(previewData) {
         console.log('Updating preview table with:', previewData);
         
-        // Get the first row to determine column order
-        const firstRow = document.querySelector('#previewTable table tr');
-        let originalHeaders = [];
-        
-        if (firstRow) {
-            // If table exists, get current column order
-            originalHeaders = Array.from(firstRow.getElementsByTagName('th')).map(th => th.textContent);
-        } else {
-            // For first load, use order from data
-            originalHeaders = Object.keys(previewData);
-        }
+        // Get the column order from the backend
+        const columnOrder = previewData.column_order;
+        const data = previewData.data;
+        const rowCount = data[columnOrder[0]].length;
         
         let tableHtml = '<table><thead><tr>';
-        originalHeaders.forEach(header => {
-            if (header in previewData) {  // Only include headers that still exist
-                tableHtml += `<th>${header}</th>`;
-            }
+        // Use the exact order from the backend
+        columnOrder.forEach(header => {
+            tableHtml += `<th>${header}</th>`;
         });
         tableHtml += '</tr></thead><tbody>';
         
-        const rows = Object.values(previewData)[0].length;
-        for (let i = 0; i < rows; i++) {
+        // Add first 5 rows of data
+        for (let i = 0; i < Math.min(rowCount, 5); i++) {
             tableHtml += '<tr>';
-            originalHeaders.forEach(header => {
-                if (header in previewData) {
-                    tableHtml += `<td>${previewData[header][i]}</td>`;
-                }
+            // Use the exact order from the backend
+            columnOrder.forEach(header => {
+                tableHtml += `<td>${data[header][i]}</td>`;
             });
             tableHtml += '</tr>';
         }
