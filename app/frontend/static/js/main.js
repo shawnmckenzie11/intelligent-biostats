@@ -707,8 +707,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create summary HTML with inline stats
         const summaryHtml = `
             <div class="stats-summary">
-                <p>Rows: ${stats.file_stats.rows} | Columns: ${stats.file_stats.columns} | Memory: ${stats.file_stats.memory_usage} | Missing Values: ${stats.file_stats.missing_values}</p>
-                <p>Numeric: ${stats.column_types.numeric} | Categorical: ${stats.column_types.categorical} | Boolean: ${stats.column_types.boolean} | Datetime: ${stats.column_types.datetime}</p>
+                <p><strong>File Stats:</strong> Rows: ${stats.file_stats.rows} | Columns: ${stats.file_stats.columns} | Memory: ${stats.file_stats.memory_usage} | Missing Values: ${stats.file_stats.missing_values}</p>
+                <p><strong>Column Stats:</strong> Numeric: ${stats.column_types.numeric} | Categorical: ${stats.column_types.categorical} | Boolean: ${stats.column_types.boolean} | Datetime: ${stats.column_types.datetime}</p>
+                <p class="numbered-item">1. Preview Column Data</p>
+                <p>Preview the data for each column by clicking on the column name. Click on a thumbnail to view the full plot.</p>
+                <p class="numbered-item">2. Update Data Boundaries</p>
+                <p>Manually redefine dataset range by clicking on the max and min values. All data outside of the boundaries will be excluded from all analyses.</p>
+                <p class="numbered-item">3. Select Outcome Variables</p>
+                <p>Select your outcome variables by clicking on the checkboxes. You can select multiple outcome variables.</p>
             </div>
         `;
 
