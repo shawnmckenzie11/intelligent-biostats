@@ -58,9 +58,24 @@ class DataManager:
         self._state_logger = StateLogger()
         self.point_flags: Optional[np.ndarray] = None  # Will be (n_rows, n_cols) array of DataPointFlag
         
+    def reset(self) -> None:
+        """Reset the DataManager to its initial state."""
+        self.data = None
+        self.metadata = {}
+        self.current_file = None
+        self.modifications_history = []
+        self.column_metadata = {}
+        self.validation_rules = {}
+        self.cached_statistics = {}
+        self._state_logger = StateLogger()
+        self.point_flags = None
+        
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
         try:
+            # Reset state before loading new data
+            self.reset()
+            
             # Always create a new StateLogger instance for each load
             self._state_logger = StateLogger()
             
@@ -627,19 +642,6 @@ class DataManager:
         """Add metadata information."""
         self.metadata[key] = value
 
-    def modify_data(self, modification, ai_engine):
-        """Apply modifications to the data using AI assistance."""
-        try:
-            # Check if modification is a column deletion request
-            if isinstance(modification, (str, list)) and (isinstance(modification, str) or all(isinstance(x, str) for x in modification)):
-                return self.process_delete_columns(modification)
-                
-            # For other modifications, use AI engine
-            return ai_engine.process_modification(self, modification)
-                
-        except Exception as e:
-            logger.error(f"Error modifying data: {str(e)}", exc_info=True)
-            return False, str(e), None
 
     def get_column_data(self, column_name):
         """Get data and statistics for a specific column."""
@@ -807,26 +809,7 @@ class DataManager:
             return np.array([])
         return self.point_flags[row_idx, :]
 
-    def delete_column(self, column_name: str) -> Tuple[bool, Optional[str]]:
-        """Delete a column from the DataFrame and update metadata."""
-        try:
-            if self.data is None:
-                return False, "No data loaded"
-                
-            if column_name not in self.data.columns:
-                return False, f"Column '{column_name}' not found"
-                
-            # Delete the column
-            self.data = self.data.drop(columns=[column_name])
-            
-            # Update all metadata recursively
-            self._update_metadata()
-            
-            return True, None
-        except Exception as e:
-            logger.error(f"Error deleting column: {str(e)}")
-            return False, str(e)
-            
+    
     def delete_row(self, row_index: int) -> Tuple[bool, Optional[str]]:
         """Delete a row from the DataFrame and update metadata."""
         try:
@@ -847,32 +830,31 @@ class DataManager:
             logger.error(f"Error deleting row: {str(e)}")
             return False, str(e)
 
-    def process_delete_columns(self, columns_to_delete):
+    def delete_columns(self, column_to_delete: List[str]) -> Tuple[bool, str, Dict[str, Any]]:
         """Process column deletion requests directly.
         
         Args:
-            columns_to_delete (list or str or int): List of column names/indices to delete, or single column name/index
-            
+            column_to_delete: List[str] - The names of the columns to delete
         Returns:
             tuple: (success, message, preview)
         """
         try:
-            if not isinstance(columns_to_delete, list):
-                columns_to_delete = [columns_to_delete]
+            if not isinstance(column_to_delete, list):
+                column_to_delete = [column_to_delete]
                 
             # Convert any numeric indices to column names
-            columns_to_delete = [
+            column_to_delete = [
                 self.data.columns[col] if isinstance(col, int) else col 
-                for col in columns_to_delete
+                for col in column_to_delete
             ]
                 
             # Validate columns exist
-            missing_cols = [col for col in columns_to_delete if col not in self.data.columns]
+            missing_cols = [col for col in column_to_delete if col not in self.data.columns]
             if missing_cols:
                 return False, f"Columns not found: {', '.join(missing_cols)}", None
                 
             # Drop columns
-            self.data = self.data.drop(columns=columns_to_delete)
+            self.data = self.data.drop(columns=column_to_delete)
             
             # Update metadata
             self._update_metadata()
@@ -880,7 +862,7 @@ class DataManager:
             # Get preview
             preview = self.get_data_preview()
             
-            return True, f"Successfully deleted columns: {', '.join(columns_to_delete)}", preview
+            return True, f"Successfully deleted columns: {', '.join(column_to_delete)}", preview
             
         except Exception as e:
             logger.error(f"Error deleting columns: {str(e)}", exc_info=True)

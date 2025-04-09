@@ -71,7 +71,7 @@ class AIEngine:
             print(f"Error importing required packages: {str(e)}")
             raise
         
-    def modify_data(self, df: pd.DataFrame, modification_request: Dict[str, Any]) -> Tuple[pd.DataFrame, bool]:
+    def delete_columns_at_start(self, df: pd.DataFrame, modification_request: Dict[str, Any]) -> Tuple[pd.DataFrame, bool]:
         """
         Handle data modifications based on user specifications.
         

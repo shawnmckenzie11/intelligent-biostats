@@ -374,18 +374,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update the proceed button handler
     document.getElementById('proceedButton').addEventListener('click', function() {
-        const modificationRequest = document.getElementById('modificationInput').value;
-        const contextInput = document.getElementById('contextInput').value;
+        const deleteColumnRequest = document.getElementById('deleteColumnText').value;
         
-        if (modificationRequest.trim()) {
-            fetch('/api/modify-data', {
+        if (deleteColumnRequest.trim()) {
+            fetch('/api/delete-columns-at-start', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
-                    modification: modificationRequest,
-                    context: contextInput
+                    modification: deleteColumnRequest
                 })
             })
             .then(response => response.json())
@@ -398,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Update status message
                     const statusElement = document.getElementById('modificationStatus');
-                    statusElement.textContent = 'Modifications Applied Successfully';
+                    statusElement.textContent = 'Deletions Applied Successfully';
                     statusElement.className = 'status-message';
                     
                     // Hide the preview actions section
@@ -426,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadDescriptiveStats();
                     loadSmartRecommendations();
                 } else {
-                    throw new Error(data.error || 'Failed to apply modifications');
+                    throw new Error(data.error || 'Failed to apply deletions');
                 }
             })
             .catch(error => {
@@ -1490,13 +1488,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function modifyData() {
-        const modification = document.getElementById('modificationInput').value;
+        const modification = document.getElementById('deleteColumnText').value;
         if (!modification) {
             alert('Please enter a modification request');
             return;
         }
 
-        fetch('/api/modify-data', {
+        fetch('/api/delete-columns-at-start', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1512,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 updatePreviewTable(data.preview);
-                document.getElementById('modificationInput').value = '';
+                document.getElementById('deleteColumnText').value = '';
                 alert('Modifications applied successfully');
             } else {
                 console.error('Modification error:', data.error);
@@ -1524,4 +1522,16 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Error applying modifications. Please try again.');
         });
     }
+
+    // Reset DataManager when page is refreshed
+    window.addEventListener('beforeunload', function() {
+        fetch('/api/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).catch(error => {
+            console.error('Error resetting DataManager:', error);
+        });
+    });
 });

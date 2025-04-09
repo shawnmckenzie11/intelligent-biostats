@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const columnInput = document.getElementById('modificationInput');
+    const columnInput = document.getElementById('deleteColumnText');
     const suggestionsDiv = document.querySelector('.column-suggestions');
     let availableColumns = [];
 

@@ -101,8 +101,8 @@ def upload_file():
             'error': f"Unexpected error: {str(e)}"
         }), 500
 
-@api.route('/modify-data', methods=['POST'])
-def modify_data():
+@api.route('/delete-columns-at-start', methods=['POST'])
+def delete_columns_at_start():
     """Handle data modification requests."""
     try:
         if current_app.data_manager.data is None:
@@ -120,8 +120,16 @@ def modify_data():
                 'error': 'No modification specified'
             }), 400
             
-        # Process the modification
-        success, message, preview = current_app.data_manager.modify_data(modification, ai_engine)
+        # Parse the column specification
+        column_names, error = current_app.column_selector.parse_column_specification(modification)
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error
+            }), 400
+            
+        # Delete the columns
+        success, message, preview = current_app.data_manager.delete_columns(column_names)
         
         if success:
             return jsonify({
@@ -136,7 +144,7 @@ def modify_data():
             }), 400
             
     except Exception as e:
-        logger.error(f"Error in modify_data: {str(e)}", exc_info=True)
+        logger.error(f"Error in delete_columns: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
@@ -950,6 +958,27 @@ def log_event():
         
     except Exception as e:
         logger.error(f"Error logging event: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api.route('/reset', methods=['POST'])
+def reset_data_manager():
+    """Reset the DataManager instance."""
+    try:
+        if hasattr(current_app, 'data_manager'):
+            current_app.data_manager.reset()
+            return jsonify({
+                'success': True,
+                'message': 'DataManager reset successfully'
+            })
+        return jsonify({
+            'success': False,
+            'error': 'DataManager not initialized'
+        }), 400
+    except Exception as e:
+        logger.error(f"Error resetting DataManager: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)

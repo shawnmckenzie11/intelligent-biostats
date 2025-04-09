@@ -13,63 +13,68 @@ class ColumnSelector:
         
     def parse_column_specification(self, text: str) -> Tuple[List[str], str]:
         """
-        Parse a text specification of columns into a list of column names.
+        Parse a text specification of columns into actual column names.
+        Supports:
+        - Column numbers (e.g., "4", "5, 9")
+        - Column ranges (e.g., "3-5", "6-10")
+        - Column names (e.g., "Age", "Age, length")
+        - Column name ranges (e.g., "Age - height")
         
         Args:
-            text: String containing column specification (e.g., "3,4" or "4-10" or "Age, Height")
+            text: String containing column specification
             
         Returns:
             Tuple containing:
             - List of column names
             - Error message (if any)
         """
-        if not text or not text.strip():
+        if not text:
             return [], "No column specification provided"
             
         if self.data_manager.data is None:
             return [], "No data loaded"
             
         try:
-            # Split by commas and handle ranges
-            parts = [part.strip() for part in text.split(',')]
-            column_indices = set()
+            # Split by commas and process each part
+            parts = [p.strip() for p in text.split(',')]
+            cols_to_delete = set()
             
             for part in parts:
-                # Handle numeric indices
-                if part.isdigit():
-                    idx = int(part) - 1  # Convert to 0-based index
-                    if 0 <= idx < len(self.data_manager.data.columns):
-                        column_indices.add(idx)
-                    else:
-                        return [], f"Column index {part} is out of range"
-                
-                # Handle ranges (e.g., "4-10")
-                elif '-' in part:
-                    try:
+                # Handle numeric column specifications
+                if any(c.isdigit() for c in part):
+                    # Handle range format (e.g., "4-7" or "9+")
+                    if '-' in part:
                         start, end = map(int, part.split('-'))
-                        start_idx = start - 1
-                        end_idx = end - 1
-                        
-                        if not (0 <= start_idx < len(self.data_manager.data.columns) and 
-                               0 <= end_idx < len(self.data_manager.data.columns)):
-                            return [], f"Range {part} contains out-of-bounds indices"
-                            
-                        if start_idx > end_idx:
-                            return [], f"Invalid range {part}: start must be less than end"
-                            
-                        column_indices.update(range(start_idx, end_idx + 1))
-                    except ValueError:
-                        return [], f"Invalid range format: {part}"
-                
-                # Handle column names
-                else:
-                    if part in self.data_manager.data.columns:
-                        column_indices.add(self.data_manager.data.columns.get_loc(part))
+                        if start < 1 or end > len(self.data_manager.data.columns):
+                            return [], f"Column range {part} is out of bounds"
+                        cols_to_delete.update(range(start-1, end))  # Convert to 0-based index
                     else:
-                        return [], f"Column '{part}' not found"
+                        # Single column number
+                        col_num = int(part)
+                        if col_num < 1 or col_num > len(self.data_manager.data.columns):
+                            return [], f"Column number {col_num} is out of bounds"
+                        cols_to_delete.add(col_num-1)  # Convert to 0-based index
+                
+                # Handle column name specifications
+                else:
+                    # Handle range format (e.g., "Age - height")
+                    if '-' in part:
+                        start_col, end_col = [c.strip() for c in part.split('-')]
+                        if start_col not in self.data_manager.data.columns:
+                            return [], f"Column {start_col} not found"
+                        if end_col not in self.data_manager.data.columns:
+                            return [], f"Column {end_col} not found"
+                        start_idx = self.data_manager.data.columns.get_loc(start_col)
+                        end_idx = self.data_manager.data.columns.get_loc(end_col)
+                        cols_to_delete.update(range(start_idx, end_idx + 1))
+                    else:
+                        # Single column name
+                        if part not in self.data_manager.data.columns:
+                            return [], f"Column {part} not found"
+                        cols_to_delete.add(self.data_manager.data.columns.get_loc(part))
             
             # Convert indices to column names
-            column_names = [self.data_manager.data.columns[i] for i in sorted(column_indices)]
+            column_names = [self.data_manager.data.columns[i] for i in sorted(cols_to_delete)]
             return column_names, ""
             
         except Exception as e:

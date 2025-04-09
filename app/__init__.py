@@ -1,6 +1,7 @@
 from flask import Flask
 from app.config.settings import DevelopmentConfig
 from app.core.data_manager import DataManager
+from app.utils.column_selector import ColumnSelector
 import logging
 import os
 from flask_cors import CORS
@@ -46,6 +47,11 @@ def create_app(config_class=DevelopmentConfig):
         if not hasattr(app, 'data_manager'):
             app.data_manager = DataManager()
             logger.info("Initialized data manager")
+            
+        # Initialize column selector
+        if not hasattr(app, 'column_selector'):
+            app.column_selector = ColumnSelector(app.data_manager)
+            logger.info("Initialized column selector")
         
         # Setup non-intrusive debugging features
         from app.utils.debug_utils import setup_debug_features
