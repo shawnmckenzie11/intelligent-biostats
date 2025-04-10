@@ -833,6 +833,25 @@ class DataManager:
         except Exception as e:
             logger.error(f"Error deleting row: {str(e)}")
             return False, str(e)
+        
+    def get_columns_by_type(self, dtypes: List[str]) -> List[str]:
+        """Get column names that match the specified data types.
+        
+        Args:
+            dtypes: List of data type strings to match (e.g. ['int64', 'float64'])
+            
+        Returns:
+            List of column names with matching data types
+        """
+        if self.data is None:
+            return []
+            
+        matching_cols = []
+        for col in self.data.columns:
+            if self.data[col].dtype.name in dtypes:
+                matching_cols.append(col)
+                
+        return matching_cols
 
     def delete_columns(self, column_to_delete: List[str]) -> Tuple[bool, str, Dict[str, Any]]:
         """Process column deletion requests directly.

@@ -33,4 +33,26 @@
 
 .column-suggestion-item.selected {
     background-color: #e3f2fd;
+}
+
+.validation-status {
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.validation-status.valid {
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.validation-status.invalid {
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.validation-status.error {
+    color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
 } 

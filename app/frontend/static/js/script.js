@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
             div.addEventListener('click', () => {
                 columnInput.value = column;
                 suggestionsDiv.classList.remove('show');
+                validateColumnSelection(column);
             });
             suggestionsDiv.appendChild(div);
         });
@@ -41,6 +42,46 @@ document.addEventListener('DOMContentLoaded', function() {
             suggestionsDiv.classList.add('show');
         } else {
             suggestionsDiv.classList.remove('show');
+        }
+        
+        // Validate the current input
+        validateColumnSelection(input);
+    }
+
+    // Function to validate column selection
+    function validateColumnSelection(input) {
+        if (!input.trim()) {
+            updateValidationStatus('', '');
+            return;
+        }
+        
+        fetch('/api/validate-columns', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ columns: input })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateValidationStatus('valid', data.message || 'Valid column selection');
+            } else {
+                updateValidationStatus('invalid', data.error || 'Invalid column selection');
+            }
+        })
+        .catch(error => {
+            console.error('Error validating columns:', error);
+            updateValidationStatus('error', 'Error validating columns');
+        });
+    }
+
+    // Function to update validation status display
+    function updateValidationStatus(status, message) {
+        const statusElement = document.getElementById('columnValidationStatus');
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `validation-status ${status}`;
         }
     }
 

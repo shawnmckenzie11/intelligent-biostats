@@ -709,7 +709,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="numbered-item">2. Update Data Boundaries</p>
                 <p>Manually redefine dataset range by clicking on the max and min values. All data outside of the boundaries will be excluded from all analyses.</p>
                 <p class="numbered-item">3. Select Outcome Variables</p>
-                <p>Select your outcome variables by clicking on the checkboxes. You can select multiple outcome variables.</p>
+                <div class="outcome-variables-container">
+                    <div class="outcome-input-group">
+                        <input type="text" id="outcomeVariables" class="outcome-variables-input" 
+                               placeholder="Enter outcome variables (e.g., 'Age', '1-3', 'Height, Weight')">
+                        <div class="outcome-suggestions"></div>
+                    </div>
+                    <div class="outcome-validation"></div>
+                </div>
             </div>
         `;
 
@@ -839,6 +846,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 const columnName = item.getAttribute('data-column');
                 fetchColumnData(columnName);
             });
+        });
+
+        // Add event listener for outcome variables input
+        document.getElementById('outcomeVariables').addEventListener('input', function(e) {
+            const input = e.target.value;
+            const suggestionsDiv = document.querySelector('.outcome-suggestions');
+            const validationDiv = document.querySelector('.outcome-validation');
+            
+            // Clear previous suggestions and validation
+            suggestionsDiv.innerHTML = '';
+            validationDiv.innerHTML = '';
+            
+            if (input.trim()) {
+                // Get column suggestions based on input
+                fetch('/api/column-suggestions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ input: input })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Display suggestions
+                        if (data.suggestions.length > 0) {
+                            const suggestionsList = document.createElement('ul');
+                            suggestionsList.className = 'suggestions-list';
+                            data.suggestions.forEach(suggestion => {
+                                const li = document.createElement('li');
+                                li.textContent = suggestion;
+                                li.addEventListener('click', () => {
+                                    document.getElementById('outcomeVariables').value = suggestion;
+                                    suggestionsDiv.innerHTML = '';
+                                });
+                                suggestionsList.appendChild(li);
+                            });
+                            suggestionsDiv.appendChild(suggestionsList);
+                        }
+                        
+                        // Display validation message
+                        if (data.validation_message) {
+                            validationDiv.textContent = data.validation_message;
+                            validationDiv.className = 'outcome-validation ' + 
+                                (data.is_valid ? 'valid' : 'invalid');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting suggestions:', error);
+                });
+            }
         });
     }
 

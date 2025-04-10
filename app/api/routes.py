@@ -983,3 +983,59 @@ def reset_data_manager():
             'success': False,
             'error': str(e)
         }), 500
+
+@api.route('/column-suggestions', methods=['POST'])
+def get_column_suggestions():
+    """Handle column suggestions and validation requests."""
+    try:
+        if current_app.data_manager.data is None:
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+            
+        data = request.get_json()
+        input_text = data.get('input', '')
+        
+        # Parse the input using ColumnSelector
+        column_names, error = current_app.column_selector.parse_column_specification(input_text)
+        
+        # Get all available columns
+        all_columns = current_app.data_manager.data.columns.tolist()
+        
+        # Get suggestions based on input
+        suggestions = []
+        if input_text:
+            # If input is a number, suggest columns by index
+            if input_text.isdigit():
+                idx = int(input_text)
+                if 0 < idx <= len(all_columns):
+                    suggestions.append(all_columns[idx-1])
+            else:
+                # Suggest columns that match the input text
+                suggestions = [col for col in all_columns if input_text.lower() in col.lower()]
+        
+        # Get validation message
+        validation_message = None
+        is_valid = True
+        
+        if error:
+            validation_message = error
+            is_valid = False
+        elif column_names:
+            validation_message = f"Selected columns: {', '.join(column_names)}"
+            is_valid = True
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions,
+            'validation_message': validation_message,
+            'is_valid': is_valid
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_column_suggestions: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
