@@ -2010,3 +2010,20 @@ body {
     color: #dc3545;
     background-color: rgba(220, 53, 69, 0.1);
 }
+
+.delete-column-validation {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.delete-column-validation.valid {
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.delete-column-validation.invalid {
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+}

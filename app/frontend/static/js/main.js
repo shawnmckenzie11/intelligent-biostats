@@ -378,88 +378,82 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update the proceed button handler
     document.getElementById('proceedButton').addEventListener('click', function() {
+        const validationElement = document.querySelector('.delete-column-validation');
         const deleteColumnRequest = document.getElementById('deleteColumnText').value;
         
         if (deleteColumnRequest.trim()) {
-            fetch('/api/delete-columns-at-start', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    modification: deleteColumnRequest
+            // Get the validated columns from the validation display
+            const validColumnsMatch = validationElement.textContent.match(/Valid columns: (.*)/);
+            if (validColumnsMatch && validationElement.classList.contains('valid')) {
+                const columnsToDelete = validColumnsMatch[1].split(', ');
+                
+                fetch('/api/delete-columns-at-start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        columns: columnsToDelete
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update preview table with new data
-                    if (data.preview) {
-                        displayPreview(data.preview);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update preview table with new data
+                        if (data.preview) {
+                            displayPreview(data.preview);
+                        }
+                        
+                        // Update status message
+                        const statusElement = document.getElementById('modificationStatus');
+                        statusElement.textContent = 'Deletions Applied Successfully';
+                        statusElement.className = 'status-message';
+                        
+                        // Hide the preview actions section
+                        document.querySelector('.preview-actions').style.display = 'none';
+                        
+                        // Show analysis sections
+                        document.getElementById('descriptiveStatsSection').style.display = 'block';
+                        document.getElementById('analysisTabsSection').style.display = 'block';
+                        
+                        // Initialize collapsible functionality for descriptive stats
+                        initializeDescriptiveStatsCollapsible();
+                        
+                        // Reinitialize the preview collapsible functionality
+                        initializeCollapsiblePreview();
+                        
+                        // Initialize tabs
+                        initializeTabs();
+                        
+                        // Load descriptive stats
+                        loadDescriptiveStats();
+                        
+                        // Load smart recommendations
+                        loadSmartRecommendations();
+                    } else {
+                        const statusElement = document.getElementById('modificationStatus');
+                        statusElement.textContent = data.error || 'Error applying deletions';
+                        statusElement.className = 'status-message error';
                     }
-                    
-                    // Update status message
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     const statusElement = document.getElementById('modificationStatus');
-                    statusElement.textContent = 'Deletions Applied Successfully';
-                    statusElement.className = 'status-message';
-                    
-                    // Hide the preview actions section
-                    document.querySelector('.preview-actions').style.display = 'none';
-                    
-                    // Show analysis sections
-                    document.getElementById('descriptiveStatsSection').style.display = 'block';
-                    document.getElementById('analysisTabsSection').style.display = 'block';
-                    
-                    // Initialize collapsible functionality for descriptive stats
-                    initializeDescriptiveStatsCollapsible();
-                    
-                    // Reinitialize the preview collapsible functionality
-                    initializeCollapsiblePreview();
-                    
-                    // Initialize tabs
-                    initializeTabs();
-                    
-                    // Show the overlay panel and trigger recommendations
-                    const overlay = document.querySelector('.analysis-overlay');
-                    overlay.classList.add('expanded');
-                    document.dispatchEvent(new CustomEvent('fileUploaded'));
-                    
-                    // Load initial data
-                    loadDescriptiveStats();
-                    loadSmartRecommendations();
-                } else {
-                    throw new Error(data.error || 'Failed to apply deletions');
-                }
-            })
-            .catch(error => {
-                console.error('Modification error:', error);
+                    statusElement.textContent = 'Error applying deletions';
+                    statusElement.className = 'status-message error';
+                });
+            } else {
                 const statusElement = document.getElementById('modificationStatus');
-                statusElement.textContent = 'Error: ' + error.message;
+                statusElement.textContent = 'Please enter valid column specifications';
                 statusElement.className = 'status-message error';
-            });
+            }
         } else {
-            // If no modifications, directly show analysis sections
+            // If no columns specified, proceed without deletions
             document.getElementById('descriptiveStatsSection').style.display = 'block';
             document.getElementById('analysisTabsSection').style.display = 'block';
-            
-            // Hide the preview actions section
-            document.querySelector('.preview-actions').style.display = 'none';
-            
-            // Initialize collapsible functionality for descriptive stats
             initializeDescriptiveStatsCollapsible();
-            
-            // Reinitialize the preview collapsible functionality
             initializeCollapsiblePreview();
-            
-            // Initialize tabs
             initializeTabs();
-            
-            // Show the overlay panel and trigger recommendations
-            const overlay = document.querySelector('.analysis-overlay');
-            overlay.classList.add('expanded');
-            document.dispatchEvent(new CustomEvent('fileUploaded'));
-            
-            // Load initial data
             loadDescriptiveStats();
             loadSmartRecommendations();
         }
@@ -1626,4 +1620,59 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error resetting DataManager:', error);
         });
     });
+
+    // Add event listener for delete column input
+    const deleteColumnInput = document.getElementById('deleteColumnText');
+    if (deleteColumnInput) {
+        deleteColumnInput.addEventListener('input', function(e) {
+            const input = e.target.value;
+            const validationDiv = document.querySelector('.delete-column-validation');
+            
+            // Create validation div if it doesn't exist
+            if (!validationDiv) {
+                const newValidationDiv = document.createElement('div');
+                newValidationDiv.className = 'delete-column-validation';
+                e.target.parentNode.appendChild(newValidationDiv);
+            }
+            
+            // Clear previous validation
+            const validationElement = document.querySelector('.delete-column-validation');
+            validationElement.innerHTML = '';
+            
+            if (input.trim()) {
+                // Get column suggestions and validation state
+                fetch('/api/column-suggestions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ input: input })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Display validation state
+                        if (data.is_valid) {
+                            // Show valid columns in green
+                            validationElement.className = 'delete-column-validation valid';
+                            validationElement.textContent = `Valid columns: ${data.columns.join(', ')}`;
+                        } else {
+                            // Show error in red
+                            validationElement.className = 'delete-column-validation invalid';
+                            validationElement.textContent = data.error;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error validating columns:', error);
+                    validationElement.className = 'delete-column-validation invalid';
+                    validationElement.textContent = 'Error validating columns';
+                });
+            } else {
+                // Show default error state when input is empty
+                validationElement.className = 'delete-column-validation invalid';
+                validationElement.textContent = 'No column specification provided';
+            }
+        });
+    }
 });

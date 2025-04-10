@@ -112,24 +112,16 @@ def delete_columns_at_start():
             }), 400
             
         data = request.get_json()
-        modification = data.get('modification')
+        columns = data.get('columns')
         
-        if not modification:
+        if not columns:
             return jsonify({
                 'success': False,
-                'error': 'No modification specified'
-            }), 400
-            
-        # Parse the column specification
-        column_names, error = current_app.column_selector.parse_column_specification(modification)
-        if error:
-            return jsonify({
-                'success': False,
-                'error': error
+                'error': 'No columns specified'
             }), 400
             
         # Delete the columns
-        success, message, preview = current_app.data_manager.delete_columns(column_names)
+        success, message, preview = current_app.data_manager.delete_columns(columns)
         
         if success:
             return jsonify({
