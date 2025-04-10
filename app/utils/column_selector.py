@@ -10,10 +10,29 @@ class ColumnSelector:
     
     def __init__(self, data_manager: DataManager):
         self.data_manager = data_manager
+        self._current_columns = set()
+        self._current_error = "No column specification provided"
+        self._is_valid = False
         
-    def parse_column_specification(self, text: str) -> Tuple[List[str], str]:
+    def get_current_state(self) -> dict:
         """
-        Parse a text specification of columns into actual column names.
+        Get the current validation state.
+        
+        Returns:
+            dict containing:
+            - columns: set of valid column names
+            - error: current error message
+            - is_valid: boolean indicating if current state is valid
+        """
+        return {
+            'columns': list(self._current_columns),
+            'error': self._current_error,
+            'is_valid': self._is_valid
+        }
+        
+    def parse_column_specification(self, text: str) -> None:
+        """
+        Parse a text specification of columns and update the current state.
         Supports:
         - Column numbers (e.g., "4", "5, 9")
         - Column ranges (e.g., "3-5", "6-10")
@@ -22,17 +41,18 @@ class ColumnSelector:
         
         Args:
             text: String containing column specification
-            
-        Returns:
-            Tuple containing:
-            - List of column names
-            - Error message (if any)
         """
         if not text:
-            return [], "No column specification provided"
+            self._current_columns = set()
+            self._current_error = "No column specification provided"
+            self._is_valid = False
+            return
             
         if self.data_manager.data is None:
-            return [], "No data loaded"
+            self._current_columns = set()
+            self._current_error = "No data loaded"
+            self._is_valid = False
+            return
             
         try:
             # Split by commas and process each part
@@ -46,13 +66,19 @@ class ColumnSelector:
                     if '-' in part:
                         start, end = map(int, part.split('-'))
                         if start < 1 or end > len(self.data_manager.data.columns):
-                            return [], f"Column range {part} is out of bounds"
+                            self._current_columns = set()
+                            self._current_error = f"Column range {part} is out of bounds"
+                            self._is_valid = False
+                            return
                         cols_to_delete.update(range(start-1, end))  # Convert to 0-based index
                     else:
                         # Single column number
                         col_num = int(part)
                         if col_num < 1 or col_num > len(self.data_manager.data.columns):
-                            return [], f"Column number {col_num} is out of bounds"
+                            self._current_columns = set()
+                            self._current_error = f"Column number {col_num} is out of bounds"
+                            self._is_valid = False
+                            return
                         cols_to_delete.add(col_num-1)  # Convert to 0-based index
                 
                 # Handle column name specifications
@@ -61,24 +87,36 @@ class ColumnSelector:
                     if '-' in part:
                         start_col, end_col = [c.strip() for c in part.split('-')]
                         if start_col not in self.data_manager.data.columns:
-                            return [], f"Column {start_col} not found"
+                            self._current_columns = set()
+                            self._current_error = f"Column {start_col} not found"
+                            self._is_valid = False
+                            return
                         if end_col not in self.data_manager.data.columns:
-                            return [], f"Column {end_col} not found"
+                            self._current_columns = set()
+                            self._current_error = f"Column {end_col} not found"
+                            self._is_valid = False
+                            return
                         start_idx = self.data_manager.data.columns.get_loc(start_col)
                         end_idx = self.data_manager.data.columns.get_loc(end_col)
                         cols_to_delete.update(range(start_idx, end_idx + 1))
                     else:
                         # Single column name
                         if part not in self.data_manager.data.columns:
-                            return [], f"Column {part} not found"
+                            self._current_columns = set()
+                            self._current_error = f"Column {part} not found"
+                            self._is_valid = False
+                            return
                         cols_to_delete.add(self.data_manager.data.columns.get_loc(part))
             
             # Convert indices to column names
-            column_names = [self.data_manager.data.columns[i] for i in sorted(cols_to_delete)]
-            return column_names, ""
+            self._current_columns = set(self.data_manager.data.columns[i] for i in sorted(cols_to_delete))
+            self._current_error = ""
+            self._is_valid = True
             
         except Exception as e:
-            return [], f"Error parsing column specification: {str(e)}"
+            self._current_columns = set()
+            self._current_error = f"Error parsing column specification: {str(e)}"
+            self._is_valid = False
     
     def validate_columns(self, column_names: List[str]) -> Tuple[bool, str]:
         """
@@ -140,13 +178,13 @@ class ColumnSelector:
             - Error message (if any)
         """
         # Parse the text into column names
-        column_names, error = self.parse_column_specification(text)
-        if error:
-            return [], error
+        self.parse_column_specification(text)
+        if self._current_error:
+            return [], self._current_error
             
         # Validate the columns
-        is_valid, error = self.validate_columns(column_names)
+        is_valid, error = self.validate_columns(list(self._current_columns))
         if not is_valid:
             return [], error
             
-        return column_names, "" 
+        return list(self._current_columns), "" 

@@ -859,7 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
             validationDiv.innerHTML = '';
             
             if (input.trim()) {
-                // Get column suggestions based on input
+                // Get column suggestions and validation state
                 fetch('/api/column-suggestions', {
                     method: 'POST',
                     headers: {
@@ -870,33 +870,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Display suggestions
-                        if (data.suggestions.length > 0) {
+                        // Display validation state
+                        if (data.is_valid) {
+                            // Show valid columns in green
+                            validationDiv.className = 'outcome-validation valid';
+                            validationDiv.textContent = `Valid columns: ${data.columns.join(', ')}`;
+                        } else {
+                            // Show error in red
+                            validationDiv.className = 'outcome-validation invalid';
+                            validationDiv.textContent = data.error;
+                        }
+                        
+                        // Display suggestions if there are any
+                        if (data.suggestions && data.suggestions.length > 0) {
                             const suggestionsList = document.createElement('ul');
                             suggestionsList.className = 'suggestions-list';
                             data.suggestions.forEach(suggestion => {
                                 const li = document.createElement('li');
                                 li.textContent = suggestion;
                                 li.addEventListener('click', () => {
-                                    document.getElementById('outcomeVariables').value = suggestion;
-                                    suggestionsDiv.innerHTML = '';
+                                    // Add the selected column to the current columns
+                                    fetch('/api/add-column', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ column: suggestion })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            // Clear the input and suggestions
+                                            document.getElementById('outcomeVariables').value = '';
+                                            suggestionsDiv.innerHTML = '';
+                                            // Update validation display
+                                            validationDiv.className = 'outcome-validation valid';
+                                            validationDiv.textContent = `Selected columns: ${data.columns.join(', ')}`;
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error adding column:', error);
+                                        validationDiv.className = 'outcome-validation invalid';
+                                        validationDiv.textContent = 'Error adding column';
+                                    });
                                 });
                                 suggestionsList.appendChild(li);
                             });
                             suggestionsDiv.appendChild(suggestionsList);
                         }
-                        
-                        // Display validation message
-                        if (data.validation_message) {
-                            validationDiv.textContent = data.validation_message;
-                            validationDiv.className = 'outcome-validation ' + 
-                                (data.is_valid ? 'valid' : 'invalid');
-                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error getting suggestions:', error);
+                    validationDiv.className = 'outcome-validation invalid';
+                    validationDiv.textContent = 'Error validating columns';
                 });
+            } else {
+                // Show default error state when input is empty
+                validationDiv.className = 'outcome-validation invalid';
+                validationDiv.textContent = 'No column specification provided';
             }
         });
     }

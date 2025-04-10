@@ -985,57 +985,67 @@ def reset_data_manager():
         }), 500
 
 @api.route('/column-suggestions', methods=['POST'])
-def get_column_suggestions():
-    """Handle column suggestions and validation requests."""
+def column_suggestions():
     try:
-        if current_app.data_manager.data is None:
-            return jsonify({
-                'success': False,
-                'error': 'No data loaded'
-            }), 400
-            
         data = request.get_json()
         input_text = data.get('input', '')
         
-        # Parse the input using ColumnSelector
-        column_names, error = current_app.column_selector.parse_column_specification(input_text)
+        # Get current validation state
+        state = current_app.column_selector.get_current_state()
         
-        # Get all available columns
-        all_columns = current_app.data_manager.data.columns.tolist()
+        # Parse the input to update the state
+        current_app.column_selector.parse_column_specification(input_text)
+        state = current_app.column_selector.get_current_state()
         
         # Get suggestions based on input
         suggestions = []
         if input_text:
-            # If input is a number, suggest columns by index
-            if input_text.isdigit():
-                idx = int(input_text)
-                if 0 < idx <= len(all_columns):
-                    suggestions.append(all_columns[idx-1])
-            else:
-                # Suggest columns that match the input text
-                suggestions = [col for col in all_columns if input_text.lower() in col.lower()]
-        
-        # Get validation message
-        validation_message = None
-        is_valid = True
-        
-        if error:
-            validation_message = error
-            is_valid = False
-        elif column_names:
-            validation_message = f"Selected columns: {', '.join(column_names)}"
-            is_valid = True
+            # Get all column names
+            all_columns = current_app.data_manager.data.columns.tolist()
+            # Filter columns that match the input
+            suggestions = [col for col in all_columns if input_text.lower() in col.lower()]
         
         return jsonify({
             'success': True,
-            'suggestions': suggestions,
-            'validation_message': validation_message,
-            'is_valid': is_valid
+            'columns': state['columns'],
+            'error': state['error'],
+            'is_valid': state['is_valid'],
+            'suggestions': suggestions
         })
         
     except Exception as e:
-        logger.error(f"Error in get_column_suggestions: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500
+        })
+
+@api.route('/add-column', methods=['POST'])
+def add_column():
+    try:
+        data = request.get_json()
+        column = data.get('column')
+        
+        if not column:
+            return jsonify({
+                'success': False,
+                'error': 'No column specified'
+            })
+            
+        # Add the column to the current set
+        current_app.column_selector._current_columns.add(column)
+        
+        # Get the updated state
+        state = current_app.column_selector.get_current_state()
+        
+        return jsonify({
+            'success': True,
+            'columns': state['columns'],
+            'error': state['error'],
+            'is_valid': state['is_valid']
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
