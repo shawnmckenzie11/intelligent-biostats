@@ -33,11 +33,10 @@ class ColumnSelector:
     def parse_column_specification(self, text: str) -> None:
         """
         Parse a text specification of columns and update the current state.
-        Supports:
+        Only supports numeric specifications:
         - Column numbers (e.g., "4", "5, 9")
         - Column ranges (e.g., "3-5", "6-10")
-        - Column names (e.g., "Age", "Age, length")
-        - Column name ranges (e.g., "Age - height")
+        - Column number plus remaining (e.g., "4+")
         
         Args:
             text: String containing column specification
@@ -60,10 +59,33 @@ class ColumnSelector:
             cols_to_delete = set()
             
             for part in parts:
-                # Handle numeric column specifications
-                if any(c.isdigit() for c in part):
-                    # Handle range format (e.g., "4-7" or "9+")
-                    if '-' in part:
+                # Check if part contains any non-numeric characters (except for + and -)
+                if not all(c.isdigit() or c in ['+', '-', ' '] for c in part):
+                    self._current_columns = set()
+                    self._current_error = "Only numeric column specifications are allowed (e.g., '4', '3-5', '4+')"
+                    self._is_valid = False
+                    return
+                
+                # Handle plus format (e.g., "4+")
+                if '+' in part:
+                    try:
+                        start = int(part.replace('+', ''))
+                        if start < 1 or start > len(self.data_manager.data.columns):
+                            self._current_columns = set()
+                            self._current_error = f"Column number {start} is out of bounds"
+                            self._is_valid = False
+                            return
+                        cols_to_delete.update(range(start-1, len(self.data_manager.data.columns)))
+                        continue
+                    except ValueError:
+                        self._current_columns = set()
+                        self._current_error = f"Invalid column specification: {part}"
+                        self._is_valid = False
+                        return
+                
+                # Handle range format (e.g., "4-7")
+                if '-' in part:
+                    try:
                         start, end = map(int, part.split('-'))
                         if start < 1 or end > len(self.data_manager.data.columns):
                             self._current_columns = set()
@@ -71,42 +93,27 @@ class ColumnSelector:
                             self._is_valid = False
                             return
                         cols_to_delete.update(range(start-1, end))  # Convert to 0-based index
-                    else:
-                        # Single column number
-                        col_num = int(part)
-                        if col_num < 1 or col_num > len(self.data_manager.data.columns):
-                            self._current_columns = set()
-                            self._current_error = f"Column number {col_num} is out of bounds"
-                            self._is_valid = False
-                            return
-                        cols_to_delete.add(col_num-1)  # Convert to 0-based index
+                        continue
+                    except ValueError:
+                        self._current_columns = set()
+                        self._current_error = f"Invalid column specification: {part}"
+                        self._is_valid = False
+                        return
                 
-                # Handle column name specifications
-                else:
-                    # Handle range format (e.g., "Age - height")
-                    if '-' in part:
-                        start_col, end_col = [c.strip() for c in part.split('-')]
-                        if start_col not in self.data_manager.data.columns:
-                            self._current_columns = set()
-                            self._current_error = f"Column {start_col} not found"
-                            self._is_valid = False
-                            return
-                        if end_col not in self.data_manager.data.columns:
-                            self._current_columns = set()
-                            self._current_error = f"Column {end_col} not found"
-                            self._is_valid = False
-                            return
-                        start_idx = self.data_manager.data.columns.get_loc(start_col)
-                        end_idx = self.data_manager.data.columns.get_loc(end_col)
-                        cols_to_delete.update(range(start_idx, end_idx + 1))
-                    else:
-                        # Single column name
-                        if part not in self.data_manager.data.columns:
-                            self._current_columns = set()
-                            self._current_error = f"Column {part} not found"
-                            self._is_valid = False
-                            return
-                        cols_to_delete.add(self.data_manager.data.columns.get_loc(part))
+                # Single column number
+                try:
+                    col_num = int(part)
+                    if col_num < 1 or col_num > len(self.data_manager.data.columns):
+                        self._current_columns = set()
+                        self._current_error = f"Column number {col_num} is out of bounds"
+                        self._is_valid = False
+                        return
+                    cols_to_delete.add(col_num-1)  # Convert to 0-based index
+                except ValueError:
+                    self._current_columns = set()
+                    self._current_error = f"Invalid column specification: {part}"
+                    self._is_valid = False
+                    return
             
             # Convert indices to column names
             self._current_columns = set(self.data_manager.data.columns[i] for i in sorted(cols_to_delete))
@@ -117,10 +124,14 @@ class ColumnSelector:
             self._current_columns = set()
             self._current_error = f"Error parsing column specification: {str(e)}"
             self._is_valid = False
-    
+            
     def validate_columns(self, column_names: List[str]) -> Tuple[bool, str]:
         """
         Validate that the selected columns exist and are appropriate for the intended operation.
+        Only supports numeric specifications:
+        - Column numbers (e.g., "4", "5, 9")
+        - Column ranges (e.g., "3-5", "6-10")
+        - Column number plus remaining (e.g., "4+")
         
         Args:
             column_names: List of column names to validate
@@ -136,10 +147,38 @@ class ColumnSelector:
         if self.data_manager.data is None:
             return False, "No data loaded"
             
-        # Check if all columns exist
-        missing_cols = [col for col in column_names if col not in self.data_manager.data.columns]
-        if missing_cols:
-            return False, f"Columns not found: {', '.join(missing_cols)}"
+        # Check if all columns exist and are numeric specifications
+        for col in column_names:
+            # Check if part contains any non-numeric characters (except for + and -)
+            if not all(c.isdigit() or c in ['+', '-', ' '] for c in col):
+                return False, "Only numeric column specifications are allowed (e.g., '4', '3-5', '4+')"
+            
+            # Handle plus format (e.g., "4+")
+            if '+' in col:
+                try:
+                    start = int(col.replace('+', ''))
+                    if start < 1 or start > len(self.data_manager.data.columns):
+                        return False, f"Column number {start} is out of bounds"
+                except ValueError:
+                    return False, f"Invalid column specification: {col}"
+            
+            # Handle range format (e.g., "4-7")
+            elif '-' in col:
+                try:
+                    start, end = map(int, col.split('-'))
+                    if start < 1 or end > len(self.data_manager.data.columns):
+                        return False, f"Column range {col} is out of bounds"
+                except ValueError:
+                    return False, f"Invalid column specification: {col}"
+            
+            # Single column number
+            else:
+                try:
+                    col_num = int(col)
+                    if col_num < 1 or col_num > len(self.data_manager.data.columns):
+                        return False, f"Column number {col_num} is out of bounds"
+                except ValueError:
+                    return False, f"Invalid column specification: {col}"
             
         return True, ""
     

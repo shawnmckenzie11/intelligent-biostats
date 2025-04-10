@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (deleteColumnRequest.trim()) {
             // Get the validated columns from the validation display
-            const validColumnsMatch = validationElement.textContent.match(/Valid columns: (.*)/);
+            const validColumnsMatch = validationElement.textContent.match(/Columns to delete: (.*)/);
             if (validColumnsMatch && validationElement.classList.contains('valid')) {
                 const columnsToDelete = validColumnsMatch[1].split(', ');
                 
@@ -706,8 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="outcome-variables-container">
                     <div class="outcome-input-group">
                         <input type="text" id="outcomeVariables" class="outcome-variables-input" 
-                               placeholder="Enter outcome variables (e.g., 'Age', '1-3', 'Height, Weight')">
-                        <div class="outcome-suggestions"></div>
+                               placeholder="Enter outcome variables (e.g., '4', '3-5', '4+')">
                     </div>
                     <div class="outcome-validation"></div>
                 </div>
@@ -845,11 +844,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add event listener for outcome variables input
         document.getElementById('outcomeVariables').addEventListener('input', function(e) {
             const input = e.target.value;
-            const suggestionsDiv = document.querySelector('.outcome-suggestions');
             const validationDiv = document.querySelector('.outcome-validation');
             
-            // Clear previous suggestions and validation
-            suggestionsDiv.innerHTML = '';
+            // Clear previous validation
             validationDiv.innerHTML = '';
             
             if (input.trim()) {
@@ -868,54 +865,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.is_valid) {
                             // Show valid columns in green
                             validationDiv.className = 'outcome-validation valid';
-                            validationDiv.textContent = `Valid columns: ${data.columns.join(', ')}`;
+                            validationDiv.textContent = `Columns to delete: ${data.columns.join(', ')}`;
                         } else {
                             // Show error in red
                             validationDiv.className = 'outcome-validation invalid';
                             validationDiv.textContent = data.error;
                         }
-                        
-                        // Display suggestions if there are any
-                        if (data.suggestions && data.suggestions.length > 0) {
-                            const suggestionsList = document.createElement('ul');
-                            suggestionsList.className = 'suggestions-list';
-                            data.suggestions.forEach(suggestion => {
-                                const li = document.createElement('li');
-                                li.textContent = suggestion;
-                                li.addEventListener('click', () => {
-                                    // Add the selected column to the current columns
-                                    fetch('/api/add-column', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({ column: suggestion })
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            // Clear the input and suggestions
-                                            document.getElementById('outcomeVariables').value = '';
-                                            suggestionsDiv.innerHTML = '';
-                                            // Update validation display
-                                            validationDiv.className = 'outcome-validation valid';
-                                            validationDiv.textContent = `Selected columns: ${data.columns.join(', ')}`;
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Error adding column:', error);
-                                        validationDiv.className = 'outcome-validation invalid';
-                                        validationDiv.textContent = 'Error adding column';
-                                    });
-                                });
-                                suggestionsList.appendChild(li);
-                            });
-                            suggestionsDiv.appendChild(suggestionsList);
-                        }
                     }
                 })
                 .catch(error => {
-                    console.error('Error getting suggestions:', error);
+                    console.error('Error validating columns:', error);
                     validationDiv.className = 'outcome-validation invalid';
                     validationDiv.textContent = 'Error validating columns';
                 });
@@ -1655,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.is_valid) {
                             // Show valid columns in green
                             validationElement.className = 'delete-column-validation valid';
-                            validationElement.textContent = `Valid columns: ${data.columns.join(', ')}`;
+                            validationElement.textContent = `Columns to delete: ${data.columns.join(', ')}`;
                         } else {
                             // Show error in red
                             validationElement.className = 'delete-column-validation invalid';
