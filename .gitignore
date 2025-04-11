@@ -1,3 +1,17 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # Python
 __pycache__/
 *.py[cod]
@@ -20,18 +34,20 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-ENV/
-env/
-.env
+# Local development scripts
+activate_venv.sh
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# OS specific
 .DS_Store
+Thumbs.db
 
 # Testing
 .coverage
@@ -41,13 +57,10 @@ htmlcov/
 .mypy_cache/
 
 # Project specific
-logs/*
-!logs/.gitkeep
 uploads/*
 !uploads/.gitkeep
 temp/*
 !temp/.gitkeep
-*.db
 *.log
 
 # Documentation

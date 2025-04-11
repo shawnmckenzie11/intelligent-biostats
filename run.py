@@ -3,6 +3,11 @@ from contextlib import closing
 import sys
 import os
 
+# Check if we're in a virtual environment
+if not hasattr(sys, 'real_prefix') and not sys.base_prefix != sys.prefix:
+    print("Warning: Not running in a virtual environment. Please run './activate_venv.sh python run.py'")
+    sys.exit(1)
+
 # Add the current directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
