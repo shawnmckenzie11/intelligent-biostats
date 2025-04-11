@@ -2,6 +2,8 @@ import socket
 from contextlib import closing
 import sys
 import os
+import time
+from datetime import datetime
 
 # Add the current directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -20,25 +22,49 @@ def find_free_port(start_port=5000, max_attempts=100):
                 continue
     raise RuntimeError(f"Could not find an available port after {max_attempts} attempts")
 
+def log_timing(message, start_time):
+    duration = time.time() - start_time
+    print(f"⏱️  {message}: {duration:.2f} seconds")
+    if duration > 5:  # Warning threshold for individual steps
+        print(f"⚠️  Warning: {message} took longer than 5 seconds")
+
 def main():
-    """Initialize and run the application."""
+    total_start = time.time()
+    
     try:
-        # Initialize environment
-        initialize_environment()
+        # Import dotenv
+        dotenv_start = time.time()
+        from dotenv import load_dotenv
+        log_timing("Dotenv import", dotenv_start)
         
-        # Create Flask app
+        # Load environment variables
+        env_start = time.time()
+        load_dotenv()
+        log_timing("Environment loading", env_start)
+        
+        # Import Flask app
+        flask_start = time.time()
+        from app import create_app
+        log_timing("Flask import", flask_start)
+        
+        # Create app
+        create_start = time.time()
         app = create_app()
+        log_timing("App creation", create_start)
         
-        # Find available port
-        port = find_free_port()
-        print(f"Starting server on port {port}")
+        # Run app
+        run_start = time.time()
+        print(f"\n🚀 Starting application at {datetime.now()}")
+        app.run(debug=True)
+        log_timing("App startup", run_start)
         
-        # Run the app
-        app.run(host='0.0.0.0', port=port, debug=True)
-        
-    except Exception as e:
-        print(f"Error starting application: {str(e)}")
-        sys.exit(1)
+    except ImportError as e:
+        print(f"Error: {e}")
+        print("Please make sure all dependencies are installed correctly.")
+        print("Try running: ./scripts/start.sh")
+        exit(1)
+    finally:
+        log_timing("Total application startup", total_start)
 
 if __name__ == '__main__':
     main() 

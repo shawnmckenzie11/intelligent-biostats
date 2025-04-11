@@ -1,26 +1,30 @@
-# Core dependencies
-Flask==2.2.5
-pandas==2.2.1
-numpy==1.26.4
-scipy==1.12.0
-matplotlib==3.8.3
-seaborn==0.13.2
+# Core dependencies (install first)
+python-dotenv==1.0.0
+Flask==2.3.3
+Werkzeug==2.3.7
+SQLAlchemy==2.0.27
+flask-cors==4.0.0
 
-# Development dependencies
+# Data processing (install second)
+numpy==1.24.3
+pandas==2.0.3
+scipy==1.10.1
+
+# Visualization (install third)
+matplotlib==3.7.1
+seaborn==0.12.2
+
+# Development tools (install fourth)
 pytest==8.0.2
 pytest-cov==4.1.0
 flake8==7.0.0
 black==24.2.0
 isort==5.13.2
+watchdog==3.0.0
 
-# Documentation
+# Documentation (install last)
 Sphinx==7.2.6
 sphinx-rtd-theme==2.0.0
 
-# Database
-SQLAlchemy==2.0.27
-
 # Utilities
-python-dotenv==1.0.1
 requests==2.31.0
-Werkzeug==2.2.3

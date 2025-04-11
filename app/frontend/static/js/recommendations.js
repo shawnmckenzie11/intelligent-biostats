@@ -75,26 +75,68 @@ class RecommendationsManager {
                 // Clear existing recommendations
                 this.recommendations = [];
                 
-                // Check for categorical and boolean data
-                const categoricalCols = columnTypes.columns.filter((col, index) => 
-                    columnTypes.column_types_list[index] === 'categorical' || 
-                    columnTypes.column_types_list[index] === 'boolean'
-                );
+                // Get outcome variables from the data manager
+                const outcomeResponse = await fetch('/api/get_outcome_variables');
+                const outcomeData = await outcomeResponse.json();
                 
-                if (categoricalCols.length > 0) {
-                    this.recommendations.push({
-                        type: 'data-quality',
-                        title: 'Categorical Data Detected',
-                        message: `Your dataset contains ${categoricalCols.length} categorical variables. These are suitable for ANOVA, Chi-square tests, and other categorical analyses.`,
-                        priority: 'high',
-                        action: 'View Details',
-                        details: {
-                            columns: categoricalCols,
-                            analysis_suggestions: ['ANOVA', 'Chi-square Test', 'Contingency Tables']
+                if (outcomeData.success && outcomeData.outcome_variables.length > 0) {
+                    // Group outcome variables by type
+                    const outcomeTypes = {};
+                    
+                    outcomeData.outcome_variables.forEach(variable => {
+                        const colIndex = stats.column_types.columns.indexOf(variable);
+                        if (colIndex !== -1) {
+                            const type = stats.column_types.column_types_list[colIndex];
+                            if (!outcomeTypes[type]) {
+                                outcomeTypes[type] = [];
+                            }
+                            outcomeTypes[type].push(variable);
                         }
                     });
+                    
+                    // Create cards for each outcome type
+                    Object.entries(outcomeTypes).forEach(([type, variables]) => {
+                        let analysisSuggestions = [];
+                        let message = '';
+                        
+                        switch(type) {
+                            case 'numeric':
+                                analysisSuggestions = ['Linear Regression', 'ANOVA', 'T-tests'];
+                                message = `Your dataset contains ${variables.length} continuous outcome variables. These are suitable for parametric tests and regression analysis.`;
+                                break;
+                            case 'discrete':
+                                analysisSuggestions = ['Poisson Regression', 'Negative Binomial Regression'];
+                                message = `Your dataset contains ${variables.length} discrete outcome variables. These are suitable for count data analysis.`;
+                                break;
+                            case 'ordinal':
+                                analysisSuggestions = ['Ordinal Logistic Regression', 'Mann-Whitney U Test'];
+                                message = `Your dataset contains ${variables.length} ordinal outcome variables. These are suitable for non-parametric tests and ordinal regression.`;
+                                break;
+                            case 'categorical':
+                                analysisSuggestions = ['Logistic Regression', 'Chi-square Test', 'Contingency Tables'];
+                                message = `Your dataset contains ${variables.length} categorical outcome variables. These are suitable for categorical analysis.`;
+                                break;
+                            case 'boolean':
+                                analysisSuggestions = ['Logistic Regression', 'Chi-square Test'];
+                                message = `Your dataset contains ${variables.length} binary outcome variables. These are suitable for binary classification analysis.`;
+                                break;
+                        }
+                        
+                        this.recommendations.push({
+                            type: 'outcome-analysis',
+                            title: `${type.charAt(0).toUpperCase() + type.slice(1)} Outcome Variables`,
+                            message: message,
+                            priority: 'high',
+                            action: 'View Details',
+                            details: {
+                                variables: variables,
+                                analysis_suggestions: analysisSuggestions,
+                                variable_type: type
+                            }
+                        });
+                    });
                 }
-
+                
                 // Check for missing values using the pre-calculated data
                 const missingValues = stats.file_stats.missing_values || 0;
                 const missingValuesByColumn = stats.missing_values_by_column || {};

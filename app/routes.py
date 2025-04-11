@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, current_app
 from .core.data_manager import DataManager, DataPointFlag
 import pandas as pd
 import numpy as np
@@ -120,4 +120,27 @@ def get_point_flags():
             
         return jsonify({'success': True, 'flags': results})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}) 
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.route('/api/set_outcome_variables', methods=['POST'])
+def set_outcome_variables():
+    data = request.get_json()
+    outcome_variables = data.get('outcome_variables', [])
+    
+    # Set the outcome variables directly using the app's data_manager
+    current_app.data_manager.set_outcome_variables(outcome_variables)
+    
+    return jsonify({
+        'success': True,
+        'columns': outcome_variables
+    })
+
+@main.route('/api/get_outcome_variables', methods=['GET'])
+def get_outcome_variables():
+    # Get the outcome variables directly from the app's data_manager
+    outcome_variables = current_app.data_manager.get_outcome_variables()
+    
+    return jsonify({
+        'success': True,
+        'outcome_variables': outcome_variables
+    }) 

@@ -5,6 +5,7 @@ from app.utils.column_selector import ColumnSelector
 import logging
 import os
 from flask_cors import CORS
+import time
 
 def setup_logging():
     """Configure application logging."""
@@ -27,6 +28,8 @@ def verify_directories():
 
 def create_app(config_class=DevelopmentConfig):
     """Create and configure the Flask application."""
+    start_time = time.time()
+    
     try:
         # Setup logging
         setup_logging()
@@ -65,6 +68,9 @@ def create_app(config_class=DevelopmentConfig):
         app.register_blueprint(main)  # This handles the root URL
         
         logger.info("Application initialization completed successfully")
+        
+        duration = time.time() - start_time
+        print(f"⏱️  Flask app creation took: {duration:.2f} seconds")
         return app
         
     except Exception as e:

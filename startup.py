@@ -65,4 +65,20 @@ def initialize_environment():
         check_python_version()
         check_system_dependencies()
         check_and_install_packages()
-        initialize_environment._initialized = True 
+        initialize_environment._initialized = True
+
+def install_requirements():
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    except subprocess.CalledProcessError:
+        print("Failed to install requirements")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    # Install requirements first
+    install_requirements()
+    
+    # Load environment variables
+    load_dotenv()
+    
+    # Rest of your startup code... 

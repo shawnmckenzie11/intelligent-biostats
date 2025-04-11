@@ -15,6 +15,7 @@ from scipy import stats
 import json
 from datetime import datetime
 import logging
+from app.utils.performance_monitor import performance_monitor
 
 # Get the logger configured in app/__init__.py
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ if not hasattr(api, '_initialized'):
     api._initialized = True
 
 @api.route('/upload', methods=['POST'])
+@performance_monitor.timing_decorator('file_upload')
 def upload_file():
     """Handle file upload and return initial analysis."""
     try:

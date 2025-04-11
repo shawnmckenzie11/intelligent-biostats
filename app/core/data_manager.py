@@ -12,6 +12,7 @@ import logging
 from app.utils.state_logger import StateLogger
 from scipy import stats
 from app.core.enums import DataPointFlag
+from app.utils.performance_monitor import performance_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class DataManager:
         self.cached_statistics: Dict[str, Any] = {}
         self._state_logger = StateLogger()
         self.point_flags: Optional[np.ndarray] = None  # Will be (n_rows, n_cols) array of DataPointFlag
+        self.outcome_variables = []  # Add this line to store outcome variables
         
     def reset(self) -> None:
         """Reset the DataManager to its initial state."""
@@ -70,6 +72,7 @@ class DataManager:
         self._state_logger = StateLogger()
         self.point_flags = None
         
+    @performance_monitor.timing_decorator('data_processing')
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
         try:
@@ -571,65 +574,158 @@ class DataManager:
                     
         return outliers
     
-    def _analyze_column_types(self) -> Dict[str, int]:
+    def _analyze_column_types(self) -> Dict[str, Any]:
         """
         Analyze and categorize columns, returning column types and counts.
+        Columns can have multiple potential types (e.g. both numeric and ordinal).
         
         Returns:
-            Dict[str, int]: Dictionary mapping column types to their counts
-            
-        Note:
-            Column types include: numeric, boolean, categorical, timeseries, discrete
+            Dict containing:
+            - column_types_list: List of primary types in column order
+            - type_counts: Count of each type
+            - total_columns: Total number of columns
+            - potential_types: Dict mapping columns to all potential types
+            - specialty_columns: Dict identifying special column relationships
         """
         if self.data is None:
             return {}
         
         # Initialize tracking dicts
-        column_types_list = []  # List of types in same order as columns
+        column_types_list = []  # List of primary types in same order as columns
         type_counts = {    # Counts of each type
             'numeric': 0,
             'boolean': 0, 
             'categorical': 0,
             'timeseries': 0,
-            'discrete': 0
+            'discrete': 0,
+            'binary': 0,
+            'ordinal': 0
+        }
+        potential_types = {}  # Track all potential types for each column
+        specialty_columns = {
+            'paired': [],
+            'longitudinal': [],
+            'repeated': []
         }
         
-        for col in self.data.columns:
-            col_type = None
+        # Get all column names
+        columns = self.data.columns.tolist()
+        
+        # Analyze specialty columns
+        for col in columns:
+            col_lower = col.lower()
+            
+            # Check for paired columns
+            if any(keyword in col_lower for keyword in ['before', 'after', 'pre', 'post']):
+                # Find matching pair
+                for other_col in columns:
+                    if col != other_col:
+                        other_lower = other_col.lower()
+                        # Check for matching pair patterns
+                        if (('before' in col_lower and 'after' in other_lower) or
+                            ('after' in col_lower and 'before' in other_lower) or
+                            ('pre' in col_lower and 'post' in other_lower) or
+                            ('post' in col_lower and 'pre' in other_lower)):
+                            pair = sorted([col, other_col])
+                            if pair not in specialty_columns['paired']:
+                                specialty_columns['paired'].append(pair)
+            
+            # Check for ID columns
+            if 'id' in col_lower:
+                id_columns = [c for c in columns if 'id' in c.lower() and c != col]
+                if id_columns:
+                    specialty_columns['paired'].append([col] + id_columns)
+        
+        # Check for longitudinal columns
+        longitudinal_keywords = ['time', 'week', 'visit', 'day', 'session', 'period']
+        for keyword in longitudinal_keywords:
+            matching_cols = [col for col in columns if keyword in col.lower()]
+            if len(matching_cols) > 1:
+                specialty_columns['longitudinal'].append(matching_cols)
+        
+        # Check for repeated columns
+        for col in columns:
+            # Look for patterns like Q1, Q2, Q3 or T1, T2, T3
+            if len(col) > 1 and col[-1].isdigit():
+                prefix = col[:-1]
+                matching_cols = [c for c in columns if c.startswith(prefix) and c != col]
+                if matching_cols:
+                    # Verify it's not a longitudinal pattern
+                    is_longitudinal = any(keyword in prefix.lower() for keyword in longitudinal_keywords)
+                    if not is_longitudinal:
+                        repeated_set = sorted([col] + matching_cols)
+                        if repeated_set not in specialty_columns['repeated']:
+                            specialty_columns['repeated'].append(repeated_set)
+        
+        # Remove duplicates and empty lists
+        for key in specialty_columns:
+            specialty_columns[key] = [list(x) for x in set(tuple(x) for x in specialty_columns[key] if x)]
+        
+        # Continue with existing type analysis
+        for col in columns:
+            col_types = set()  # Track all potential types for this column
+            primary_type = None
+            series = self.data[col]
+            n_unique = series.nunique()
+            
             # Check if numeric
-            if pd.api.types.is_numeric_dtype(self.data[col]):
-                col_type = 'numeric'
+            if pd.api.types.is_numeric_dtype(series):
+                primary_type = 'numeric'
+                col_types.add('numeric')
                 type_counts['numeric'] += 1
                 
-                # Check if discrete
-                if self.data[col].nunique() < 20:  # threshold for discrete
-                    col_type = 'discrete'
+                # Check if discrete/ordinal
+                if n_unique < 20:  # threshold for discrete
+                    primary_type = 'discrete'
+                    col_types.add('discrete') 
                     type_counts['discrete'] += 1
-                    type_counts['numeric'] -= 1  # Adjust count since it's discrete
+                    type_counts['numeric'] -= 1
+                    
+                    # Check if potentially ordinal
+                    if n_unique > 2 and n_unique <= 10:
+                        col_types.add('ordinal')
+                        type_counts['ordinal'] += 1
+                
+                # Check if potentially binary
+                if n_unique == 2:
+                    col_types.add('binary')
+                    type_counts['binary'] += 1
             
-            # Check if boolean
-            elif self.data[col].nunique() == 2:
-                col_type = 'boolean'
+            # Check if boolean or binary categorical
+            elif n_unique == 2:
+                primary_type = 'boolean'
+                col_types.add('boolean')
+                col_types.add('binary')
                 type_counts['boolean'] += 1
+                type_counts['binary'] += 1
             
             # Check if potential datetime
-            elif self._is_datetime(self.data[col]):
-                col_type = 'timeseries'
+            elif self._is_datetime(series):
+                primary_type = 'timeseries'
+                col_types.add('timeseries')
                 type_counts['timeseries'] += 1
             
-            # Remaining are categorical
+            # Check categorical/ordinal
             else:
-                col_type = 'categorical'
+                primary_type = 'categorical'
+                col_types.add('categorical')
                 type_counts['categorical'] += 1
+                
+                # Check if potentially ordinal
+                if n_unique <= 10:
+                    col_types.add('ordinal')
+                    type_counts['ordinal'] += 1
             
-            column_types_list.append(col_type)
+            column_types_list.append(primary_type)
+            potential_types[col] = list(col_types)
         
         return {
-            'column_types_list': column_types_list,  # List of types in column order
-            'type_counts': type_counts,              # Count of each type
-            'total_columns': len(self.data.columns)
+            'column_types_list': column_types_list,
+            'type_counts': type_counts,
+            'total_columns': len(columns),
+            'potential_types': potential_types,
+            'specialty_columns': specialty_columns
         }
-    
     def _is_datetime(self, series):
         """Check if a series contains datetime values."""
         try:
@@ -916,3 +1012,28 @@ class DataManager:
         except Exception as e:
             logger.error(f"Error deleting columns: {str(e)}", exc_info=True)
             return False, str(e), None
+
+    def set_outcome_variables(self, variables: List[str]) -> None:
+        """Set the outcome variables for analysis.
+        
+        Args:
+            variables: List of column names to be treated as outcome variables
+        """
+        if self.data is not None:
+            # Validate that all variables exist in the dataset
+            valid_variables = [var for var in variables if var in self.data.columns]
+            self.outcome_variables = valid_variables
+        else:
+            self.outcome_variables = []
+            
+    def get_outcome_variables(self) -> List[str]:
+        """Get the current list of outcome variables.
+        
+        Returns:
+            List of outcome variable names
+        """
+        return self.outcome_variables
+        
+    def clear_outcome_variables(self) -> None:
+        """Clear all outcome variables."""
+        self.outcome_variables = []

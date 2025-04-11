@@ -759,77 +759,33 @@ document.addEventListener('DOMContentLoaded', function() {
         descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml + analysisControlsHtml;
         
         // Add event listener for the BEGIN button
-        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function(e) {
-            e.preventDefault(); // Prevent default behavior
-            e.stopPropagation(); // Stop event bubbling
+        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function() {
+            // Get the data from the validation div
+            const validationDiv = document.getElementById('validationDiv');
+            const data = JSON.parse(validationDiv.dataset.data);
             
-            const excludeOutliers = document.getElementById('excludeOutliers').checked;
-            
-            // Log BEGIN button click
-            fetch('/api/log-event', {
+            // Send the columns to the backend to store as outcome variables
+            fetch('/api/set_outcome_variables', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    event: 'begin_button_click',
-                    details: {
-                        exclude_outliers: excludeOutliers,
-                        timestamp: new Date().toISOString()
-                    }
+                    outcome_variables: data.columns
                 })
-            }).catch(error => console.error('Error logging event:', error));
-            
-            if (excludeOutliers) {
-                // Call the API to update outlier flags
-                fetch('/api/update-outlier-flags', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ update_flags: true })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error('Error updating outlier flags:', data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error updating outlier flags:', error);
-                });
-            }
-            
-            // Remove the analysis controls section
-            const analysisControls = document.querySelector('.analysis-controls');
-            if (analysisControls) {
-                analysisControls.remove();
-            }
-            
-            // Collapse both preview sections
-            const previewContent = document.getElementById('previewContent');
-            const descriptiveContent = document.getElementById('descriptiveContent');
-            const previewToggleIcon = document.querySelector('#togglePreview .toggle-icon');
-            const descriptiveToggleIcon = document.querySelector('#toggleDescriptive .toggle-icon');
-            
-            if (previewContent) {
-                previewContent.classList.add('collapsed');
-                previewToggleIcon.style.transform = 'rotate(-90deg)';
-                previewContent.style.maxHeight = '0';
-            }
-            
-            if (descriptiveContent) {
-                descriptiveContent.classList.add('collapsed');
-                descriptiveToggleIcon.style.transform = 'rotate(-90deg)';
-                descriptiveContent.style.maxHeight = '0';
-            }
-            
-            // Show the outcome insights section
-            document.getElementById('outcomeInsightsSection').style.display = 'block';
-            initializeOutcomeInsightsCollapsible();
-            
-            // Proceed with analysis
-            loadSmartRecommendations();
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    validationDiv.textContent = `Outcome Variables Set: ${data.columns.join(', ')}`;
+                } else {
+                    validationDiv.textContent = 'Error setting outcome variables';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                validationDiv.textContent = 'Error setting outcome variables';
+            });
         });
         
         // Add event listeners for column menu items
@@ -865,7 +821,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.is_valid) {
                             // Show valid columns in green
                             validationDiv.className = 'outcome-validation valid';
-                            validationDiv.textContent = `Columns to delete: ${data.columns.join(', ')}`;
+                            validationDiv.textContent = `Outcome Variables: ${data.columns.join(', ')}`;
                         } else {
                             // Show error in red
                             validationDiv.className = 'outcome-validation invalid';
