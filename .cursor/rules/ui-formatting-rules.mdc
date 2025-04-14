@@ -1,0 +1,34 @@
+---
+description: UI features Created or Modified
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+Ensure that any new UI elements created maintain a consistent UI style and formatting:
+1. Color Scheme:
+Primary color: #2c3e50
+Secondary color: #3498db
+Background color: #f8f9fa
+Border color: #e9ecef
+2. Typography:
+Font family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
+Consistent font sizes and weights
+Clear hierarchy with h1-h6 elements
+3. Layout:
+Clean, modern design with proper spacing
+Responsive containers with max-width constraints
+Consistent padding and margins
+Card-based layout for content sections
+4. Components:
+Consistent button styles
+Form elements with uniform styling
+Tables with standardized formatting
+Modal dialogs with consistent structure
+Collapsible sections with smooth transitions
+5. Interactive Elements:
+Hover and focus states
+Consistent transitions and animations
+Clear visual feedback for user actions
+

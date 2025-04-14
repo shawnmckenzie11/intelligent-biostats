@@ -439,7 +439,7 @@ def get_column_data(column_name):
         # Get basic statistics
         stats = {
             'Type': col_type,
-            'Missing Values': str(column_data.isna().sum()),
+            'Missingues': str(column_data.isna().sum()),
             'Unique Values': str(column_data.nunique())
         }
         

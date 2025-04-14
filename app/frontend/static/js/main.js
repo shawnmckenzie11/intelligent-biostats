@@ -730,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const fileStatsContent = statsContainer.querySelector('.file-stats-content');
         if (stats.file_stats) {
             const fileStats = stats.file_stats;
-            fileStatsContent.innerHTML = `
+            basicStatsContent.innerHTML = `
                 <div class="file-stats-grid compact">
                     <div class="stat-card">
                         <div class="stat-value">${fileStats.rows.toLocaleString()}</div>
@@ -746,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="stat-card">
                         <div class="stat-value">${fileStats.missing_values.toLocaleString()}</div>
-                        <div class="stat-label">Missing Values</div>
+                        <div class="stat-label">Missingues</div>
                     </div>
                 </div>
                 <div class="column-type-summary compact">

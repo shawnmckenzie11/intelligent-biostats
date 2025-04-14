@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Maintain awareness of:
+
+Current file's dependencies
+Project-wide statistical libraries
+Data pipeline architecture
+
+Reset context when switching subsystems (e.g., frontend ↔ analysis)
+
+

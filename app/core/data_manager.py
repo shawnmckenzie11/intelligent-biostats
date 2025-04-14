@@ -660,7 +660,7 @@ class DataManager:
             # Get basic statistics based on column type
             stats = {
                 'Type': column_type,
-                'Missing Values': str(column_data.isna().sum()),
+                'Missingues': str(column_data.isna().sum()),
                 'Unique Values': str(column_data.nunique())
             }
             

@@ -66,7 +66,7 @@ def get_column_stats(column_name):
             stats = {
                 'Unique Values': str(column_data.nunique()),
                 'Most Common': str(column_data.mode().iloc[0]),
-                'Missing Values': str(column_data.isna().sum())
+                'Missingues': str(column_data.isna().sum())
             }
             
         # Add flag information
