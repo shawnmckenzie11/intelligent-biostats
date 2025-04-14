@@ -272,7 +272,8 @@ def get_recommendations():
 def get_descriptive_stats():
     """Get descriptive statistics for the current dataset."""
     try:
-        logger.debug(f"Data manager state: {current_app.data_manager is None}")
+        logger.debug("Getting descriptive stats")
+        
         if current_app.data_manager is None:
             logger.error("Data manager is None")
             return jsonify({
@@ -287,101 +288,24 @@ def get_descriptive_stats():
                 'error': 'No data loaded'
             }), 400
             
-        logger.debug(f"Data shape: {current_app.data_manager.data.shape if current_app.data_manager.data is not None else 'None'}")
-        logger.debug(f"Data columns: {current_app.data_manager.data.columns.tolist() if current_app.data_manager.data is not None else 'None'}")
-            
-        # Get column types and missing values in a single pass
-        column_types_list = []
-        missing_values_by_column = {}
-        distribution_analysis = {}  # New dictionary to store distribution analysis
-        outlier_info = {}  # New dictionary to store outlier information
+        # Get descriptive stats
+        stats = current_app.data_manager.get_column_descriptive_stats()
         
-        for i, col in enumerate(current_app.data_manager.data.columns):
+        if stats is None:
+            logger.error("Failed to get descriptive stats - stats is None")
+            # Try to calculate stats if they're not available
             try:
-                # Determine column type
-                if pd.api.types.is_numeric_dtype(current_app.data_manager.data[col]):
-                    if current_app.data_manager.data[col].nunique() < 20:  # threshold for discrete
-                        column_types_list.append('discrete')
-                    else:
-                        column_types_list.append('numeric')
-                        # Calculate skewness and kurtosis for numeric columns
-                        skewness = current_app.data_manager.data[col].skew()
-                        kurtosis = current_app.data_manager.data[col].kurtosis()
-                        distribution_analysis[col] = {
-                            'skewness': float(skewness),
-                            'kurtosis': float(kurtosis),
-                            'transformation_suggestion': get_transformation_suggestion(skewness, kurtosis)
-                        }
-                        
-                        # Calculate outliers for numeric columns
-                        mean = current_app.data_manager.data[col].mean()
-                        std = current_app.data_manager.data[col].std()
-                        q1 = current_app.data_manager.data[col].quantile(0.25)
-                        q3 = current_app.data_manager.data[col].quantile(0.75)
-                        iqr = q3 - q1
-                        
-                        # Determine distribution type and set appropriate thresholds
-                        if abs(skewness) < 0.5 and abs(kurtosis) < 2:  # Normal
-                            lower_bound = mean - 3 * std
-                            upper_bound = mean + 3 * std
-                        elif abs(skewness) > 1:  # Skewed
-                            lower_bound = q1 - 1.5 * iqr
-                            upper_bound = q3 + 1.5 * iqr
-                        else:  # Heavy-tailed
-                            lower_bound = q1 - 2.5 * iqr
-                            upper_bound = q3 + 2.5 * iqr
-                        
-                        # Count outliers
-                        outliers = current_app.data_manager.data[col][(current_app.data_manager.data[col] < lower_bound) | (current_app.data_manager.data[col] > upper_bound)]
-                        outlier_info[col] = {
-                            'count': int(len(outliers)),
-                            'percentage': float(len(outliers) / len(current_app.data_manager.data[col]) * 100)
-                        }
-                elif pd.api.types.is_datetime64_any_dtype(current_app.data_manager.data[col]):
-                    column_types_list.append('timeseries')
-                else:
-                    # For non-numeric, non-datetime columns
-                    if current_app.data_manager.data[col].nunique() == 2:
-                        # Check if the values are actually boolean-like
-                        unique_values = current_app.data_manager.data[col].dropna().unique()
-                        if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
-                            column_types_list.append('boolean')
-                        else:
-                            column_types_list.append('categorical')
-                    else:
-                        column_types_list.append('categorical')
-                
-                # Count missing values
-                missing_count = current_app.data_manager.data[col].isna().sum()
-                if missing_count > 0:
-                    missing_values_by_column[col] = int(missing_count)
-            except Exception as e:
-                logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
-                continue
+                current_app.data_manager.calculate_descriptive_stats()
+                stats = current_app.data_manager.get_column_descriptive_stats()
+                if stats is None:
+                    raise Exception("Failed to calculate descriptive stats")
+            except Exception as calc_error:
+                logger.error(f"Error calculating descriptive stats: {str(calc_error)}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Failed to calculate descriptive statistics: {str(calc_error)}'
+                }), 500
             
-        # Calculate total missing values
-        missing_values = sum(missing_values_by_column.values())
-            
-        stats = {
-            'file_stats': {
-                'rows': len(current_app.data_manager.data),
-                'columns': len(current_app.data_manager.data.columns),
-                'memory_usage': f"{current_app.data_manager.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
-                'missing_values': int(missing_values)
-            },
-            'column_types': {
-                'numeric': len([col for col, type_ in zip(current_app.data_manager.data.columns, column_types_list) if type_ == 'numeric']),
-                'categorical': len([col for col, type_ in zip(current_app.data_manager.data.columns, column_types_list) if type_ == 'categorical']),
-                'boolean': len([col for col, type_ in zip(current_app.data_manager.data.columns, column_types_list) if type_ == 'boolean']),
-                'datetime': len([col for col, type_ in zip(current_app.data_manager.data.columns, column_types_list) if type_ == 'timeseries']),
-                'columns': current_app.data_manager.data.columns.tolist(),
-                'column_types_list': column_types_list
-            },
-            'missing_values_by_column': missing_values_by_column,
-            'distribution_analysis': distribution_analysis,
-            'outlier_info': outlier_info  # Add outlier information to the response
-        }
-        
         logger.debug(f"Successfully generated stats: {stats}")
         return jsonify({
             'success': True,
@@ -392,8 +316,8 @@ def get_descriptive_stats():
         logger.error(f"Error in get_descriptive_stats: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
-        }), 400
+            'error': f"Unexpected error: {str(e)}"
+        }), 500
 
 def get_transformation_suggestion(skewness, kurtosis):
     """Determine appropriate transformation based on skewness and kurtosis values."""

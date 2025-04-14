@@ -57,6 +57,7 @@ class DataManager:
         self.cached_statistics: Dict[str, Any] = {}
         self._state_logger = StateLogger()
         self.point_flags: Optional[np.ndarray] = None  # Will be (n_rows, n_cols) array of DataPointFlag
+        self._descriptive_stats: Optional[Dict[str, Any]] = None  # Cache for descriptive statistics
         
     def reset(self) -> None:
         """Reset the DataManager to its initial state."""
@@ -69,6 +70,7 @@ class DataManager:
         self.cached_statistics = {}
         self._state_logger = StateLogger()
         self.point_flags = None
+        self._descriptive_stats = None  # Reset descriptive stats cache
         
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
@@ -104,6 +106,9 @@ class DataManager:
             self._initialize_point_flags()
             self._validate_data()
             self.initialize_metadata()
+            
+            # Calculate descriptive statistics after loading data
+            self.calculate_descriptive_stats()
             
             # Create a new log file for this CSV load
             if self.current_file:
@@ -916,3 +921,247 @@ class DataManager:
         except Exception as e:
             logger.error(f"Error deleting columns: {str(e)}", exc_info=True)
             return False, str(e), None
+
+    def get_file_statistics(self) -> Dict[str, Any]:
+        """Get basic file statistics about the dataset.
+        
+        Returns:
+            Dict containing:
+            - rows: Number of rows in dataset
+            - columns: Number of columns in dataset 
+            - memory_usage: Memory usage in MB
+            - missing_values: Total count of missing values
+        """
+        if self.data is None:
+            return None
+            
+        # Calculate total missing values across all columns
+        missing_values = self.data.isna().sum().sum()
+        
+        return {
+            'rows': len(self.data),
+            'columns': len(self.data.columns),
+            'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
+            'missing_values': int(missing_values)
+        }
+
+    def calculate_descriptive_stats(self) -> None:
+        """Calculate and store descriptive statistics for all columns in the dataset.
+        
+        This method should be called after loading data to pre-calculate statistics
+        for better performance with large files.
+        """
+        if self.data is None:
+            return
+            
+        # Initialize tracking variables
+        column_types_list = []
+        missing_values_by_column = {}
+        distribution_analysis = {}
+        outlier_info = {}
+        categorical_stats = {}
+        boolean_stats = {}
+        datetime_stats = {}
+        
+        for i, col in enumerate(self.data.columns):
+            try:
+                # Get column data and type
+                col_data = self.data[col]
+                
+                # Determine column type
+                if pd.api.types.is_numeric_dtype(col_data):
+                    if col_data.nunique() < 20:  # threshold for discrete
+                        column_types_list.append('discrete')
+                    else:
+                        column_types_list.append('numeric')
+                        # Calculate skewness and kurtosis for numeric columns
+                        skewness = col_data.skew()
+                        kurtosis = col_data.kurtosis()
+                        distribution_analysis[col] = {
+                            'skewness': float(skewness),
+                            'kurtosis': float(kurtosis),
+                            'transformation_suggestion': self._get_transformation_suggestion(skewness, kurtosis)
+                        }
+                        
+                        # Calculate outliers for numeric columns
+                        mean = col_data.mean()
+                        std = col_data.std()
+                        q1 = col_data.quantile(0.25)
+                        q3 = col_data.quantile(0.75)
+                        iqr = q3 - q1
+                        
+                        # Determine distribution type and set appropriate thresholds
+                        if abs(skewness) < 0.5 and abs(kurtosis) < 2:  # Normal
+                            lower_bound = mean - 3 * std
+                            upper_bound = mean + 3 * std
+                        elif abs(skewness) > 1:  # Skewed
+                            lower_bound = q1 - 1.5 * iqr
+                            upper_bound = q3 + 1.5 * iqr
+                        else:  # Heavy-tailed
+                            lower_bound = q1 - 2.5 * iqr
+                            upper_bound = q3 + 2.5 * iqr
+                        
+                        # Count outliers
+                        outliers = col_data[(col_data < lower_bound) | (col_data > upper_bound)]
+                        outlier_info[col] = {
+                            'count': int(len(outliers)),
+                            'percentage': float(len(outliers) / len(col_data) * 100)
+                        }
+                elif pd.api.types.is_datetime64_any_dtype(col_data):
+                    column_types_list.append('timeseries')
+                    # Calculate datetime statistics
+                    datetime_stats[col] = {
+                        'start_date': str(col_data.min()),
+                        'end_date': str(col_data.max()),
+                        'range': str(col_data.max() - col_data.min()),
+                        'time_interval': self._calculate_time_interval(col_data)
+                    }
+                else:
+                    # For non-numeric, non-datetime columns
+                    if col_data.nunique() == 2:
+                        # Check if the values are actually boolean-like
+                        unique_values = col_data.dropna().unique()
+                        if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
+                            column_types_list.append('boolean')
+                            # Calculate boolean statistics
+                            true_count = (col_data == True).sum() + (col_data == 'True').sum() + (col_data == 'true').sum() + (col_data == 1).sum() + (col_data == '1').sum()
+                            false_count = (col_data == False).sum() + (col_data == 'False').sum() + (col_data == 'false').sum() + (col_data == 0).sum() + (col_data == '0').sum()
+                            total = true_count + false_count
+                            boolean_stats[col] = {
+                                'true_count': int(true_count),
+                                'false_count': int(false_count),
+                                'true_percentage': float(true_count / total * 100) if total > 0 else 0
+                            }
+                        else:
+                            column_types_list.append('categorical')
+                    else:
+                        column_types_list.append('categorical')
+                        # Calculate categorical statistics
+                        value_counts = col_data.value_counts()
+                        categorical_stats[col] = {
+                            'unique_count': int(col_data.nunique()),
+                            'most_frequent': {
+                                'value': str(value_counts.index[0]),
+                                'count': int(value_counts.iloc[0])
+                            },
+                            'value_distribution': [
+                                {'value': str(val), 'count': int(count)}
+                                for val, count in value_counts.head(10).items()
+                            ]
+                        }
+                
+                # Count missing values
+                missing_count = col_data.isna().sum()
+                if missing_count > 0:
+                    missing_values_by_column[col] = int(missing_count)
+                    
+            except Exception as e:
+                logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
+                continue
+        
+        # Store the calculated statistics
+        self._descriptive_stats = {
+            'file_stats': self.get_file_statistics(),
+            'column_types': {
+                'numeric': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'numeric']),
+                'categorical': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'categorical']),
+                'boolean': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'boolean']),
+                'datetime': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'timeseries']),
+                'columns': self.data.columns.tolist(),
+                'column_types_list': column_types_list
+            },
+            'missing_values_by_column': missing_values_by_column,
+            'distribution_analysis': distribution_analysis,
+            'outlier_info': outlier_info,
+            'categorical_stats': categorical_stats,
+            'boolean_stats': boolean_stats,
+            'datetime_stats': datetime_stats
+        }
+
+    def _calculate_time_interval(self, series: pd.Series) -> str:
+        """Calculate the typical time interval between values in a datetime series."""
+        if len(series) < 2:
+            return "Insufficient data"
+            
+        # Calculate time differences
+        diffs = series.sort_values().diff().dropna()
+        
+        # Get the most common difference
+        mode_diff = diffs.mode()
+        if not mode_diff.empty:
+            diff = mode_diff.iloc[0]
+            if pd.Timedelta(days=1) <= diff < pd.Timedelta(days=2):
+                return "Daily"
+            elif pd.Timedelta(days=7) <= diff < pd.Timedelta(days=8):
+                return "Weekly"
+            elif pd.Timedelta(days=30) <= diff < pd.Timedelta(days=31):
+                return "Monthly"
+            elif pd.Timedelta(days=365) <= diff < pd.Timedelta(days=366):
+                return "Yearly"
+            else:
+                return f"Custom interval: {diff}"
+        return "Irregular intervals"
+
+    def get_column_descriptive_stats(self) -> Dict[str, Any]:
+        """Get the pre-calculated descriptive statistics for all columns.
+        
+        Returns:
+            Dict containing the stored descriptive statistics, or None if not calculated.
+        """
+        if self._descriptive_stats is None:
+            logger.warning("Descriptive statistics not calculated. Call calculate_descriptive_stats() first.")
+            return None
+        return self._descriptive_stats
+
+    def _get_transformation_suggestion(self, skewness: float, kurtosis: float) -> str:
+        """Determine appropriate transformation based on skewness and kurtosis values.
+        
+        Args:
+            skewness: The skewness value of the distribution
+            kurtosis: The kurtosis value of the distribution
+            
+        Returns:
+            String containing transformation suggestions
+        """
+        suggestions = []
+        
+        # Handle skewness
+        if abs(skewness) > 1:
+            if skewness > 1:
+                suggestions.append("Log transformation (for strong positive skew)")
+                if skewness > 2:
+                    suggestions.append("Consider reciprocal transformation for very severe positive skew")
+                else:
+                    suggestions.append("Square root transformation as alternative")
+            else:  # skewness < -1
+                suggestions.append("Square transformation (for strong negative skew)")
+                if skewness < -2:
+                    suggestions.append("Consider cube transformation for very severe negative skew")
+                else:
+                    suggestions.append("Exponential transformation as alternative")
+        elif 0.5 < abs(skewness) <= 1:
+            if skewness > 0:
+                suggestions.append("Square root transformation (for moderate positive skew)")
+            else:
+                suggestions.append("Square transformation (for moderate negative skew)")
+        
+        # Handle kurtosis
+        if kurtosis > 3.5:
+            suggestions.append("Box-Cox transformation (for heavy tails)")
+            if kurtosis > 4:
+                suggestions.append("Consider Yeo-Johnson transformation for very heavy tails")
+        elif kurtosis < 2.5:
+            suggestions.append("Consider checking for outliers (for light tails)")
+        
+        if not suggestions:
+            return "No transformation needed - distribution appears normal"
+        
+        # Prioritize the most appropriate transformation
+        if "Log transformation" in suggestions:
+            return "Log transformation (recommended for positive skew)"
+        elif "Square transformation" in suggestions:
+            return "Square transformation (recommended for negative skew)"
+        elif "Box-Cox transformation" in suggestions:
+            return "Box-Cox transformation (recommended for heavy tails)"
+        else:
+            return " | ".join(suggestions)

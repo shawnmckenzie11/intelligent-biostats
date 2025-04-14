@@ -655,517 +655,247 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadDescriptiveStats() {
+        const statsContainer = document.getElementById('descriptiveContent');
+        if (!statsContainer) {
+            console.error('Descriptive stats container not found');
+            return;
+        }
+
+        // Clear existing content and create a loading indicator
+        statsContainer.innerHTML = '<div class="loading-spinner">Loading statistics...</div>';
+
+        // Fetch descriptive stats from the API
         fetch('/api/descriptive-stats')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    displayDescriptiveStats(data.stats);
-                } else {
-                    console.error('Error loading descriptive stats:', data.error);
-                    const descriptiveContent = document.getElementById('descriptiveContent');
-                    descriptiveContent.innerHTML = `
-                        <div class="error-message">
-                            <h3>Error Loading Statistics</h3>
-                            <p>${data.error}</p>
-                            <p>Please try uploading your data again.</p>
-                        </div>
-                    `;
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load descriptive statistics');
                 }
+                
+                // Display descriptive stats
+                displayDescriptiveStats(data.stats);
             })
             .catch(error => {
                 console.error('Error loading descriptive stats:', error);
-                const descriptiveContent = document.getElementById('descriptiveContent');
-                descriptiveContent.innerHTML = `
+                statsContainer.innerHTML = `
                     <div class="error-message">
-                        <h3>Error Loading Statistics</h3>
-                        <p>${error.message}</p>
-                        <p>Please try uploading your data again.</p>
+                        Error loading descriptive statistics: ${error.message}
                     </div>
                 `;
             });
     }
 
     function displayDescriptiveStats(stats) {
-        const descriptiveContent = document.getElementById('descriptiveContent');
-        
-        // Create summary HTML with inline stats
-        const summaryHtml = `
-            <div class="stats-summary">
-                <p><strong>File Stats:</strong> Rows: ${stats.file_stats.rows} | Columns: ${stats.file_stats.columns} | Memory: ${stats.file_stats.memory_usage} | Missing Values: ${stats.file_stats.missing_values}</p>
-                <p><strong>Column Stats:</strong> Numeric: ${stats.column_types.numeric} | Categorical: ${stats.column_types.categorical} | Boolean: ${stats.column_types.boolean} | Datetime: ${stats.column_types.datetime}</p>
-                <p class="numbered-item">1. Preview Column Data</p>
-                <p>Preview the data for each column by clicking on the column name. Click on a thumbnail to view the full plot.</p>
-                <p class="numbered-item">2. Update Data Boundaries</p>
-                <p>Manually redefine dataset range by clicking on the max and min values. All data outside of the boundaries will be excluded from all analyses.</p>
-                <p class="numbered-item">3. Select Outcome Variables</p>
-                <div class="outcome-variables-container">
-                    <div class="outcome-input-group">
-                        <input type="text" id="outcomeVariables" class="outcome-variables-input" 
-                               placeholder="Enter outcome variables (e.g., '4', '3-5', '4+')">
-                    </div>
-                    <div class="outcome-validation"></div>
-                </div>
-            </div>
-        `;
+        const statsContainer = document.getElementById('descriptiveContent');
+        if (!statsContainer) {
+            console.error('Stats display container not found');
+            return;
+        }
 
-        // Create column analysis container
-        const columnAnalysisHtml = `
-            <div class="column-analysis-container">
-                <div class="column-menu">
-                    <h4>Columns</h4>
-                    <div class="column-menu-list">
-                        ${stats.column_types.columns.map((col, index) => {
-                            const type = stats.column_types.column_types_list[index];
-                            const hasOutliers = stats.outlier_info[col] && stats.outlier_info[col].count > 0;
-                            return `
-                                <div class="column-menu-item${hasOutliers ? ' has-outliers' : ''}" data-column="${col}">
-                                    <div class="checkbox-container">
-                                        <input type="checkbox" class="column-checkbox" id="checkbox-${col}" data-column="${col}">
-                                    </div>
-                                    <div class="column-label">${col}</div>
-                                </div>
-                            `;
-                        }).join('')}
+        // Clear previous content
+        statsContainer.innerHTML = '';
+
+        // Create overall layout structure - now horizontal
+        const layoutHtml = `
+            <div class="stats-dashboard horizontal">
+                <div class="file-stats-panel" title="File Statistics">
+                    <div class="file-stats-content"></div>
+                </div>
+                <div class="column-stats-panel" title="Column Statistics">
+                    <div class="search-container">
+                        <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
+                    </div>
+                    <div class="column-stats-table-container">
+                        <table class="column-stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Column Name</th>
+                                    <th>Type</th>
+                                    <th>Missing Values</th>
+                                    <th>Data Preview</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="columnStatsTableBody">
+                                <!-- Column data will be inserted here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="column-details">
-                    <p class="column-placeholder">Select a column to view its details</p>
-                </div>
             </div>
         `;
+        statsContainer.innerHTML = layoutHtml;
 
-        // Create outlier exclusion and analysis controls
-        const analysisControlsHtml = `
-            <div class="analysis-controls">
-                <div class="outlier-control">
-                    <input type="checkbox" id="excludeOutliers" name="excludeOutliers">
-                    <label for="excludeOutliers">Exclude outlier data from all analyses</label>
+        // Populate file statistics
+        const fileStatsContent = statsContainer.querySelector('.file-stats-content');
+        if (stats.file_stats) {
+            const fileStats = stats.file_stats;
+            fileStatsContent.innerHTML = `
+                <div class="file-stats-grid compact">
+                    <div class="stat-card">
+                        <div class="stat-value">${fileStats.rows.toLocaleString()}</div>
+                        <div class="stat-label">Rows</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${fileStats.columns.toLocaleString()}</div>
+                        <div class="stat-label">Columns</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${fileStats.memory_usage}</div>
+                        <div class="stat-label">Memory Usage</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${fileStats.missing_values.toLocaleString()}</div>
+                        <div class="stat-label">Missing Values</div>
+                    </div>
                 </div>
-                <div class="column-modifications">
-                    <h4>Column Data Modifications:</h4>
+                <div class="column-type-summary compact">
+                    <div class="column-type-grid">
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.numeric || 0}</div>
+                            <div class="type-label">Numeric</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.categorical || 0}</div>
+                            <div class="type-label">Categorical</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.boolean || 0}</div>
+                            <div class="type-label">Boolean</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.datetime || 0}</div>
+                            <div class="type-label">DateTime</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="outcome-variables">
-                    <button id="analyzeOutcomeVariables" class="action-button">BEGIN</button>
-                </div>
-            </div>
-        `;
+            `;
+        }
 
-        // Combine all sections
-        descriptiveContent.innerHTML = summaryHtml + columnAnalysisHtml + analysisControlsHtml;
-        
-        // Add event listener for the BEGIN button
-        document.getElementById('analyzeOutcomeVariables').addEventListener('click', function(e) {
-            e.preventDefault(); // Prevent default behavior
-            e.stopPropagation(); // Stop event bubbling
+        // Populate the columns table
+        const tableBody = document.getElementById('columnStatsTableBody');
+        if (stats.column_types && stats.column_types.columns) {
+            const columns = stats.column_types.columns;
+            const columnTypes = stats.column_types.column_types_list || [];
             
-            const excludeOutliers = document.getElementById('excludeOutliers').checked;
-            
-            // Log BEGIN button click
-            fetch('/api/log-event', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    event: 'begin_button_click',
-                    details: {
-                        exclude_outliers: excludeOutliers,
-                        timestamp: new Date().toISOString()
-                    }
-                })
-            }).catch(error => console.error('Error logging event:', error));
-            
-            if (excludeOutliers) {
-                // Call the API to update outlier flags
-                fetch('/api/update-outlier-flags', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ update_flags: true })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error('Error updating outlier flags:', data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error updating outlier flags:', error);
-                });
-            }
-            
-            // Remove the analysis controls section
-            const analysisControls = document.querySelector('.analysis-controls');
-            if (analysisControls) {
-                analysisControls.remove();
-            }
-            
-            // Collapse both preview sections
-            const previewContent = document.getElementById('previewContent');
-            const descriptiveContent = document.getElementById('descriptiveContent');
-            const previewToggleIcon = document.querySelector('#togglePreview .toggle-icon');
-            const descriptiveToggleIcon = document.querySelector('#toggleDescriptive .toggle-icon');
-            
-            if (previewContent) {
-                previewContent.classList.add('collapsed');
-                previewToggleIcon.style.transform = 'rotate(-90deg)';
-                previewContent.style.maxHeight = '0';
-            }
-            
-            if (descriptiveContent) {
-                descriptiveContent.classList.add('collapsed');
-                descriptiveToggleIcon.style.transform = 'rotate(-90deg)';
-                descriptiveContent.style.maxHeight = '0';
-            }
-            
-            // Show the outcome insights section
-            document.getElementById('outcomeInsightsSection').style.display = 'block';
-            initializeOutcomeInsightsCollapsible();
-            
-            // Proceed with analysis
-            loadSmartRecommendations();
-        });
-        
-        // Add event listeners for column menu items
-        const columnMenuItems = document.querySelectorAll('.column-menu-item');
-        columnMenuItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const columnName = item.getAttribute('data-column');
-                fetchColumnData(columnName);
-            });
-        });
-
-        // Add event listener for outcome variables input
-        document.getElementById('outcomeVariables').addEventListener('input', function(e) {
-            const input = e.target.value;
-            const validationDiv = document.querySelector('.outcome-validation');
-            
-            // Clear previous validation
-            validationDiv.innerHTML = '';
-            
-            if (input.trim()) {
-                // Get column suggestions and validation state
-                fetch('/api/column-suggestions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ input: input })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Display validation state
-                        if (data.is_valid) {
-                            // Show valid columns in green
-                            validationDiv.className = 'outcome-validation valid';
-                            validationDiv.textContent = `Columns to delete: ${data.columns.join(', ')}`;
-                        } else {
-                            // Show error in red
-                            validationDiv.className = 'outcome-validation invalid';
-                            validationDiv.textContent = data.error;
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error validating columns:', error);
-                    validationDiv.className = 'outcome-validation invalid';
-                    validationDiv.textContent = 'Error validating columns';
-                });
-            } else {
-                // Show default error state when input is empty
-                validationDiv.className = 'outcome-validation invalid';
-                validationDiv.textContent = 'No column specification provided';
-            }
-        });
-    }
-
-    function initializeColumnPicker(columns) {
-        const columnMenu = document.querySelector('.column-menu-list');
-        columnMenu.innerHTML = '';
-        
-        columns.forEach(column => {
-            const columnItem = document.createElement('div');
-            columnItem.className = 'column-menu-item';
-            columnItem.textContent = column;
-            
-            // Add click event listener
-            columnItem.addEventListener('click', () => {
-                // Remove active class from all items
-                document.querySelectorAll('.column-menu-item').forEach(item => {
-                    item.classList.remove('active');
-                });
+            columns.forEach((column, index) => {
+                const columnType = columnTypes[index] || 'unknown';
+                const missingCount = stats.missing_values_by_column[column] || 0;
                 
-                // Add active class to clicked item
-                columnItem.classList.add('active');
-                
-                // Fetch and display column data
-                fetchColumnData(column);
-            });
-            
-            // Check for outliers immediately
-            fetch(`/api/column-data/${encodeURIComponent(column)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.column_data.stats.Outliers && data.column_data.stats.Outliers.count > 0) {
-                        columnItem.classList.add('has-outliers');
-                    }
-                })
-                .catch(error => console.error('Error checking for outliers:', error));
-            
-            columnMenu.appendChild(columnItem);
-        });
-    }
-
-    function fetchColumnData(columnName) {
-        fetch(`/api/column-data/${encodeURIComponent(columnName)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displayColumnData(data.column_data);
-                    
-                    // Update active state in column menu
-                    const columnItems = document.querySelectorAll('.column-menu-item');
-                    columnItems.forEach(item => {
-                        if (item.textContent.trim() === columnName) {
-                            item.classList.add('active');
-                            // Check for outliers and add marker if present
-                            if (data.column_data.stats.Outliers && data.column_data.stats.Outliers.count > 0) {
-                                item.classList.add('has-outliers');
-                            } else {
-                                item.classList.remove('has-outliers');
-                            }
-                        } else {
-                            item.classList.remove('active');
-                        }
-                    });
-                } else {
-                    console.error('Error fetching column data:', data.error);
+                // Check if this column has outliers
+                let hasOutliers = false;
+                if (columnType === 'numeric' && stats.outlier_info && stats.outlier_info[column]) {
+                    hasOutliers = stats.outlier_info[column].count > 0;
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching column data:', error);
+                
+                // Create the row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${column}</td>
+                    <td>
+                        <span class="column-type ${columnType}">${columnType}</span>
+                        ${hasOutliers ? '<span class="outlier-indicator" title="Contains outliers">⚠️</span>' : ''}
+                    </td>
+                    <td>${missingCount} (${((missingCount / stats.file_stats.rows) * 100).toFixed(1)}%)</td>
+                    <td class="data-preview-cell">
+                        ${getDataPreviewForColumn(column, columnType, stats)}
+                    </td>
+                    <td class="action-buttons">
+                        <button class="analyze-btn" data-column="${column}">Analyze</button>
+                        <button class="visualize-btn" data-column="${column}">Visualize</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
             });
-    }
-
-    function showPlotModal(plotType, plotData) {
-        // Create modal container
-        const modal = document.createElement('div');
-        modal.className = 'plot-modal';
-        
-        // Create modal content
-        const modalContent = document.createElement('div');
-        modalContent.className = 'plot-modal-content';
-        
-        // Create close button
-        const closeButton = document.createElement('span');
-        closeButton.className = 'close-modal';
-        closeButton.innerHTML = '&times;';
-        
-        // Create image element
-        const img = document.createElement('img');
-        img.src = `data:image/png;base64,${plotData}`;
-        img.alt = `${plotType} plot`;
-        
-        // Assemble modal
-        modalContent.appendChild(closeButton);
-        modalContent.appendChild(img);
-        modal.appendChild(modalContent);
-        
-        // Add to document
-        document.body.appendChild(modal);
-        
-        // Show modal
-        modal.classList.add('active');
-        
-        // Add event listeners
-        closeButton.addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    function displayColumnData(columnData) {
-        const columnDetails = document.querySelector('.column-details');
-        columnDetails.innerHTML = '';
-
-        // Create summary HTML
-        let summaryHTML = '<div class="stats-summary">';
-        if (columnData.stats.Type === 'numeric') {
-            summaryHTML += `
-                <div class="stats-row">
-                    <span class="stat-item"><strong>Type:</strong> ${columnData.stats.Type}</span>
-                    <span class="stat-item"><strong>Mean:</strong> ${columnData.stats.Mean}</span>
-                    <span class="stat-item"><strong>Median:</strong> ${columnData.stats.Median}</span>
-                    <span class="stat-item"><strong>Std Dev:</strong> ${columnData.stats['Std Dev']}</span>
-                </div>
-                <div class="stats-row">
-                    <span class="stat-item"><strong>Min:</strong> <span class="boundary-value" data-type="min" data-value="${columnData.stats.Min}">${columnData.stats.Min}</span></span>
-                    <span class="stat-item"><strong>Max:</strong> <span class="boundary-value" data-type="max" data-value="${columnData.stats.Max}">${columnData.stats.Max}</span></span>
-                    <span class="stat-item"><strong>Skewness:</strong> ${columnData.stats.Skewness}</span>
-                    <span class="stat-item"><strong>Kurtosis:</strong> ${columnData.stats.Kurtosis}</span>
-                </div>
-                <div class="stats-row">
-                    <span class="stat-item"><strong>Outliers:</strong> ${columnData.stats.Outliers.count} (${columnData.stats.Outliers.percentage})</span>
-                </div>
-            `;
-        } else if (columnData.stats.Type === 'categorical') {
-            summaryHTML += `
-                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
-                <p><strong>Unique Values:</strong> ${columnData.stats['Unique Values']}</p>
-                <p><strong>Most Common:</strong> ${columnData.stats['Most Common']}</p>
-            `;
-        } else if (columnData.stats.Type === 'boolean') {
-            summaryHTML += `
-                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
-                <p><strong>True Count:</strong> ${columnData.stats['True Count']}</p>
-                <p><strong>False Count:</strong> ${columnData.stats['False Count']}</p>
-            `;
-        } else if (columnData.stats.Type === 'timeseries') {
-            summaryHTML += `
-                <p><strong>Type:</strong> ${columnData.stats.Type}</p>
-                <p><strong>Start Date:</strong> ${columnData.stats['Start Date']}</p>
-                <p><strong>End Date:</strong> ${columnData.stats['End Date']}</p>
-            `;
-        }
-        summaryHTML += '</div>';
-
-        // Add click event listeners to boundary values
-        columnDetails.innerHTML = summaryHTML;
-        const boundaryValues = columnDetails.querySelectorAll('.boundary-value');
-        boundaryValues.forEach(value => {
-            value.addEventListener('click', () => {
-                showBoundaryModal(value.dataset.type, value.dataset.value);
-            });
-        });
-
-        // Create plots container
-        const plotsContainer = document.createElement('div');
-        plotsContainer.className = 'plots-container';
-        
-        // Add plots if available
-        if (columnData.plots) {
-            Object.entries(columnData.plots).forEach(([plotType, plotData]) => {
-                const plotThumbnail = document.createElement('div');
-                plotThumbnail.className = 'plot-thumbnail';
-                plotThumbnail.innerHTML = `<img src="data:image/png;base64,${plotData}" alt="${plotType}">`;
-                plotThumbnail.addEventListener('click', () => {
-                    showPlotModal(plotType, plotData);
+            
+            // Add event listeners to the action buttons
+            document.querySelectorAll('.analyze-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const column = this.getAttribute('data-column');
+                    console.log(`Analyze clicked for column: ${column}`);
+                    // Here you would call a function to open the analysis panel for this column
+                    // e.g. openAnalysisFor(column);
                 });
-                plotsContainer.appendChild(plotThumbnail);
+            });
+            
+            document.querySelectorAll('.visualize-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const column = this.getAttribute('data-column');
+                    console.log(`Visualize clicked for column: ${column}`);
+                    // Here you would call a function to visualize this column
+                    // e.g. visualizeColumn(column);
+                });
+            });
+            
+            // Add search functionality
+            const searchInput = document.getElementById('columnSearchInput');
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                document.querySelectorAll('#columnStatsTableBody tr').forEach(row => {
+                    const columnName = row.querySelector('td').textContent.toLowerCase();
+                    if (columnName.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
             });
         }
-        
-        columnDetails.appendChild(plotsContainer);
     }
-
-    function showBoundaryModal(type, currentValue) {
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'plot-modal';
-        
-        // Create modal content
-        const modalContent = document.createElement('div');
-        modalContent.className = 'plot-modal-content';
-        
-        // Create form for boundary update
-        const form = document.createElement('form');
-        form.className = 'boundary-form';
-        form.innerHTML = `
-            <h3>Update ${type === 'min' ? 'Minimum' : 'Maximum'} Boundary</h3>
-            <div class="form-group">
-                <label for="boundaryValue">New ${type === 'min' ? 'Minimum' : 'Maximum'} Value:</label>
-                <input type="number" id="boundaryValue" value="${currentValue}" step="any" required>
-            </div>
-            <p class="boundary-explanation">Adjust the value to flag (ignore) all datapoints outside this new range during the analysis phase. Note: The data preview above and graphical summaries below will not reflect this change</p>
-            <div class="form-actions">
-                <button type="submit" class="action-button">Update</button>
-                <button type="button" class="close-modal">Cancel</button>
+    
+    function getDataPreviewForColumn(column, columnType, stats) {
+        // Generate an appropriate data preview based on column type
+        switch (columnType) {
+            case 'numeric':
+                if (stats.distribution_analysis && stats.distribution_analysis[column]) {
+                    const analysis = stats.distribution_analysis[column];
+                    return `
+                        <div class="sparkline-container">
+                            <div class="numeric-preview">
+                                <span title="Skewness">S: ${analysis.skewness.toFixed(2)}</span>
+                                <span title="Kurtosis">K: ${analysis.kurtosis.toFixed(2)}</span>
+                </div>
+                </div>
+            `;
+                }
+                return '<div class="numeric-preview">No data available</div>';
+                
+            case 'categorical':
+                if (stats.categorical_stats && stats.categorical_stats[column]) {
+                    const catStats = stats.categorical_stats[column];
+                    return `
+                        <div class="categorical-preview">
+                            <span>${catStats.unique_count} unique values</span>
+                            <span>Most frequent: ${catStats.most_frequent.value}</span>
+                        </div>
+                    `;
+                }
+                return '<div class="categorical-preview">No data available</div>';
+                
+            case 'boolean':
+                if (stats.boolean_stats && stats.boolean_stats[column]) {
+                    const boolStats = stats.boolean_stats[column];
+                    return `
+                        <div class="boolean-preview">
+                            <span>True: ${boolStats.true_count} (${boolStats.true_percentage.toFixed(1)}%)</span>
+                        </div>
+                    `;
+                }
+                return '<div class="boolean-preview">No data available</div>';
+                
+            case 'timeseries':
+                if (stats.datetime_stats && stats.datetime_stats[column]) {
+                    const dateStats = stats.datetime_stats[column];
+                    return `
+                        <div class="datetime-preview">
+                            <span>${dateStats.time_interval}</span>
             </div>
         `;
-        
-        // Add form submission handler
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const newValue = document.getElementById('boundaryValue').value;
-            updateBoundary(type, newValue);
-            modal.remove();
-        });
-        
-        // Add close button handler
-        const closeButton = form.querySelector('.close-modal');
-        closeButton.addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        // Assemble modal
-        modalContent.appendChild(form);
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-        
-        // Show modal
-        modal.classList.add('active');
-    }
-
-    let boundaryChanges = [];  // Add this at the top with other global variables
-
-    function updateBoundary(type, newValue) {
-        const columnName = document.querySelector('.column-menu-item.active').getAttribute('data-column');
-        const currentValue = document.querySelector(`.boundary-value.${type}`)?.textContent || '0';
-        
-        // Store the change
-        boundaryChanges.push({
-            column: columnName,
-            type: type,
-            oldValue: parseFloat(currentValue),
-            newValue: parseFloat(newValue)
-        });
-        
-        // Update the display
-        updateBoundaryChangesDisplay();
-        
-        // Close the modal
-        const modal = document.querySelector('.boundary-form');
-        if (modal) {
-            modal.remove();
-        }
-    }
-
-    function updateBoundaryChangesDisplay() {
-        const modificationsContainer = document.querySelector('.column-modifications');
-        if (!modificationsContainer) return;
-        
-        // Clear existing changes
-        const existingChanges = modificationsContainer.querySelector('.boundary-changes');
-        if (existingChanges) {
-            existingChanges.remove();
-        }
-        
-        if (boundaryChanges.length > 0) {
-            const changesHtml = `
-                <div class="boundary-changes">
-                    <h4>Column Data Modifications:</h4>
-                    <ul>
-                        ${boundaryChanges.map(change => `
-                            <li>${change.type === 'min' ? 'Min' : 'Max'} ${change.column} changed from ${change.oldValue} to ${change.newValue}</li>
-                        `).join('')}
-                    </ul>
-                </div>
-            `;
-            modificationsContainer.innerHTML = changesHtml;
-        } else {
-            modificationsContainer.innerHTML = '<h4>Column Data Modifications:</h4>';
+                }
+                return '<div class="datetime-preview">No data available</div>';
+                
+            default:
+                return '<div class="data-preview">No preview available</div>';
         }
     }
 

@@ -1,18 +1,18 @@
 # Core dependencies
 Flask==2.2.5
 flask-cors==5.0.1
-pandas==2.2.1
-numpy>=1.26.0
-scipy>=1.15.2
-matplotlib==3.8.3
-seaborn==0.13.2
+pandas==2.0.3
+numpy==1.24.3
+scipy==1.10.1
+matplotlib==3.7.1
+seaborn==0.12.2
 
 # Development dependencies
-pytest==8.0.2
+pytest==7.4.0
 pytest-cov==4.1.0
-flake8==7.0.0
-black==24.2.0
-isort==5.13.2
+flake8==6.1.0
+black==23.7.0
+isort==5.12.0
 watchdog==3.0.0
 
 # Documentation
@@ -20,10 +20,10 @@ Sphinx==7.2.6
 sphinx-rtd-theme==2.0.0
 
 # Database
-SQLAlchemy==2.0.27
+SQLAlchemy==2.0.23
 
 # Utilities
 python-dotenv==1.0.0
 requests==2.31.0
 Werkzeug==2.2.3
-setuptools>=69.1.1
+setuptools==68.2.2
