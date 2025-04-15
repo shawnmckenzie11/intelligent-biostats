@@ -786,7 +786,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     hasOutliers = stats.outlier_info[column].count > 0;
                 }
                 
-                // Create the row
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${column}</td>
@@ -802,9 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${getDistributionInfo(column, columnType, stats)}
                 </td>
                 <td class="action-buttons">
-                    <button class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</button>
-                    ${columnType === 'numeric' || columnType === 'discrete' ? 
-                        `<button class="action-button edit-btn" data-column="${column}" data-type="${columnType}">Edit</button>` : ''}
+                    <a href="#" class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</a>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -819,14 +816,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-            document.querySelectorAll('.edit-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const column = this.getAttribute('data-column');
-                    const type = this.getAttribute('data-type');
-                    showColumnEditor(column, type);
-                });
-            });
-            
             // Add search functionality
             const searchInput = document.getElementById('columnSearchInput');
             searchInput.addEventListener('input', function() {
@@ -841,6 +830,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         });
         }
+
+        // After populating the table
+        initializeEditButtons();
     }
     
     function getColumnRange(column, columnType, stats) {
@@ -850,7 +842,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const min = columnStats.descriptive_stats.min;
                 const max = columnStats.descriptive_stats.max;
                 if (min !== undefined && max !== undefined) {
-                    return `${min.toFixed(2)} - ${max.toFixed(2)}`;
+                    return `
+                        <div class="range-container">
+                            <span class="range-display" data-min="${min}" data-max="${max}">${min.toFixed(2)} - ${max.toFixed(2)}</span>
+                            <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
+                        </div>`;
                 }
             }
             return 'N/A';
@@ -1428,259 +1424,301 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // Function to show column editor for numeric columns
-    function showColumnEditor(column, type) {
-        // First fetch current column stats
-        fetch(`/api/column-data/${encodeURIComponent(column)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const stats = data.column_data.stats;
-                    const currentMin = parseFloat(stats.Min);
-                    const currentMax = parseFloat(stats.Max);
+    // Create editor modal if it doesn't exist
+    if (!document.getElementById('editor-modal')) {
+        const modalHtml = `
+            <div id="editor-modal" class="modal">
+                <div class="modal-content">
+                    <h3>Edit Column Range</h3>
+                    <div id="current-range-display" class="current-range"></div>
+                    <div class="input-group">
+                        <label for="start-index">Start Value:</label>
+                        <input type="number" id="start-index" step="any">
+                    </div>
+                    <div class="input-group">
+                        <label for="end-index">End Value:</label>
+                        <input type="number" id="end-index" step="any">
+                    </div>
+                    <div id="validation-message" class="validation-message"></div>
+                    <div id="editor-loading" class="loading-spinner" style="display: none;">
+                        Applying changes...
+                    </div>
+                    <div class="modal-actions">
+                        <button class="apply-changes proceed-button">Apply Changes</button>
+                        <button class="close-modal action-button">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // Initialize the editor modal to be hidden
+    const editorModal = document.getElementById('editor-modal');
+    if (editorModal) {
+        editorModal.style.display = 'none';
+        editorModal.classList.remove('show');
+    }
+
+    // Add event listeners for edit buttons
+    function initializeEditButtons() {
+        document.querySelectorAll('.edit-icon').forEach(icon => {
+            icon.addEventListener('click', function(e) {
+                e.preventDefault();
+                const column = this.getAttribute('data-column');
+                const rangeCell = this.closest('td');
+                const rangeDisplay = rangeCell.querySelector('.range-display');
+                
+                // Get the current min and max values from the data attributes
+                const currentMin = parseFloat(rangeDisplay.getAttribute('data-min'));
+                const currentMax = parseFloat(rangeDisplay.getAttribute('data-max'));
+
+                // Create inline edit form with current values
+                rangeCell.innerHTML = `
+                    <form class="range-edit-form">
+                        <input type="number" class="range-input min-input" value="${currentMin.toFixed(2)}" step="any">
+                        <span>-</span>
+                        <input type="number" class="range-input max-input" value="${currentMax.toFixed(2)}" step="any">
+                        <button type="submit" class="save-range">✓</button>
+                        <button type="button" class="cancel-edit">✗</button>
+                        <div class="validation-message"></div>
+                    </form>
+                `;
+
+                // Show the form
+                const form = rangeCell.querySelector('.range-edit-form');
+                form.classList.add('active');
+                
+                // Store original values for cancel
+                const originalContent = `
+                    <div class="range-container">
+                        <span class="range-display" data-min="${currentMin}" data-max="${currentMax}">${currentMin.toFixed(2)} - ${currentMax.toFixed(2)}</span>
+                        <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
+                    </div>`;
+                
+                // Focus the first input
+                form.querySelector('.min-input').focus();
+                
+                // Handle form submission
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const minInput = this.querySelector('.min-input');
+                    const maxInput = this.querySelector('.max-input');
+                    const validationMessage = this.querySelector('.validation-message');
                     
-                    // Get the modal
-                    const modal = document.getElementById('plotModal');
-                    const boundaryForm = modal.querySelector('.boundary-form');
+                    const newMin = parseFloat(minInput.value);
+                    const newMax = parseFloat(maxInput.value);
                     
-                    // Update form values
-                    modal.querySelector('#selectedColumn').value = column;
-                    modal.querySelector('#minValue').value = currentMin;
-                    modal.querySelector('#maxValue').value = currentMax;
-                    modal.querySelector('h2').textContent = `Column Analysis: ${column}`;
-                    
-                    // Show the modal and boundary form
-                    modal.style.display = 'block';
-                    modal.classList.add('show-boundary');
-                    
-                    // Load plots
-                    loadPlots(column);
-                    
-                    // Add event listeners if not already added
-                    if (!modal._listenersAdded) {
-                        // Close button
-                        modal.querySelector('.close').addEventListener('click', () => {
-                            modal.style.display = 'none';
-                            modal.classList.remove('show-boundary');
-                        });
-                        
-                        // Click outside modal
-                        window.addEventListener('click', (e) => {
-                            if (e.target === modal) {
-                                modal.style.display = 'none';
-                                modal.classList.remove('show-boundary');
-                            }
-                        });
-                        
-                        // Form submission
-                        modal.querySelector('#boundaryForm').addEventListener('submit', (e) => {
-                            e.preventDefault();
-                            const newMin = parseFloat(modal.querySelector('#minValue').value);
-                            const newMax = parseFloat(modal.querySelector('#maxValue').value);
-                            const validationMessage = modal.querySelector('.validation-message');
-                            
-                            if (isNaN(newMin) || isNaN(newMax)) {
-                                validationMessage.textContent = 'Please enter valid numbers';
-                                validationMessage.className = 'validation-message error';
-                                return;
-                            }
-                            
-                            if (newMin >= newMax) {
-                                validationMessage.textContent = 'Minimum must be less than maximum';
-                                validationMessage.className = 'validation-message error';
-                                return;
-                            }
-                            
-                            // Send update to backend
-                            fetch('/api/columns/' + column + '/boundaries', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    min_value: newMin,
-                                    max_value: newMax
-                                })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.status === 'success') {
-                                    modal.style.display = 'none';
-                                    modal.classList.remove('show-boundary');
-                                    // Refresh the stats display
-                                    loadDescriptiveStats();
-                                } else {
-                                    throw new Error(data.message || 'Failed to update boundaries');
-                                }
-                            })
-                            .catch(error => {
-                                validationMessage.textContent = `Error: ${error.message}`;
-                                validationMessage.className = 'validation-message error';
-                            });
-                        });
-                        
-                        modal._listenersAdded = true;
+                    // Validate inputs
+                    if (isNaN(newMin) || isNaN(newMax)) {
+                        validationMessage.textContent = 'Please enter valid numbers';
+                        return;
                     }
-                } else {
-                    throw new Error(data.error || 'Failed to fetch column data');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert(`Error loading column data: ${error.message}`);
-            });
-    }
-
-    // Function to load plots for a column
-    function loadPlots(column) {
-        fetch(`/api/plots/${column}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const plotContainer = document.querySelector('.plot-container');
                     
-                    // Clear existing plots
-                    plotContainer.innerHTML = '';
+                    if (newMin >= newMax) {
+                        validationMessage.textContent = 'Minimum value must be less than maximum value';
+                        return;
+                    }
                     
-                    // Add new plots
-                    Object.entries(data.plots).forEach(([plotType, base64Data]) => {
-                        const plotDiv = document.createElement('div');
-                        plotDiv.className = 'plot';
-                        plotDiv.innerHTML = `
-                            <h4>${plotType.charAt(0).toUpperCase() + plotType.slice(1)}</h4>
-                            <img src="data:image/png;base64,${base64Data}" alt="${plotType} plot">
-                        `;
-                        plotContainer.appendChild(plotDiv);
-                    });
-                } else {
-                    throw new Error(data.message || 'Failed to load plots');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading plots:', error);
-            });
-    }
-
-    async function generatePlots(columnName) {
-        try {
-            const response = await fetch(`/api/plots/${columnName}`);
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                // Update plot containers with the received base64 images
-                const plotTypes = ['histogram', 'qq_plot', 'box_plot', 'bar_plot', 'pie_chart'];
-                plotTypes.forEach(plotType => {
-                    if (data.plots[plotType]) {
-                        const plotContainer = document.getElementById(`${plotType}-container`);
-                        if (plotContainer) {
-                            plotContainer.innerHTML = `<img src="data:image/png;base64,${data.plots[plotType]}" alt="${plotType}">`;
+                    try {
+                        const response = await fetch('/api/update-column-range', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                column: column,
+                                start_index: newMin,
+                                end_index: newMax
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        if (result.success) {
+                            // Update the display with new values and data attributes
+                            rangeCell.innerHTML = `
+                                <div class="range-container">
+                                    <span class="range-display" data-min="${newMin}" data-max="${newMax}">${newMin.toFixed(2)} - ${newMax.toFixed(2)}</span>
+                                    <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
+                                </div>`;
+                            // Reinitialize the edit icon
+                            initializeEditButtons();
+                            // Refresh stats to show updated data
+                            loadDescriptiveStats();
+                        } else {
+                            throw new Error(result.error || 'Failed to update range');
                         }
+                    } catch (error) {
+                        validationMessage.textContent = error.message;
+                        console.error('Error updating range:', error);
                     }
                 });
-            } else {
-                console.error('Error generating plots:', data.message);
-            }
-        } catch (error) {
-            console.error('Error fetching plots:', error);
-        }
-    }
-
-    async function updateColumnBoundaries(columnName, minValue, maxValue) {
-        try {
-            const response = await fetch(`/api/columns/${columnName}/boundaries`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    min_value: minValue,
-                    max_value: maxValue
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                // Update the statistics display with new values
-                updateColumnStatistics(columnName, data.statistics);
-                // Regenerate plots with updated data
-                generatePlots(columnName);
-            } else {
-                console.error('Error updating boundaries:', data.message);
-            }
-        } catch (error) {
-            console.error('Error updating column boundaries:', error);
-        }
-    }
-
-    // Add event listeners for the boundary update form
-    document.addEventListener('DOMContentLoaded', function() {
-        const boundaryForm = document.getElementById('boundary-form');
-        if (boundaryForm) {
-            boundaryForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const columnName = document.getElementById('column-select').value;
-                const minValue = document.getElementById('min-value').value;
-                const maxValue = document.getElementById('max-value').value;
                 
-                updateColumnBoundaries(columnName, minValue, maxValue);
+                // Handle cancel button
+                const cancelButton = form.querySelector('.cancel-edit');
+                cancelButton.addEventListener('click', function() {
+                    rangeCell.innerHTML = originalContent;
+                    // Reinitialize the edit icon
+                    initializeEditButtons();
+                });
             });
-        }
-    });
-
-    /**
-     * Opens the plot modal for a specific column and loads its plots
-     * @param {string} columnName - The name of the column to display plots for
-     */
-    function openPlotModal(columnName) {
-        const modal = document.getElementById('plotModal');
-        const modalTitle = document.getElementById('plotModalTitle');
-        const columnInput = document.getElementById('selectedColumn');
-        
-        modalTitle.textContent = `Analysis: ${columnName}`;
-        columnInput.value = columnName;
-        modal.style.display = 'block';
-        
-        // Load plots for the column
-        loadPlots(columnName);
-    }
-
-    /**
-     * Closes the plot modal
-     */
-    function closePlotModal() {
-        const modal = document.getElementById('plotModal');
-        modal.style.display = 'none';
-        
-        // Clear plot containers
-        const plotContainers = document.querySelectorAll('.plot');
-        plotContainers.forEach(container => {
-            container.innerHTML = 'Loading...';
         });
     }
 
-    /**
-     * Loads and displays plots for a specific column
-     * @param {string} columnName - The name of the column to generate plots for
-     */
-    async function loadPlots(columnName) {
-        try {
-            const response = await fetch(`/api/plots/${columnName}`);
-            if (!response.ok) {
-                throw new Error('Failed to load plots');
+    // Add event listeners for modal inputs
+    const startInput = document.getElementById('start-index');
+    const endInput = document.getElementById('end-index');
+    
+    if (startInput) startInput.addEventListener('input', validateInputs);
+    if (endInput) endInput.addEventListener('input', validateInputs);
+    
+    // Close modal when clicking outside
+    if (editorModal) {
+        editorModal.addEventListener('click', (e) => {
+            if (e.target.id === 'editor-modal') {
+                closeEditorModal();
             }
-            
-            const plotData = await response.json();
-            
-            // Update each plot container with its corresponding plot
-            Object.entries(plotData).forEach(([plotType, plotUrl]) => {
-                const container = document.getElementById(`${plotType}Plot`);
-                if (container) {
-                    container.innerHTML = `<img src="${plotUrl}" alt="${plotType} plot">`;
-                }
+        });
+    }
+
+    // Make initializeEditButtons available to other functions
+    window.initializeEditButtons = initializeEditButtons;
+});
+
+// Move modal-related functions outside DOMContentLoaded
+function showEditorModal(currentStart, currentEnd) {
+    const modal = document.getElementById('editor-modal');
+    if (!modal) {
+        console.error('Editor modal element not found!');
+        return;
+    }
+    
+    const startInput = document.getElementById('start-index');
+    const endInput = document.getElementById('end-index');
+    const currentRangeDisplay = document.getElementById('current-range-display');
+    
+    // Pre-set values before showing modal
+    startInput.value = currentStart;
+    endInput.value = currentEnd;
+    currentRangeDisplay.textContent = `${currentStart}-${currentEnd}`;
+    
+    // Reset any previous validation states
+    document.getElementById('validation-message').textContent = '';
+    const applyButton = document.querySelector('.apply-changes');
+    if (applyButton) {
+        applyButton.disabled = false;
+    }
+    
+    // Show modal immediately
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+    
+    validateInputs();
+}
+
+function closeEditorModal() {
+    const modal = document.getElementById('editor-modal');
+    if (!modal) {
+        console.error('Editor modal element not found!');
+        return;
+    }
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+}
+
+function validateInputs() {
+    const startInput = document.getElementById('start-index');
+    const endInput = document.getElementById('end-index');
+    const validationMessage = document.getElementById('validation-message');
+    const applyButton = document.querySelector('.apply-changes');
+    
+    const start = parseInt(startInput.value);
+    const end = parseInt(endInput.value);
+    
+    if (isNaN(start) || isNaN(end)) {
+        validationMessage.textContent = 'Please enter valid numbers';
+        applyButton.disabled = true;
+        return false;
+    }
+    
+    if (start < 0 || end < 0) {
+        validationMessage.textContent = 'Indices must be non-negative';
+        applyButton.disabled = true;
+        return false;
+    }
+    
+    if (start >= end) {
+        validationMessage.textContent = 'Start index must be less than end index';
+        applyButton.disabled = true;
+        return false;
+    }
+    
+    validationMessage.textContent = '';
+    applyButton.disabled = false;
+    return true;
+}
+
+async function applyColumnChanges(column) {
+    if (!validateInputs()) return;
+    
+    const startInput = document.getElementById('start-index');
+    const endInput = document.getElementById('end-index');
+    const loadingElement = document.getElementById('editor-loading');
+    
+    if (loadingElement) loadingElement.style.display = 'flex';
+    
+    try {
+        const response = await fetch('/api/update-column-range', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                column: column,
+                start_index: parseFloat(startInput.value),
+                end_index: parseFloat(endInput.value)
+                })
             });
+            
+        if (!response.ok) throw new Error('Failed to update column range');
+        
+        const result = await response.json();
+        if (result.success) {
+            closeEditorModal();
+            // Refresh the data display
+            loadDescriptiveStats();
+            } else {
+            throw new Error(result.error || 'Failed to update column range');
+            }
         } catch (error) {
-            console.error('Error loading plots:', error);
+        console.error('Error updating column range:', error);
+        const validationMessage = document.getElementById('validation-message');
+        if (validationMessage) {
+            validationMessage.textContent = error.message;
+            validationMessage.style.color = 'red';
         }
+    } finally {
+        if (loadingElement) loadingElement.style.display = 'none';
+    }
+}
+
+// Add event listeners for real-time validation
+    document.addEventListener('DOMContentLoaded', function() {
+    const startInput = document.getElementById('start-index');
+    const endInput = document.getElementById('end-index');
+    const modal = document.getElementById('editor-modal');
+    
+    if (startInput) startInput.addEventListener('input', validateInputs);
+    if (endInput) endInput.addEventListener('input', validateInputs);
+    
+    // Close modal when clicking outside
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target.id === 'editor-modal') {
+                closeEditorModal();
+            }
+        });
     }
 });

@@ -176,33 +176,34 @@
         </div>
     </div>
 
-    <!-- Plot Modal -->
-    <div id="plotModal" class="modal" style="display: none;">
+    <!-- Editor Modal -->
+    <div id="editor-modal" class="editor-modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Column Analysis</h2>
-            <div class="plot-container">
-                <div id="histogramPlot" class="plot"></div>
-                <div id="qqPlot" class="plot"></div>
-                <div id="boxPlot" class="plot"></div>
-                <div id="barPlot" class="plot"></div>
-                <div id="pieChart" class="plot"></div>
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Column Range</h3>
+                <button class="close" onclick="closeEditorModal()">&times;</button>
             </div>
-            <div class="boundary-form">
-                <h3>Update Column Boundaries</h3>
-                <form id="boundaryForm">
-                    <input type="hidden" id="selectedColumn" name="columnName">
-                    <div class="form-group">
-                        <label for="minValue">Minimum Value:</label>
-                        <input type="number" id="minValue" name="minValue" step="any" required>
+            <div class="editor-container">
+                <div class="current-range">
+                    Current range: <span id="current-range-display"></span>
+                </div>
+                <div class="range-inputs">
+                    <div class="input-group">
+                        <label for="start-index">Start Index</label>
+                        <input type="number" id="start-index" min="0" step="1">
                     </div>
-                    <div class="form-group">
-                        <label for="maxValue">Maximum Value:</label>
-                        <input type="number" id="maxValue" name="maxValue" step="any" required>
+                    <div class="input-group">
+                        <label for="end-index">End Index</label>
+                        <input type="number" id="end-index" min="0" step="1">
                     </div>
-                    <button type="submit">Update Boundaries</button>
-                </form>
+                </div>
+                <div id="validation-message" class="validation-message"></div>
+                <div class="button-group">
+                    <button class="close-modal" onclick="closeEditorModal()">Cancel</button>
+                    <button class="apply-changes" onclick="applyColumnChanges()">Apply Changes</button>
+                </div>
             </div>
+            <div id="editor-loading" class="editor-loading"></div>
         </div>
     </div>
 
