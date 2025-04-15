@@ -23,17 +23,24 @@ def get_descriptive_stats():
         if data_manager.data is None:
             return jsonify({'success': False, 'error': 'No data loaded'})
             
-        stats = {
-            'file_stats': data_manager.metadata.get('file_stats', {}),
-            'column_types': data_manager.metadata.get('column_types', {}),
-            'flag_counts': {
-                col: {
-                    flag.value: int(np.sum(data_manager.point_flags[:, idx] == flag))
-                    for flag in DataPointFlag
-                }
-                for idx, col in enumerate(data_manager.data.columns)
+        # Get descriptive stats
+        stats = data_manager.get_column_descriptive_stats()
+        if stats is None:
+            data_manager.calculate_descriptive_stats()
+            stats = data_manager.get_column_descriptive_stats()
+            
+        if stats is None:
+            return jsonify({'success': False, 'error': 'Failed to calculate descriptive statistics'})
+            
+        # Add flag counts
+        stats['flag_counts'] = {
+            col: {
+                flag.value: int(np.sum(data_manager.point_flags[:, idx] == flag))
+                for flag in DataPointFlag
             }
+            for idx, col in enumerate(data_manager.data.columns)
         }
+        
         return jsonify({'success': True, 'stats': stats})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

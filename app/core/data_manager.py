@@ -28,16 +28,6 @@ class ColumnType(Enum):
     ORDINAL = "ordinal"
     CENSORED = "censored"
 
-@dataclass
-class ColumnMetadata:
-    name: str
-    type: ColumnType
-    missing_count: int
-    unique_values: int
-    outlier_count: int
-    validation_rules: Dict[str, Any]
-    statistical_properties: Dict[str, Any]
-
 class DataManager:
     """
     Enhanced Pandas DataFrame with metadata for biostatistical analysis.
@@ -48,15 +38,18 @@ class DataManager:
     
     Attributes:
         data (pd.DataFrame): The underlying pandas DataFrame
-        metadata (dict): Dictionary containing metadata about the data
+        current_file (str): Name of the currently loaded file
+        modifications_history (List[Dict[str, Any]]): History of modifications made to the data
+        validation_rules (Dict[str, List[Dict[str, Any]]]): Rules for data validation
+        cached_statistics (Dict[str, Any]): Cache for computed statistics
+        point_flags (np.ndarray): Array of flags for each data point
+        _descriptive_stats (Dict[str, Any]): Cache for descriptive statistics
     """
     
     def __init__(self):
         self.data: Optional[pd.DataFrame] = None
-        self.metadata: Dict[str, Any] = {}
         self.current_file: Optional[str] = None
         self.modifications_history: List[Dict[str, Any]] = []
-        self.column_metadata: Dict[str, ColumnMetadata] = {}
         self.validation_rules: Dict[str, List[Dict[str, Any]]] = {}
         self.cached_statistics: Dict[str, Any] = {}
         self._state_logger = StateLogger()
@@ -66,10 +59,8 @@ class DataManager:
     def reset(self) -> None:
         """Reset the DataManager to its initial state."""
         self.data = None
-        self.metadata = {}
         self.current_file = None
         self.modifications_history = []
-        self.column_metadata = {}
         self.validation_rules = {}
         self.cached_statistics = {}
         self._state_logger = StateLogger()
@@ -108,8 +99,6 @@ class DataManager:
                 
             self.modifications_history = []
             self._initialize_point_flags()
-            self._validate_data()
-            self.initialize_metadata()
             
             # Calculate descriptive statistics after loading data
             self.calculate_descriptive_stats()
@@ -142,73 +131,6 @@ class DataManager:
             logger.error(error_msg, exc_info=True)
             self._state_logger.capture_state(None, f"load_error: {error_msg}")
             return False, error_msg
-    
-    def initialize_metadata(self) -> None:
-        """Initialize metadata when data is first loaded."""
-        if self.data is None:
-            return
-        
-        # Set basic metadata
-        self.metadata = {
-            'file_stats': {
-                'filename': self.current_file,
-                'rows': len(self.data),
-                'columns': len(self.data.columns),
-                'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
-            },
-            'column_types': self._analyze_column_types(),
-            'data_quality': self._assess_data_quality()
-        }
-        
-        # Update point flags
-        self._update_point_flags()
-    
-    def _update_metadata(self) -> None:
-        """Update metadata after data changes."""
-        if self.data is None:
-            return
-        
-        # Update basic metadata
-        self.metadata = {
-            'file_stats': {
-                'filename': self.current_file,
-                'rows': len(self.data),
-                'columns': len(self.data.columns),
-                'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB"
-            },
-            'column_types': self._analyze_column_types(),
-            'data_quality': self._assess_data_quality()
-        }
-        
-        # Update column metadata (which may trigger additional updates)
-        self._update_column_metadata()
-        
-        # Update point flags
-        self._update_point_flags()
-    
-    def _update_column_metadata(self) -> None:
-        """Update metadata for each column."""
-        if self.data is None:
-            return
-        
-        for col in self.data.columns:
-            col_type = self._determine_column_type(self.data[col])
-            col_idx = self.data.columns.get_loc(col)
-            
-            # Get counts from point flags array
-            col_flags = self.get_column_flags(col_idx)
-            missing_count = np.sum(col_flags == DataPointFlag.MISSING)
-            outlier_count = np.sum(col_flags == DataPointFlag.OUTLIER)
-            
-            self.column_metadata[col] = ColumnMetadata(
-                name=col,
-                type=col_type,
-                missing_count=int(missing_count),
-                unique_values=int(self.data[col].nunique()),
-                outlier_count=int(outlier_count),
-                validation_rules=self._get_validation_rules(col, col_type),
-                statistical_properties=self._calculate_statistical_properties(col, col_type)
-            )
     
     def _determine_column_type(self, series: pd.Series) -> ColumnType:
         """Determine the most appropriate column type."""
@@ -295,10 +217,10 @@ class DataManager:
         else:
             return "Non-normal"
     
-    def _validate_data(self) -> None:
-        """Validate the data against defined rules."""
+    def _validate_data(self) -> Dict[str, Any]:
+        """Validate the data against defined rules and return validation results."""
         if self.data is None:
-            return
+            return {}
         
         validation_results = {
             'errors': [],
@@ -306,35 +228,45 @@ class DataManager:
             'passed': True
         }
         
-        for col, metadata in self.column_metadata.items():
+        # Get descriptive stats
+        stats = self.get_column_descriptive_stats()
+        if stats is None:
+            return validation_results
+            
+        for col in self.data.columns:
+            col_type = stats['column_types']['column_types_list'][self.data.columns.get_loc(col)]
+            
             # Check missing values
-            if metadata.missing_count > 0 and not metadata.validation_rules['missing_allowed']:
-                validation_results['errors'].append(f"Column {col} has missing values but they are not allowed")
+            if col in stats['missing_values_by_column']:
+                validation_results['warnings'].append(f"Column {col} has {stats['missing_values_by_column'][col]} missing values")
             
             # Type-specific validation
-            if metadata.type == ColumnType.NUMERIC:
-                self._validate_numeric_column(col, metadata, validation_results)
-            elif metadata.type == ColumnType.CATEGORICAL:
-                self._validate_categorical_column(col, metadata, validation_results)
+            if col_type == 'numeric':
+                self._validate_numeric_column(col, validation_results)
+            elif col_type == 'categorical':
+                self._validate_categorical_column(col, validation_results)
                 
-        self.metadata['validation_results'] = validation_results
+        return validation_results
     
-    def _validate_numeric_column(self, column: str, metadata: ColumnMetadata, results: Dict[str, Any]) -> None:
+    def _validate_numeric_column(self, column: str, results: Dict[str, Any]) -> None:
         """Validate a numeric column."""
         series = self.data[column]
-        rules = metadata.validation_rules
         
+        # Check for negative values if not allowed
+        if not self.validation_rules.get(column, {}).get('allow_negative', True) and (series < 0).any():
+            results['errors'].append(f"Column {column} has negative values but they are not allowed")
+            
+        # Check for values outside allowed range
+        rules = self.validation_rules.get(column, {})
         if 'min_value' in rules and series.min() < rules['min_value']:
             results['errors'].append(f"Column {column} has values below minimum allowed")
         if 'max_value' in rules and series.max() > rules['max_value']:
             results['errors'].append(f"Column {column} has values above maximum allowed")
-        if not rules['allow_negative'] and (series < 0).any():
-            results['errors'].append(f"Column {column} has negative values but they are not allowed")
     
-    def _validate_categorical_column(self, column: str, metadata: ColumnMetadata, results: Dict[str, Any]) -> None:
+    def _validate_categorical_column(self, column: str, results: Dict[str, Any]) -> None:
         """Validate a categorical column."""
         series = self.data[column]
-        rules = metadata.validation_rules
+        rules = self.validation_rules.get(column, {})
         
         if 'allowed_values' in rules:
             invalid_values = series[~series.isin(rules['allowed_values'])].unique()
@@ -518,50 +450,96 @@ class DataManager:
 
 
     def get_column_data(self, column_name):
-        """Get data and statistics for a specific column."""
+        """Get data and statistics for a specific column.
+        
+        Args:
+            column_name (str): Name of the column to get data for
+            
+        Returns:
+            Tuple[Optional[Dict[str, Any]], Optional[str]]: Tuple containing:
+                - Dictionary with column data and statistics if successful
+                - Error message if unsuccessful
+        """
         if self.data is None or column_name not in self.data.columns:
             return None, "Column not found"
             
         try:
-            column_data = self.data[column_name]
-            column_type = self.metadata['column_types']['column_types_list'][list(self.data.columns).index(column_name)]
+            # Get descriptive stats
+            stats = self.get_column_descriptive_stats()
+            if stats is None:
+                self.calculate_descriptive_stats()
+                stats = self.get_column_descriptive_stats()
+                
+            if stats is None:
+                return None, "Failed to calculate descriptive statistics"
+                
+            # Get column type
+            col_idx = self.data.columns.get_loc(column_name)
+            col_type = stats['column_types']['column_types_list'][col_idx]
             
-            # Get basic statistics based on column type
-            stats = {
-                'Type': column_type,
-                'Missingues': str(column_data.isna().sum()),
-                'Unique Values': str(column_data.nunique())
+            # Build basic statistics
+            column_stats = {
+                'Type': col_type,
+                'Missing Values': str(stats['missing_values_by_column'].get(column_name, 0)),
+                'Unique Values': str(self.data[column_name].nunique())
             }
             
             # Add type-specific statistics
-            if column_type == 'numeric' or column_type == 'discrete':
-                stats.update({
-                    'Mean': f"{column_data.mean():.2f}",
-                    'Median': f"{column_data.median():.2f}",
-                    'Std Dev': f"{column_data.std():.2f}",
-                    'Min': f"{column_data.min():.2f}",
-                    'Max': f"{column_data.max():.2f}"
-                })
-            elif column_type == 'categorical':
-                value_counts = column_data.value_counts()
-                stats['Most Common'] = f"{value_counts.index[0]} ({value_counts.iloc[0]} times)"
-                stats['Value Distribution'] = value_counts.head(5).to_dict()
-            elif column_type == 'boolean':
-                value_counts = column_data.value_counts()
-                stats['True Count'] = str(value_counts.get(True, 0))
-                stats['False Count'] = str(value_counts.get(False, 0))
-            elif column_type == 'timeseries':
-                stats.update({
-                    'Start Date': str(column_data.min()),
-                    'End Date': str(column_data.max()),
-                    'Date Range': f"{column_data.max() - column_data.min()}"
-                })
+            if col_type in ['numeric', 'discrete']:
+                if column_name in stats['distribution_analysis']:
+                    dist_stats = stats['distribution_analysis'][column_name]
+                    column_stats.update({
+                        'Mean': f"{dist_stats['descriptive_stats']['mean']:.2f}",
+                        'Median': f"{dist_stats['descriptive_stats']['mean']:.2f}",
+                        'Std Dev': f"{dist_stats['descriptive_stats']['std']:.2f}",
+                        'Min': f"{dist_stats['descriptive_stats']['min']:.2f}",
+                        'Max': f"{dist_stats['descriptive_stats']['max']:.2f}",
+                        'Skewness': f"{dist_stats['skewness']:.2f}",
+                        'Kurtosis': f"{dist_stats['kurtosis']:.2f}",
+                        'Distribution': dist_stats['distribution_type']
+                    })
+                    
+                if column_name in stats['outlier_info']:
+                    column_stats['Outliers'] = {
+                        'count': stats['outlier_info'][column_name]['count'],
+                        'percentage': f"{stats['outlier_info'][column_name]['percentage']:.2f}%"
+                    }
+                    
+            elif col_type == 'categorical':
+                if column_name in stats['categorical_stats']:
+                    cat_stats = stats['categorical_stats'][column_name]
+                    column_stats.update({
+                        'Most Common': f"{cat_stats['most_frequent']['value']} ({cat_stats['most_frequent']['count']} times)",
+                        'Value Distribution': {
+                            str(item['value']): item['count'] 
+                            for item in cat_stats['value_distribution'][:5]
+                        }
+                    })
+                    
+            elif col_type == 'boolean':
+                if column_name in stats['boolean_stats']:
+                    bool_stats = stats['boolean_stats'][column_name]
+                    column_stats.update({
+                        'True Count': str(bool_stats['true_count']),
+                        'False Count': str(bool_stats['false_count']),
+                        'True Percentage': f"{bool_stats['true_percentage']:.2f}%"
+                    })
+                    
+            elif col_type == 'timeseries':
+                if column_name in stats['datetime_stats']:
+                    time_stats = stats['datetime_stats'][column_name]
+                    column_stats.update({
+                        'Start Date': time_stats['start_date'],
+                        'End Date': time_stats['end_date'],
+                        'Date Range': time_stats['range'],
+                        'Time Interval': time_stats['time_interval']
+                    })
             
             # Get sample data (first 10 rows)
-            sample_data = column_data.head(10).tolist()
+            sample_data = self.data[column_name].head(10).tolist()
             
             return {
-                'stats': stats,
+                'stats': column_stats,
                 'sample_data': sample_data
             }, None
             
@@ -650,9 +628,6 @@ class DataManager:
                     missing_mask = col_data.isna()
                     outlier_mask = ((col_data < lower_bound) | (col_data > upper_bound)) & ~missing_mask
                     self.point_flags[outlier_mask, col_idx] = DataPointFlag.OUTLIER
-                    
-            # Update metadata after flagging outliers
-            self._update_metadata()
             
             # Log state with updated flag counts
             self._state_logger.capture_state(self, "update_outlier_flags", {
@@ -735,21 +710,12 @@ class DataManager:
         Returns:
             tuple: (success, message, preview)
         """
-        try:
-            if not isinstance(column_to_delete, list):
-                column_to_delete = [column_to_delete]
-                
-            print("\n=== BEFORE COLUMN DELETION ===")
-            print("Original columns:", self.data.columns.tolist())
-            print("Columns to delete:", column_to_delete)
-                
+        try:             
             # Convert any numeric indices to column names
             column_to_delete = [
                 self.data.columns[col] if isinstance(col, int) else col 
                 for col in column_to_delete
             ]
-            print("\nAfter converting indices:")
-            print("Columns to delete:", column_to_delete)
                 
             # Validate columns exist
             missing_cols = [col for col in column_to_delete if col not in self.data.columns]
@@ -758,32 +724,17 @@ class DataManager:
                 
             # Get the original column order
             original_columns = self.data.columns.tolist()
-            print("\nOriginal column order:", original_columns)
-            
             # Remove the columns to delete from the original order
             remaining_columns = [col for col in original_columns if col not in column_to_delete]
-            print("\nRemaining columns in order:", remaining_columns)
-            
             # Drop columns and reorder to maintain original order using reindex
-            print("\nBefore drop and reindex:")
-            print("DataFrame columns:", self.data.columns.tolist())
-            
             self.data = self.data.drop(columns=column_to_delete)
-            print("\nAfter drop:")
-            print("DataFrame columns:", self.data.columns.tolist())
-            
             self.data = self.data.reindex(columns=remaining_columns)
-            print("\nAfter reindex:")
-            print("DataFrame columns:", self.data.columns.tolist())
             
-            # Update metadata
-            self._update_metadata()
+            # Update descriptive stats
+            self.update_descriptive_stats()
             
             # Get preview
             preview = self.get_data_preview()
-            print("\n=== AFTER COLUMN DELETION ===")
-            print("Final DataFrame columns:", self.data.columns.tolist())
-            print("Preview columns:", list(preview.keys()))
             
             return True, f"Successfully deleted columns: {', '.join(column_to_delete)}", preview
             
@@ -827,6 +778,22 @@ class DataManager:
         categorical_stats = {}
         boolean_stats = {}
         datetime_stats = {}
+        
+        # Add file stats that were previously in metadata
+        file_stats = {
+            'filename': self.current_file,
+            'rows': len(self.data),
+            'columns': len(self.data.columns),
+            'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
+            'missing_values': int(self.data.isna().sum().sum())
+        }
+        
+        # Add data quality metrics
+        quality_metrics = {
+            'completeness': self._calculate_completeness(),
+            'consistency': self._check_consistency(),
+            'accuracy': self._assess_accuracy()
+        }
         
         for i, col in enumerate(self.data.columns):
             try:
@@ -920,8 +887,9 @@ class DataManager:
                 logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
                 continue
         
+        # Store all metadata in _descriptive_stats
         self._descriptive_stats = {
-            'file_stats': self.get_file_statistics(),
+            'file_stats': file_stats,
             'column_types': {
                 'numeric': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'numeric']),
                 'categorical': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'categorical']),
@@ -930,12 +898,14 @@ class DataManager:
                 'columns': self.data.columns.tolist(),
                 'column_types_list': column_types_list
             },
+            'data_quality': quality_metrics,
             'missing_values_by_column': missing_values_by_column,
             'distribution_analysis': distribution_analysis,
             'outlier_info': outlier_info,
             'categorical_stats': categorical_stats,
             'boolean_stats': boolean_stats,
-            'datetime_stats': datetime_stats
+            'datetime_stats': datetime_stats,
+            'validation_results': self._validate_data()
         }
 
     def _calculate_time_interval(self, series: pd.Series) -> str:
@@ -1135,3 +1105,122 @@ class DataManager:
         
         # Return updated statistics for the column
         return self._calculate_statistical_properties(column_name, self._determine_column_type(self.data[column_name]))
+
+    def update_descriptive_stats(self) -> None:
+        """Update descriptive statistics after column deletion.
+        
+        This method efficiently updates _descriptive_stats by removing deleted columns
+        and recalculating only the necessary metadata, reusing existing calculations
+        where possible.
+        """
+        if self.data is None or self._descriptive_stats is None:
+            # If no data or no existing stats, do a full calculation
+            self.calculate_descriptive_stats()
+            return
+            
+        # Get current columns
+        current_columns = self.data.columns.tolist()
+        
+        # Update file stats
+        self._descriptive_stats['file_stats'].update({
+            'rows': len(self.data),
+            'columns': len(self.data.columns),
+            'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
+            'missing_values': int(self.data.isna().sum().sum())
+        })
+        
+        # Filter column types list to keep only existing columns
+        old_types = self._descriptive_stats['column_types']['column_types_list']
+        old_columns = self._descriptive_stats['column_types']['columns']
+        remaining_types = []
+        
+        # Create mapping of old columns to their types
+        col_type_map = dict(zip(old_columns, old_types))
+        
+        # Keep only types for remaining columns
+        for col in current_columns:
+            if col in col_type_map:
+                remaining_types.append(col_type_map[col])
+            else:
+                # If we find a new column, we need to determine its type
+                col_data = self.data[col]
+                if pd.api.types.is_numeric_dtype(col_data):
+                    if col_data.nunique() < 20:
+                        remaining_types.append('discrete')
+                    else:
+                        remaining_types.append('numeric')
+                elif pd.api.types.is_datetime64_any_dtype(col_data):
+                    remaining_types.append('timeseries')
+                elif col_data.nunique() == 2:
+                    remaining_types.append('boolean')
+                else:
+                    remaining_types.append('categorical')
+        
+        # Update column types
+        self._descriptive_stats['column_types'] = {
+            'numeric': len([t for t in remaining_types if t == 'numeric']),
+            'categorical': len([t for t in remaining_types if t == 'categorical']),
+            'boolean': len([t for t in remaining_types if t == 'boolean']),
+            'datetime': len([t for t in remaining_types if t == 'timeseries']),
+            'columns': current_columns,
+            'column_types_list': remaining_types
+        }
+        
+        # Update missing values by column
+        self._descriptive_stats['missing_values_by_column'] = {
+            col: int(count) for col, count in 
+            self._descriptive_stats['missing_values_by_column'].items()
+            if col in current_columns
+        }
+        
+        # Update distribution analysis
+        self._descriptive_stats['distribution_analysis'] = {
+            col: stats for col, stats in 
+            self._descriptive_stats['distribution_analysis'].items()
+            if col in current_columns
+        }
+        
+        # Update outlier info
+        self._descriptive_stats['outlier_info'] = {
+            col: info for col, info in 
+            self._descriptive_stats['outlier_info'].items()
+            if col in current_columns
+        }
+        
+        # Update categorical stats
+        self._descriptive_stats['categorical_stats'] = {
+            col: stats for col, stats in 
+            self._descriptive_stats['categorical_stats'].items()
+            if col in current_columns
+        }
+        
+        # Update boolean stats
+        self._descriptive_stats['boolean_stats'] = {
+            col: stats for col, stats in 
+            self._descriptive_stats['boolean_stats'].items()
+            if col in current_columns
+        }
+        
+        # Update datetime stats
+        self._descriptive_stats['datetime_stats'] = {
+            col: stats for col, stats in 
+            self._descriptive_stats['datetime_stats'].items()
+            if col in current_columns
+        }
+        
+        # Update point flags array
+        if self.point_flags is not None:
+            # Get indices of remaining columns
+            remaining_indices = [old_columns.index(col) for col in current_columns if col in old_columns]
+            # Update point flags array to keep only remaining columns
+            self.point_flags = self.point_flags[:, remaining_indices]
+            
+        # Update data quality metrics
+        self._descriptive_stats['data_quality'] = {
+            'completeness': self._calculate_completeness(),
+            'consistency': self._check_consistency(),
+            'accuracy': self._assess_accuracy()
+        }
+        
+        # Update validation results
+        self._descriptive_stats['validation_results'] = self._validate_data()

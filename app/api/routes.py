@@ -78,11 +78,24 @@ def upload_file():
         # Get data preview
         preview_dict = current_app.data_manager.get_data_preview()
         
-        # Get column types from metadata
+        # Get descriptive stats
+        stats = current_app.data_manager.get_column_descriptive_stats()
+        if stats is None:
+            current_app.data_manager.calculate_descriptive_stats()
+            stats = current_app.data_manager.get_column_descriptive_stats()
+            
+        if stats is None:
+            logger.error("Failed to calculate descriptive statistics")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to calculate descriptive statistics'
+            }), 500
+            
+        # Get column types from descriptive stats
         column_types = {
             str(col): str(dtype) 
             for col, dtype in zip(current_app.data_manager.data.columns, 
-                                current_app.data_manager.metadata['column_types']['column_types_list'])
+                                stats['column_types']['column_types_list'])
         }
         
         logger.info("Returning success response")
