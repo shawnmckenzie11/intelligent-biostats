@@ -237,4 +237,65 @@ def update_column_stats():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 400
+
+@main.route('/api/column-data-and-flags', methods=['POST'])
+def get_column_data_and_flags():
+    """Get all data points and flags for a specific column."""
+    try:
+        data_manager = get_data_manager()
+        data = request.get_json()
+        
+        logger.debug(f"Received request for column data and flags: {data}")
+        
+        if not data or 'column' not in data:
+            logger.error("No column name provided in request")
+            return jsonify({
+                'success': False,
+                'error': 'Column name is required'
+            }), 400
+            
+        column = data.get('column')
+        
+        if data_manager.data is None:
+            logger.error("No data loaded in data_manager")
+            return jsonify({
+                'success': False,
+                'error': 'No data loaded'
+            }), 400
+            
+        # Get column index from the row's data-column attribute
+        column_idx = None
+        for idx, col in enumerate(data_manager.data.columns):
+            if col == column:
+                column_idx = idx
+                break
+        
+        if column_idx is None:
+            logger.error(f"Column '{column}' not found. Available columns: {data_manager.data.columns.tolist()}")
+            return jsonify({
+                'success': False,
+                'error': f"Column '{column}' not found in dataset"
+            }), 400
+            
+        # Get column data and flags
+        values = data_manager.data[column].tolist()
+        flags = [flag.value for flag in data_manager.point_flags[:, column_idx]]
+        
+        logger.debug(f"Returning data for column '{column}':")
+        logger.debug(f"Values: {values[:5]}... (showing first 5)")
+        logger.debug(f"Flags: {flags[:5]}... (showing first 5)")
+        
+        return jsonify({
+            'success': True,
+            'column': column,
+            'values': values,
+            'flags': flags
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting column data and flags: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 400 

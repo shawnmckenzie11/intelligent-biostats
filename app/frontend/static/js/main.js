@@ -1463,13 +1463,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners for edit buttons
     function initializeEditButtons() {
         document.querySelectorAll('.edit-icon').forEach(icon => {
-            icon.addEventListener('click', function(e) {
+            icon.addEventListener('click', async function(e) {
                 e.preventDefault();
-                const column = this.getAttribute('data-column');
-                const rangeCell = this.closest('td');
-                const rangeDisplay = rangeCell.querySelector('.range-display');
+                const row = this.closest('tr');
+                const column = row.cells[0].textContent; // Get column name from first cell
+                
+                console.log('Column being edited:', column);
+                console.log('Column type:', typeof column);
+                console.log('Fetching initial column data and flags...');
+                const response = await fetch('/api/column-data-and-flags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ column: column })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Initial column state:', data);
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error fetching initial data:', errorData);
+                }
                 
                 // Get the current min and max values from the data attributes
+                const rangeCell = row.querySelector('.range-container');
+                const rangeDisplay = rangeCell.querySelector('.range-display');
                 const currentMin = parseFloat(rangeDisplay.getAttribute('data-min'));
                 const currentMax = parseFloat(rangeDisplay.getAttribute('data-max'));
 
@@ -1509,11 +1529,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newMin = parseFloat(minInput.value);
                     const newMax = parseFloat(maxInput.value);
                     
-                    // Debug log the values being sent
                     console.log('Column being edited:', column);
                     console.log('Column type:', typeof column);
                     console.log('Updating column flags with:', {
-                        column: column.trim(), // Ensure no whitespace
+                        column: column,
                         min_value: newMin,
                         max_value: newMax
                     });
@@ -1530,6 +1549,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     try {
+                        // Get initial column data and flags
+                        const initialDataResponse = await fetch('/api/column-data-and-flags', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ column: column })
+                        });
+                        
+                        if (initialDataResponse.ok) {
+                            const initialData = await initialDataResponse.json();
+                            console.log('Initial column state:', initialData);
+                        } else {
+                            const errorData = await initialDataResponse.json();
+                            console.error('Error fetching initial data:', errorData);
+                        }
+                        
                         // First, update the range flags
                         const flagResponse = await fetch('/api/update-column-flags', {
                             method: 'POST',
@@ -1537,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                                column: column.trim(), // Ensure no whitespace
+                                column: column,
                                 min_value: newMin,
                                 max_value: newMax
                             })
@@ -1552,6 +1588,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             throw new Error(flagData?.error || 'Failed to update column flags');
                         }
                         
+                        // Get updated column data and flags after the change
+                        const updatedDataResponse = await fetch('/api/column-data-and-flags', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ column: column })
+                        });
+                        
+                        if (updatedDataResponse.ok) {
+                            const updatedData = await updatedDataResponse.json();
+                            console.log('Updated column state:', updatedData);
+                        } else {
+                            const errorData = await updatedDataResponse.json();
+                            console.error('Error fetching updated data:', errorData);
+                        }
+
                         // Then, update the column statistics ignoring flags
                         const statsResponse = await fetch('/api/update-column-stats', {
                             method: 'POST',
@@ -1607,8 +1660,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             throw new Error(result.error || 'Failed to update range');
                         }
                     } catch (error) {
-                        validationMessage.textContent = error.message;
                         console.error('Error updating range:', error);
+                        validationMessage.textContent = error.message;
                     }
                 });
                 

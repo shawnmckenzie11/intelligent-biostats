@@ -1338,9 +1338,7 @@ class DataManager:
     def add_new_column_range_flags(self, column_name: str, min_value: Union[int, float], max_value: Union[int, float]) -> Dict[str, Any]:
         """
         Update point flags for a column based on a new valid range, marking values outside as OUTOFBOUNDS.
-        
-        This method updates the point_flags array for the specified column, marking any values
-        outside the specified range as OUTOFBOUNDS while preserving other existing flags.
+        Only proceeds if at least 20 normal (unflagged) values would remain after applying the range.
         
         Args:
             column_name (str): Name of the column to update
@@ -1348,29 +1346,55 @@ class DataManager:
             max_value (Union[int, float]): Maximum valid value (inclusive)
             
         Returns:
-            Dict[str, Any]: Statistics about the flagging operation including:
-                - total_points: Total number of points in the column
-                - outofbounds_points: Number of points flagged as out of bounds
-                - previous_flags: Count of each flag type before update
-                - updated_flags: Count of each flag type after update
+            Dict[str, Any]: Statistics about the flagging operation
             
         Raises:
-            ValueError: If column_name not found or min_value >= max_value
+            ValueError: If column not found, invalid range, or too many values would be flagged
         """
         if self.data is None or column_name not in self.data.columns:
             raise ValueError(f"Column {column_name} not found in dataset")
-            
+        
         if min_value >= max_value:
             raise ValueError("Minimum value must be less than maximum value")
-            
+        
         try:
             # Get column index and data
             col_idx = self.data.columns.get_loc(column_name)
             col_data = self.data[column_name]
             
+            # Print column values before update
+            print(f"\nColumn '{column_name}' values before range update:")
+            print(f"Current values: {col_data.tolist()}")
+            print(f"Current min: {col_data.min()}, max: {col_data.max()}")
+            
             # Verify column is numeric
             if not pd.api.types.is_numeric_dtype(col_data):
                 raise ValueError(f"Column {column_name} must be numeric to apply range flags")
+            
+            # Create mask for out of bounds values
+            outofbounds_mask = (
+                (col_data < min_value) | (col_data > max_value) & 
+                ~col_data.isna()  # Don't flag missing values
+            )
+            
+            # Get current missing value mask
+            missing_mask = (self.point_flags[:, col_idx] == DataPointFlag.MISSING)
+            
+            # Calculate how many normal values would remain
+            total_points = len(col_data)
+            outofbounds_points = int(np.sum(outofbounds_mask))
+            missing_points = int(np.sum(missing_mask))
+            remaining_normal = total_points - outofbounds_points - missing_points
+            
+            print(f"\nPoints analysis before update:")
+            print(f"Total points: {total_points}")
+            print(f"Would be out of bounds: {outofbounds_points}")
+            print(f"Currently missing: {missing_points}")
+            print(f"Would remain normal: {remaining_normal}")
+            
+            # Check if enough normal values would remain
+            if remaining_normal < 20:
+                raise ValueError("Too many values excluded - at least 20 normal values must remain")
             
             # Get current flag counts for reporting
             previous_flags = {
@@ -1378,16 +1402,16 @@ class DataManager:
                 for flag in DataPointFlag
             }
             
-            # Create mask for out of bounds values
-            # Note: We don't want to override MISSING flags
-            outofbounds_mask = (
-                (col_data < min_value) | (col_data > max_value) & 
-                ~col_data.isna()  # Don't flag missing values
-            )
-            
             # Update flags for out of bounds values while preserving missing value flags
-            missing_mask = (self.point_flags[:, col_idx] == DataPointFlag.MISSING)
             self.point_flags[outofbounds_mask & ~missing_mask, col_idx] = DataPointFlag.OUTOFBOUNDS
+            
+            # Print column values and flags after update
+            print(f"\nColumn '{column_name}' after range update:")
+            print(f"New range limits - min: {min_value}, max: {max_value}")
+            print("Values and their flags:")
+            for idx, (val, flag) in enumerate(zip(col_data, self.point_flags[:, col_idx])):
+                if flag != DataPointFlag.NORMAL:
+                    print(f"Index {idx}: Value = {val}, Flag = {flag.value}")
             
             # Get updated flag counts
             updated_flags = {
@@ -1397,19 +1421,19 @@ class DataManager:
             
             # Calculate statistics about the operation
             stats = {
-                'total_points': len(col_data),
-                'outofbounds_points': int(np.sum(outofbounds_mask)),
+                'total_points': total_points,
+                'outofbounds_points': outofbounds_points,
+                'remaining_normal': remaining_normal,
                 'previous_flags': previous_flags,
                 'updated_flags': updated_flags
             }
             
-            # Log the update
-            self._state_logger.capture_state(self, f"add_column_range_flags_{column_name}", {
-                "column": column_name,
-                "min_value": min_value,
-                "max_value": max_value,
-                "outofbounds_count": stats['outofbounds_points']
-            })
+            print(f"\nFlag update summary:")
+            print(f"Total points: {stats['total_points']}")
+            print(f"Out of bounds points: {stats['outofbounds_points']}")
+            print(f"Remaining normal points: {stats['remaining_normal']}")
+            print(f"Previous flags: {previous_flags}")
+            print(f"Updated flags: {updated_flags}\n")
             
             return stats
             
