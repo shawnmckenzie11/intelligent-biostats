@@ -12,6 +12,10 @@ import logging
 from app.utils.state_logger import StateLogger
 from scipy import stats
 from app.core.enums import DataPointFlag
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -276,7 +280,7 @@ class DataManager:
             
         skewness = series.skew()
         kurtosis = series.kurtosis()
-        
+            
         # Test for normality using skewness and kurtosis
         if abs(skewness) < 0.5 and abs(kurtosis - 3) < 0.5:
             return "Normal"
@@ -678,7 +682,7 @@ class DataManager:
         return self.point_flags[:, col_idx]
         
     def get_row_flags(self, row_idx: int) -> np.ndarray:
-        """Get flags for all points in a row."""
+        """Get flags for a specific row."""
         if self.point_flags is None:
             return np.array([])
         return self.point_flags[row_idx, :]
@@ -1021,3 +1025,113 @@ class DataManager:
             return "Box-Cox transformation (recommended for heavy tails)"
         else:
             return " | ".join(suggestions)
+
+    def generate_plots(self, column_name: str) -> Dict[str, str]:
+        """
+        Generate plots for a specific column based on its data type.
+        
+        Args:
+            column_name (str): Name of the column to generate plots for
+        
+        Returns:
+            Dict[str, str]: Dictionary containing base64 encoded plot images
+        """
+        if self.data is None or column_name not in self.data.columns:
+            raise ValueError(f"Column {column_name} not found in dataset")
+            
+        plots = {}
+        column_data = self.data[column_name]
+        is_numeric = pd.api.types.is_numeric_dtype(column_data)
+        
+        # Create figure with higher DPI for better quality
+        plt.style.use('seaborn')
+        
+        if is_numeric:
+            # Histogram
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+            sns.histplot(data=column_data.dropna(), kde=True, ax=ax)
+            ax.set_title(f'Distribution of {column_name}')
+            plots['histogram'] = self._fig_to_base64(fig)
+            plt.close(fig)
+            
+            # Q-Q Plot
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+            stats.probplot(column_data.dropna(), dist="norm", plot=ax)
+            ax.set_title(f'Q-Q Plot of {column_name}')
+            plots['qqplot'] = self._fig_to_base64(fig)
+            plt.close(fig)
+            
+            # Box Plot
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+            sns.boxplot(data=column_data.dropna(), ax=ax)
+            ax.set_title(f'Box Plot of {column_name}')
+            plots['boxplot'] = self._fig_to_base64(fig)
+            plt.close(fig)
+        else:
+            # Bar Plot for categorical data
+            value_counts = column_data.value_counts()
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+            value_counts.plot(kind='bar', ax=ax)
+            ax.set_title(f'Value Counts for {column_name}')
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            plots['barplot'] = self._fig_to_base64(fig)
+            plt.close(fig)
+            
+            # Pie Chart
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+            plt.pie(value_counts, labels=value_counts.index, autopct='%1.1f%%')
+            ax.set_title(f'Distribution of {column_name}')
+            plots['piechart'] = self._fig_to_base64(fig)
+            plt.close(fig)
+        
+        return plots
+
+    def _fig_to_base64(self, fig: plt.Figure) -> str:
+        """
+        Convert a matplotlib figure to base64 encoded string.
+        
+        Args:
+            fig (plt.Figure): Matplotlib figure to convert
+            
+        Returns:
+            str: Base64 encoded string of the figure
+        """
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        img_str = base64.b64encode(buf.getvalue()).decode()
+        buf.close()
+        return img_str
+
+    def update_column_boundaries(self, column_name: str, min_value: float, max_value: float) -> Dict[str, float]:
+        """
+        Update the boundaries of a numeric column by filtering out values outside the specified range.
+        
+        Args:
+            column_name (str): Name of the column to update
+            min_value (float): New minimum value for the column
+            max_value (float): New maximum value for the column
+            
+        Returns:
+            Dict[str, float]: Dictionary containing the new statistics for the column
+        """
+        if self.data is None or column_name not in self.data.columns:
+            raise ValueError(f"Column {column_name} not found in dataset")
+            
+        if not pd.api.types.is_numeric_dtype(self.data[column_name]):
+            raise ValueError(f"Column {column_name} is not numeric")
+            
+        if min_value >= max_value:
+            raise ValueError("Minimum value must be less than maximum value")
+            
+        # Create a mask for values within the specified range
+        mask = (self.data[column_name] >= min_value) & (self.data[column_name] <= max_value)
+        self.data.loc[~mask, column_name] = np.nan
+        
+        # Update point flags for this column
+        col_idx = self.data.columns.get_loc(column_name)
+        self._update_point_flags()
+        
+        # Return updated statistics for the column
+        return self._calculate_statistical_properties(column_name, self._determine_column_type(self.data[column_name]))

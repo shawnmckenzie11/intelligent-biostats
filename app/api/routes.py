@@ -15,6 +15,7 @@ from scipy import stats
 import json
 from datetime import datetime
 import logging
+from typing import Dict, Any
 
 # Get the logger configured in app/__init__.py
 logger = logging.getLogger(__name__)
@@ -937,31 +938,70 @@ def column_suggestions():
 
 @api.route('/add-column', methods=['POST'])
 def add_column():
+    """Add a new calculated column to the dataset."""
     try:
-        data = request.get_json()
-        column = data.get('column')
-        
-        if not column:
+        if current_app.data_manager.data is None:
             return jsonify({
                 'success': False,
-                'error': 'No column specified'
-            })
-            
-        # Add the column to the current set
-        current_app.column_selector._current_columns.add(column)
-        
-        # Get the updated state
-        state = current_app.column_selector.get_current_state()
-        
-        return jsonify({
-            'success': True,
-            'columns': state['columns'],
-            'error': state['error'],
-            'is_valid': state['is_valid']
-        })
-        
+                'error': 'No data has been uploaded yet'
+            }), 400
+
+        # ... rest of the add_column function ...
+
     except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
         })
+
+@api.route('/api/plots/<column_name>', methods=['GET'])
+def get_plots(column_name: str) -> Dict[str, Any]:
+    """
+    Generate and return plots for a specific column.
+    
+    Args:
+        column_name (str): Name of the column to generate plots for
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing plot data and status
+    """
+    try:
+        plots = current_app.data_manager.generate_plots(column_name)
+        return jsonify({
+            'status': 'success',
+            'plots': plots
+        })
+    except Exception as e:
+        logger.error(f"Error generating plots: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 400
+
+@api.route('/api/columns/<column_name>/boundaries', methods=['POST'])
+def update_boundaries(column_name: str) -> Dict[str, Any]:
+    """
+    Update the boundaries of a numeric column.
+    
+    Args:
+        column_name (str): Name of the column to update
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing updated statistics and status
+    """
+    try:
+        data = request.get_json()
+        min_value = float(data.get('min_value'))
+        max_value = float(data.get('max_value'))
+        
+        updated_stats = current_app.data_manager.update_column_boundaries(column_name, min_value, max_value)
+        return jsonify({
+            'status': 'success',
+            'statistics': updated_stats
+        })
+    except Exception as e:
+        logger.error(f"Error updating boundaries: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 400

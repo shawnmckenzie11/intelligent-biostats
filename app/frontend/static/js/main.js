@@ -750,21 +750,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="type-count">${fileStats.missing_values.toLocaleString()}</div>
                         <div class="type-label">Missing Values</div>
                     </div>
-                    <div class="type-card">
-                        <div class="type-count">${stats.column_types.numeric || 0}</div>
-                        <div class="type-label">Numeric</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${stats.column_types.categorical || 0}</div>
-                        <div class="type-label">Categorical</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${stats.column_types.boolean || 0}</div>
-                        <div class="type-label">Boolean</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${stats.column_types.datetime || 0}</div>
-                        <div class="type-label">DateTime</div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.numeric || 0}</div>
+                            <div class="type-label">Numeric</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.categorical || 0}</div>
+                            <div class="type-label">Categorical</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.boolean || 0}</div>
+                            <div class="type-label">Boolean</div>
+                        </div>
+                        <div class="type-card">
+                            <div class="type-count">${stats.column_types.datetime || 0}</div>
+                            <div class="type-label">DateTime</div>
                     </div>
                 </div>
             `;
@@ -802,29 +802,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${getDistributionInfo(column, columnType, stats)}
                 </td>
                 <td class="action-buttons">
-                    <button class="analyze-btn" data-column="${column}">Edit</button>
-                    <button class="visualize-btn" data-column="${column}">View Plots</button>
+                    <button class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</button>
+                    ${columnType === 'numeric' || columnType === 'discrete' ? 
+                        `<button class="action-button edit-btn" data-column="${column}" data-type="${columnType}">Edit</button>` : ''}
                 </td>
             `;
             tableBody.appendChild(row);
         });
 
             // Add event listeners to the action buttons
-            document.querySelectorAll('.analyze-btn').forEach(button => {
+            document.querySelectorAll('.preview-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const column = this.getAttribute('data-column');
-                console.log(`Analyze clicked for column: ${column}`);
-                    // Here you would call a function to open the analysis panel for this column
-                    // e.g. openAnalysisFor(column);
+                    const type = this.getAttribute('data-type');
+                    showColumnPreview(column, type);
             });
         });
 
-            document.querySelectorAll('.visualize-btn').forEach(button => {
+            document.querySelectorAll('.edit-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const column = this.getAttribute('data-column');
-                console.log(`Visualize clicked for column: ${column}`);
-                    // Here you would call a function to visualize this column
-                    // e.g. visualizeColumn(column);
+                    const type = this.getAttribute('data-type');
+                    showColumnEditor(column, type);
                 });
             });
             
@@ -871,13 +870,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (columnStats) {
                 return `${columnStats.distribution_type || 'Unknown'}`;
             }
-        } else if (columnType === 'categorical') {
-            const catStats = stats.categorical_stats[column];
+            } else if (columnType === 'categorical') {
+                const catStats = stats.categorical_stats[column];
             if (catStats) {
                 return `${catStats.unique_count} unique values`;
             }
-        } else if (columnType === 'boolean') {
-            const boolStats = stats.boolean_stats[column];
+            } else if (columnType === 'boolean') {
+                const boolStats = stats.boolean_stats[column];
             if (boolStats) {
                 return `True: ${boolStats.true_percentage.toFixed(1)}%`;
             }
@@ -1354,5 +1353,334 @@ document.addEventListener('DOMContentLoaded', function() {
                 validationElement.textContent = 'No column specification provided';
             }
         });
+    }
+
+    // Function to show column preview with plots
+    function showColumnPreview(column, type) {
+        // Create modal for plots
+        const modal = document.createElement('div');
+        modal.className = 'modal plot-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Column Preview: ${column}</h3>
+                <div class="plots-container">
+                    <div class="loading-spinner">Generating plots...</div>
+                </div>
+                <button class="close-modal">Close</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add event listener for close button
+        modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // Fetch plots from backend
+        fetch(`/api/generate-plots/${encodeURIComponent(column)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const plotsContainer = modal.querySelector('.plots-container');
+                    plotsContainer.innerHTML = '';
+
+                    // Display plots based on column type
+                    if (type === 'numeric' || type === 'discrete') {
+                        plotsContainer.innerHTML = `
+                            <div class="plot-grid">
+                                <div class="plot">
+                                    <h4>Histogram</h4>
+                                    <img src="data:image/png;base64,${data.plots.histogram}" alt="Histogram">
+                                </div>
+                                <div class="plot">
+                                    <h4>Q-Q Plot</h4>
+                                    <img src="data:image/png;base64,${data.plots.qq_plot}" alt="Q-Q Plot">
+                                </div>
+                                <div class="plot">
+                                    <h4>Box Plot</h4>
+                                    <img src="data:image/png;base64,${data.plots.box_plot}" alt="Box Plot">
+                                </div>
+                            </div>
+                        `;
+                    } else if (type === 'categorical' || type === 'boolean') {
+                        plotsContainer.innerHTML = `
+                            <div class="plot-grid">
+                                <div class="plot">
+                                    <h4>Distribution</h4>
+                                    <img src="data:image/png;base64,${data.plots.pie_chart}" alt="Pie Chart">
+                                </div>
+                                <div class="plot">
+                                    <h4>Bar Plot</h4>
+                                    <img src="data:image/png;base64,${data.plots.bar_plot}" alt="Bar Plot">
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to generate plots');
+                }
+            })
+            .catch(error => {
+                modal.querySelector('.plots-container').innerHTML = `
+                    <div class="error-message">Error generating plots: ${error.message}</div>
+                `;
+            });
+    }
+
+    // Function to show column editor for numeric columns
+    function showColumnEditor(column, type) {
+        // First fetch current column stats
+        fetch(`/api/column-data/${encodeURIComponent(column)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const stats = data.column_data.stats;
+                    const currentMin = parseFloat(stats.Min);
+                    const currentMax = parseFloat(stats.Max);
+                    
+                    // Get the modal
+                    const modal = document.getElementById('plotModal');
+                    const boundaryForm = modal.querySelector('.boundary-form');
+                    
+                    // Update form values
+                    modal.querySelector('#selectedColumn').value = column;
+                    modal.querySelector('#minValue').value = currentMin;
+                    modal.querySelector('#maxValue').value = currentMax;
+                    modal.querySelector('h2').textContent = `Column Analysis: ${column}`;
+                    
+                    // Show the modal and boundary form
+                    modal.style.display = 'block';
+                    modal.classList.add('show-boundary');
+                    
+                    // Load plots
+                    loadPlots(column);
+                    
+                    // Add event listeners if not already added
+                    if (!modal._listenersAdded) {
+                        // Close button
+                        modal.querySelector('.close').addEventListener('click', () => {
+                            modal.style.display = 'none';
+                            modal.classList.remove('show-boundary');
+                        });
+                        
+                        // Click outside modal
+                        window.addEventListener('click', (e) => {
+                            if (e.target === modal) {
+                                modal.style.display = 'none';
+                                modal.classList.remove('show-boundary');
+                            }
+                        });
+                        
+                        // Form submission
+                        modal.querySelector('#boundaryForm').addEventListener('submit', (e) => {
+                            e.preventDefault();
+                            const newMin = parseFloat(modal.querySelector('#minValue').value);
+                            const newMax = parseFloat(modal.querySelector('#maxValue').value);
+                            const validationMessage = modal.querySelector('.validation-message');
+                            
+                            if (isNaN(newMin) || isNaN(newMax)) {
+                                validationMessage.textContent = 'Please enter valid numbers';
+                                validationMessage.className = 'validation-message error';
+                                return;
+                            }
+                            
+                            if (newMin >= newMax) {
+                                validationMessage.textContent = 'Minimum must be less than maximum';
+                                validationMessage.className = 'validation-message error';
+                                return;
+                            }
+                            
+                            // Send update to backend
+                            fetch('/api/columns/' + column + '/boundaries', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    min_value: newMin,
+                                    max_value: newMax
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    modal.style.display = 'none';
+                                    modal.classList.remove('show-boundary');
+                                    // Refresh the stats display
+                                    loadDescriptiveStats();
+                                } else {
+                                    throw new Error(data.message || 'Failed to update boundaries');
+                                }
+                            })
+                            .catch(error => {
+                                validationMessage.textContent = `Error: ${error.message}`;
+                                validationMessage.className = 'validation-message error';
+                            });
+                        });
+                        
+                        modal._listenersAdded = true;
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to fetch column data');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`Error loading column data: ${error.message}`);
+            });
+    }
+
+    // Function to load plots for a column
+    function loadPlots(column) {
+        fetch(`/api/plots/${column}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const plotContainer = document.querySelector('.plot-container');
+                    
+                    // Clear existing plots
+                    plotContainer.innerHTML = '';
+                    
+                    // Add new plots
+                    Object.entries(data.plots).forEach(([plotType, base64Data]) => {
+                        const plotDiv = document.createElement('div');
+                        plotDiv.className = 'plot';
+                        plotDiv.innerHTML = `
+                            <h4>${plotType.charAt(0).toUpperCase() + plotType.slice(1)}</h4>
+                            <img src="data:image/png;base64,${base64Data}" alt="${plotType} plot">
+                        `;
+                        plotContainer.appendChild(plotDiv);
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to load plots');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading plots:', error);
+            });
+    }
+
+    async function generatePlots(columnName) {
+        try {
+            const response = await fetch(`/api/plots/${columnName}`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                // Update plot containers with the received base64 images
+                const plotTypes = ['histogram', 'qq_plot', 'box_plot', 'bar_plot', 'pie_chart'];
+                plotTypes.forEach(plotType => {
+                    if (data.plots[plotType]) {
+                        const plotContainer = document.getElementById(`${plotType}-container`);
+                        if (plotContainer) {
+                            plotContainer.innerHTML = `<img src="data:image/png;base64,${data.plots[plotType]}" alt="${plotType}">`;
+                        }
+                    }
+                });
+            } else {
+                console.error('Error generating plots:', data.message);
+            }
+        } catch (error) {
+            console.error('Error fetching plots:', error);
+        }
+    }
+
+    async function updateColumnBoundaries(columnName, minValue, maxValue) {
+        try {
+            const response = await fetch(`/api/columns/${columnName}/boundaries`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    min_value: minValue,
+                    max_value: maxValue
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                // Update the statistics display with new values
+                updateColumnStatistics(columnName, data.statistics);
+                // Regenerate plots with updated data
+                generatePlots(columnName);
+            } else {
+                console.error('Error updating boundaries:', data.message);
+            }
+        } catch (error) {
+            console.error('Error updating column boundaries:', error);
+        }
+    }
+
+    // Add event listeners for the boundary update form
+    document.addEventListener('DOMContentLoaded', function() {
+        const boundaryForm = document.getElementById('boundary-form');
+        if (boundaryForm) {
+            boundaryForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const columnName = document.getElementById('column-select').value;
+                const minValue = document.getElementById('min-value').value;
+                const maxValue = document.getElementById('max-value').value;
+                
+                updateColumnBoundaries(columnName, minValue, maxValue);
+            });
+        }
+    });
+
+    /**
+     * Opens the plot modal for a specific column and loads its plots
+     * @param {string} columnName - The name of the column to display plots for
+     */
+    function openPlotModal(columnName) {
+        const modal = document.getElementById('plotModal');
+        const modalTitle = document.getElementById('plotModalTitle');
+        const columnInput = document.getElementById('selectedColumn');
+        
+        modalTitle.textContent = `Analysis: ${columnName}`;
+        columnInput.value = columnName;
+        modal.style.display = 'block';
+        
+        // Load plots for the column
+        loadPlots(columnName);
+    }
+
+    /**
+     * Closes the plot modal
+     */
+    function closePlotModal() {
+        const modal = document.getElementById('plotModal');
+        modal.style.display = 'none';
+        
+        // Clear plot containers
+        const plotContainers = document.querySelectorAll('.plot');
+        plotContainers.forEach(container => {
+            container.innerHTML = 'Loading...';
+        });
+    }
+
+    /**
+     * Loads and displays plots for a specific column
+     * @param {string} columnName - The name of the column to generate plots for
+     */
+    async function loadPlots(columnName) {
+        try {
+            const response = await fetch(`/api/plots/${columnName}`);
+            if (!response.ok) {
+                throw new Error('Failed to load plots');
+            }
+            
+            const plotData = await response.json();
+            
+            // Update each plot container with its corresponding plot
+            Object.entries(plotData).forEach(([plotType, plotUrl]) => {
+                const container = document.getElementById(`${plotType}Plot`);
+                if (container) {
+                    container.innerHTML = `<img src="${plotUrl}" alt="${plotType} plot">`;
+                }
+            });
+        } catch (error) {
+            console.error('Error loading plots:', error);
+        }
     }
 });
