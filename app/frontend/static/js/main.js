@@ -842,9 +842,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const min = columnStats.descriptive_stats.min;
                 const max = columnStats.descriptive_stats.max;
                 if (min !== undefined && max !== undefined) {
+                    // Format numbers without decimals if they are integers
+                    const formatNumber = (num) => {
+                        return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+                    };
                     return `
                         <div class="range-container">
-                            <span class="range-display" data-min="${min}" data-max="${max}">${min.toFixed(2)} - ${max.toFixed(2)}</span>
+                            <span class="range-display" data-min="${min}" data-max="${max}">${formatNumber(min)} - ${formatNumber(max)}</span>
                             <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
                         </div>`;
                 }
@@ -1493,12 +1497,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentMin = parseFloat(rangeDisplay.getAttribute('data-min'));
                 const currentMax = parseFloat(rangeDisplay.getAttribute('data-max'));
 
+                // Format numbers without decimals if they are integers
+                const formatNumber = (num) => {
+                    return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+                };
+
                 // Create inline edit form with current values
                 rangeCell.innerHTML = `
                     <form class="range-edit-form">
-                        <input type="number" class="range-input min-input" value="${currentMin.toFixed(2)}" step="any">
+                        <input type="number" class="range-input min-input" value="${formatNumber(currentMin)}" step="any">
                         <span>-</span>
-                        <input type="number" class="range-input max-input" value="${currentMax.toFixed(2)}" step="any">
+                        <input type="number" class="range-input max-input" value="${formatNumber(currentMax)}" step="any">
                         <button type="submit" class="save-range">✓</button>
                         <button type="button" class="cancel-edit">✗</button>
                         <div class="validation-message"></div>
@@ -1512,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Store original values for cancel
                 const originalContent = `
                     <div class="range-container">
-                        <span class="range-display" data-min="${currentMin}" data-max="${currentMax}">${currentMin.toFixed(2)} - ${currentMax.toFixed(2)}</span>
+                        <span class="range-display" data-min="${currentMin}" data-max="${currentMax}">${formatNumber(currentMin)} - ${formatNumber(currentMax)}</span>
                         <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
                     </div>`;
                 
@@ -1629,7 +1638,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             rangeCell.innerHTML = `
                                 <div class="range-container">
                                     <span class="range-display" data-min="${newStats.min}" data-max="${newStats.max}">
-                                        ${newStats.min.toFixed(2)} - ${newStats.max.toFixed(2)}
+                                        ${formatNumber(newStats.min)} - ${formatNumber(newStats.max)}
                                     </span>
                                     <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
                                 </div>`;

@@ -288,7 +288,7 @@
     border-radius: 6px;
     font-size: 14px;
     transition: all 0.2s;
-    width: 100%;
+    width: auto;  /* Override the 100% width */
 }
 
 .input-group input:focus {
@@ -530,12 +530,12 @@
 }
 
 .range-input {
-    width: 60px;
-    padding: 2px 4px;
-    border: 1px solid #ddd;
+    width: 60px !important;  /* Force narrow width */
+    padding: 4px;
+    margin: 0 4px;
+    border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 0.9em;
-    font-family: monospace;
 }
 
 .range-input:focus {
