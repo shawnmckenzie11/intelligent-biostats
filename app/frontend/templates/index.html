@@ -92,7 +92,31 @@
                     </button>
                 </div>
                 <div class="preview-content" id="descriptiveContent">
-                    <!-- Content will be dynamically added here -->
+                    <div class="stats-dashboard horizontal">
+                        <div class="file-stats-panel">
+                            <div class="file-stats-content"></div>
+                        </div>
+                        <div class="column-stats-panel">
+                            <div class="search-container">
+                                <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
+                            </div>
+                            <div class="column-stats-table-container">
+                                <table class="column-stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Column Name</th>
+                                            <th>Type</th>
+                                            <th>Missing Values</th>
+                                            <th>Range</th>
+                                            <th>Notes</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="columnStatsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             

@@ -264,167 +264,32 @@ class DataManager:
                 'std': float(series.std()),
                 'skewness': float(series.skew()),
                 'kurtosis': float(series.kurtosis()),
-                'distribution_type': self._determine_distribution(column, col_type, ignore_flags)
+                'distribution_type': self._determine_distribution(series)
             })
             
         return properties
     
-    def _determine_distribution(self, column: str, col_type: ColumnType, ignore_flags: bool = False) -> Dict[str, Any]:
-        """Determine the statistical distribution of a numerical column.
+    def _determine_distribution(self, series: pd.Series) -> str:
+        """Determine the type of distribution for a numeric series."""
+        if len(series) < 30:
+            return "Insufficient data"
+            
+        skewness = series.skew()
+        kurtosis = series.kurtosis()
         
-        Args:
-            column: Name of the column to analyze
-            col_type: Type of the column
-            ignore_flags: If True, ignore values flagged as outliers or missing
-            
-        Returns:
-            Dictionary containing distribution information including:
-            - distribution_type: The identified distribution type
-            - parameters: Distribution-specific parameters
-            - goodness_of_fit: Goodness of fit metrics
-            - confidence: Confidence level in the identification
-        """
-        if self.data is None or column not in self.data.columns:
-            return {
-                'distribution_type': 'unknown',
-                'error': 'Column not found or no data loaded'
-            }
-        
-        if col_type not in [ColumnType.NUMERIC, ColumnType.DISCRETE]:
-            return {
-                'distribution_type': 'non_numeric',
-                'error': 'Distribution analysis only applicable to numeric data'
-            }
-        
-        try:
-            # Get the data series
-            series = self.data[column].copy()
-            
-            # If ignoring flags, remove flagged values
-            if ignore_flags and self.point_flags is not None:
-                col_idx = self.data.columns.get_loc(column)
-                valid_mask = self.point_flags[:, col_idx] == DataPointFlag.NORMAL
-                series = series[valid_mask]
-            
-            # Remove any remaining NaN values
-            series = series.dropna()
-            
-            if len(series) < 30:
-                return {
-                    'distribution_type': 'insufficient_data',
-                    'error': 'Insufficient data points for distribution analysis'
-                }
-            
-            # Calculate basic statistics
-            mean = series.mean()
-            std = series.std()
-            skewness = series.skew()
-            kurtosis = series.kurtosis()
-            
-            # Initialize result dictionary
-            result = {
-                'distribution_type': 'unknown',
-                'parameters': {},
-                'goodness_of_fit': {},
-                'confidence': 0.0
-            }
-            
-            # Test for normal distribution
-            if abs(skewness) < 0.5 and abs(kurtosis) < 2:
-                # Perform Shapiro-Wilk test for normality
-                shapiro_stat, shapiro_p = stats.shapiro(series)
-                
-                if shapiro_p > 0.05:  # Cannot reject null hypothesis of normality
-                    result['distribution_type'] = 'normal'
-                    result['parameters'] = {
-                        'mean': float(mean),
-                        'std': float(std)
-                    }
-                    result['goodness_of_fit'] = {
-                        'shapiro_wilk_stat': float(shapiro_stat),
-                        'shapiro_wilk_p': float(shapiro_p)
-                    }
-                    result['confidence'] = 1.0 - shapiro_p
-                    return result
-            
-            # Test for log-normal distribution
-            if skewness > 0:  # Positive skew suggests log-normal
-                log_series = np.log(series[series > 0])
-                if len(log_series) > 30:  # Ensure enough data points
-                    log_shapiro_stat, log_shapiro_p = stats.shapiro(log_series)
-                    if log_shapiro_p > 0.05:
-                        result['distribution_type'] = 'log_normal'
-                        result['parameters'] = {
-                            'mu': float(log_series.mean()),
-                            'sigma': float(log_series.std())
-                        }
-                        result['goodness_of_fit'] = {
-                            'shapiro_wilk_stat': float(log_shapiro_stat),
-                            'shapiro_wilk_p': float(log_shapiro_p)
-                        }
-                        result['confidence'] = 1.0 - log_shapiro_p
-                        return result
-            
-            # Test for exponential distribution
-            if skewness > 1 and kurtosis > 6:  # Exponential-like characteristics
-                exp_scale = 1.0 / mean
-                ks_stat, ks_p = stats.kstest(series, 'expon', args=(0, 1/exp_scale))
-                if ks_p > 0.05:
-                    result['distribution_type'] = 'exponential'
-                    result['parameters'] = {
-                        'scale': float(1/exp_scale)
-                    }
-                    result['goodness_of_fit'] = {
-                        'ks_stat': float(ks_stat),
-                        'ks_p': float(ks_p)
-                    }
-                    result['confidence'] = 1.0 - ks_p
-                    return result
-            
-            # Test for uniform distribution
-            if abs(skewness) < 0.5 and abs(kurtosis) < 1.8:  # Uniform-like characteristics
-                ks_stat, ks_p = stats.kstest(series, 'uniform', args=(series.min(), series.max() - series.min()))
-                if ks_p > 0.05:
-                    result['distribution_type'] = 'uniform'
-                    result['parameters'] = {
-                        'min': float(series.min()),
-                        'max': float(series.max())
-                    }
-                    result['goodness_of_fit'] = {
-                        'ks_stat': float(ks_stat),
-                        'ks_p': float(ks_p)
-                    }
-                    result['confidence'] = 1.0 - ks_p
-                    return result
-            
-            # If no specific distribution is identified, classify based on skewness and kurtosis
-            if skewness > 1:
-                result['distribution_type'] = 'right_skewed'
-            elif skewness < -1:
-                result['distribution_type'] = 'left_skewed'
-            elif kurtosis > 3:
-                result['distribution_type'] = 'heavy_tailed'
-            elif kurtosis < 1.8:
-                result['distribution_type'] = 'light_tailed'
-            else:
-                result['distribution_type'] = 'unknown'
-            
-            # Add descriptive statistics
-            result['descriptive_stats'] = {
-                'skewness': float(skewness),
-                'kurtosis': float(kurtosis),
-                'mean': float(mean),
-                'std': float(std)
-            }
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error determining distribution for column {column}: {str(e)}")
-            return {
-                'distribution_type': 'error',
-                'error': str(e)
-            }
+        # Test for normality using skewness and kurtosis
+        if abs(skewness) < 0.5 and abs(kurtosis - 3) < 0.5:
+            return "Normal"
+        elif skewness > 1:
+            return "Right-skewed"
+        elif skewness < -1:
+            return "Left-skewed"
+        elif kurtosis > 4:
+            return "Heavy-tailed"
+        elif kurtosis < 2:
+            return "Light-tailed"
+        else:
+            return "Non-normal"
     
     def _validate_data(self) -> None:
         """Validate the data against defined rules."""
@@ -626,7 +491,7 @@ class DataManager:
             else:
                 col_type = 'categorical'
                 type_counts['categorical'] += 1
-            
+                
             column_types_list.append(col_type)
         
         return {
@@ -946,11 +811,7 @@ class DataManager:
         }
 
     def calculate_descriptive_stats(self) -> None:
-        """Calculate and store descriptive statistics for all columns in the dataset.
-        
-        This method should be called after loading data to pre-calculate statistics
-        for better performance with large files.
-        """
+        """Calculate and store descriptive statistics for all columns in the dataset."""
         if self.data is None:
             return
             
@@ -965,65 +826,63 @@ class DataManager:
         
         for i, col in enumerate(self.data.columns):
             try:
-                # Get column data and type
                 col_data = self.data[col]
                 
-                # Determine column type
                 if pd.api.types.is_numeric_dtype(col_data):
-                    if col_data.nunique() < 20:  # threshold for discrete
+                    if col_data.nunique() < 20:
                         column_types_list.append('discrete')
                     else:
                         column_types_list.append('numeric')
-                        # Calculate skewness and kurtosis for numeric columns
-                        skewness = col_data.skew()
-                        kurtosis = col_data.kurtosis()
+                    
+                    # Calculate descriptive stats for numeric columns
+                    clean_data = col_data.dropna()
+                    if len(clean_data) > 0:
+                        skewness = clean_data.skew()
+                        kurtosis = clean_data.kurtosis()
+                        mean = clean_data.mean()
+                        std = clean_data.std()
+                        min_val = clean_data.min()
+                        max_val = clean_data.max()
+                        
                         distribution_analysis[col] = {
                             'skewness': float(skewness),
                             'kurtosis': float(kurtosis),
-                            'transformation_suggestion': self._get_transformation_suggestion(skewness, kurtosis)
+                            'descriptive_stats': {
+                                'mean': float(mean),
+                                'std': float(std),
+                                'min': float(min_val),
+                                'max': float(max_val)
+                            },
+                            'distribution_type': self._determine_distribution(clean_data)
                         }
                         
-                        # Calculate outliers for numeric columns
-                        mean = col_data.mean()
-                        std = col_data.std()
-                        q1 = col_data.quantile(0.25)
-                        q3 = col_data.quantile(0.75)
+                        # Calculate outliers
+                        q1 = clean_data.quantile(0.25)
+                        q3 = clean_data.quantile(0.75)
                         iqr = q3 - q1
-                        
-                        # Determine distribution type and set appropriate thresholds
-                        if abs(skewness) < 0.5 and abs(kurtosis) < 2:  # Normal
-                            lower_bound = mean - 3 * std
-                            upper_bound = mean + 3 * std
-                        elif abs(skewness) > 1:  # Skewed
-                            lower_bound = q1 - 1.5 * iqr
-                            upper_bound = q3 + 1.5 * iqr
-                        else:  # Heavy-tailed
-                            lower_bound = q1 - 2.5 * iqr
-                            upper_bound = q3 + 2.5 * iqr
-                        
-                        # Count outliers
-                        outliers = col_data[(col_data < lower_bound) | (col_data > upper_bound)]
+                        lower_bound = q1 - 1.5 * iqr
+                        upper_bound = q3 + 1.5 * iqr
+                        outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
                         outlier_info[col] = {
                             'count': int(len(outliers)),
-                            'percentage': float(len(outliers) / len(col_data) * 100)
+                            'percentage': float(len(outliers) / len(clean_data) * 100)
                         }
+                        
                 elif pd.api.types.is_datetime64_any_dtype(col_data):
                     column_types_list.append('timeseries')
-                    # Calculate datetime statistics
-                    datetime_stats[col] = {
-                        'start_date': str(col_data.min()),
-                        'end_date': str(col_data.max()),
-                        'range': str(col_data.max() - col_data.min()),
-                        'time_interval': self._calculate_time_interval(col_data)
-                    }
+                    clean_data = col_data.dropna()
+                    if len(clean_data) > 0:
+                        datetime_stats[col] = {
+                            'start_date': str(clean_data.min()),
+                            'end_date': str(clean_data.max()),
+                            'range': str(clean_data.max() - clean_data.min()),
+                            'time_interval': self._calculate_time_interval(clean_data)
+                        }
                 else:
-                    # For non-numeric, non-datetime columns
                     if col_data.nunique() == 2:
-                        # Check if the values are actually boolean-like
                         unique_values = col_data.dropna().unique()
                         if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
                             column_types_list.append('boolean')
-                            # Calculate boolean statistics
                             true_count = (col_data == True).sum() + (col_data == 'True').sum() + (col_data == 'true').sum() + (col_data == 1).sum() + (col_data == '1').sum()
                             false_count = (col_data == False).sum() + (col_data == 'False').sum() + (col_data == 'false').sum() + (col_data == 0).sum() + (col_data == '0').sum()
                             total = true_count + false_count
@@ -1036,7 +895,6 @@ class DataManager:
                             column_types_list.append('categorical')
                     else:
                         column_types_list.append('categorical')
-                        # Calculate categorical statistics
                         value_counts = col_data.value_counts()
                         categorical_stats[col] = {
                             'unique_count': int(col_data.nunique()),
@@ -1050,7 +908,6 @@ class DataManager:
                             ]
                         }
                 
-                # Count missing values
                 missing_count = col_data.isna().sum()
                 if missing_count > 0:
                     missing_values_by_column[col] = int(missing_count)
@@ -1059,7 +916,6 @@ class DataManager:
                 logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
                 continue
         
-        # Store the calculated statistics
         self._descriptive_stats = {
             'file_stats': self.get_file_statistics(),
             'column_types': {

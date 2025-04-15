@@ -666,24 +666,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Fetch descriptive stats from the API
         fetch('/api/descriptive-stats')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
                     throw new Error(data.error || 'Failed to load descriptive statistics');
                 }
                 
                 // Display descriptive stats
                 displayDescriptiveStats(data.stats);
-            })
-            .catch(error => {
+                })
+                .catch(error => {
                 console.error('Error loading descriptive stats:', error);
-                statsContainer.innerHTML = `
-                    <div class="error-message">
+                    statsContainer.innerHTML = `
+                        <div class="error-message">
                         Error loading descriptive statistics: ${error.message}
-                    </div>
-                `;
-            });
-    }
+                        </div>
+                    `;
+                });
+        }
 
     function displayDescriptiveStats(stats) {
         const statsContainer = document.getElementById('descriptiveContent');
@@ -700,73 +700,71 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="stats-dashboard horizontal">
                 <div class="file-stats-panel" title="File Statistics">
                     <div class="file-stats-content"></div>
-                </div>
+                                </div>
                 <div class="column-stats-panel" title="Column Statistics">
                     <div class="search-container">
                         <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
-                    </div>
+                            </div>
                     <div class="column-stats-table-container">
                         <table class="column-stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Column Name</th>
-                                    <th>Type</th>
-                                    <th>Missing Values</th>
-                                    <th>Data Preview</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Flags</th>
+                                                <th>Range</th>
+                                                <th>Distribution</th>
+                                                <th>Preview</th>
+                                                <th>Edit</th>
+                                            </tr>
+                                        </thead>
                             <tbody id="columnStatsTableBody">
                                 <!-- Column data will be inserted here -->
                             </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        `;
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
         statsContainer.innerHTML = layoutHtml;
 
         // Populate file statistics
         const fileStatsContent = statsContainer.querySelector('.file-stats-content');
-        if (stats.file_stats) {
+        if (stats.file_stats && fileStatsContent) {
             const fileStats = stats.file_stats;
-            basicStatsContent.innerHTML = `
-                <div class="file-stats-grid compact">
-                    <div class="stat-card">
-                        <div class="stat-value">${fileStats.rows.toLocaleString()}</div>
-                        <div class="stat-label">Rows</div>
+            fileStatsContent.innerHTML = `
+                <div class="column-type-summary vertical">
+                    <div class="type-card">
+                        <div class="type-count">${fileStats.rows.toLocaleString()}</div>
+                        <div class="type-label">Rows</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${fileStats.columns.toLocaleString()}</div>
-                        <div class="stat-label">Columns</div>
+                    <div class="type-card">
+                        <div class="type-count">${fileStats.columns.toLocaleString()}</div>
+                        <div class="type-label">Columns</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${fileStats.memory_usage}</div>
-                        <div class="stat-label">Memory Usage</div>
+                    <div class="type-card">
+                        <div class="type-count">${fileStats.memory_usage}</div>
+                        <div class="type-label">Memory Usage</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${fileStats.missing_values.toLocaleString()}</div>
-                        <div class="stat-label">Missingues</div>
+                    <div class="type-card">
+                        <div class="type-count">${fileStats.missing_values.toLocaleString()}</div>
+                        <div class="type-label">Missing Values</div>
                     </div>
-                </div>
-                <div class="column-type-summary compact">
-                    <div class="column-type-grid">
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.numeric || 0}</div>
-                            <div class="type-label">Numeric</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.categorical || 0}</div>
-                            <div class="type-label">Categorical</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.boolean || 0}</div>
-                            <div class="type-label">Boolean</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.datetime || 0}</div>
-                            <div class="type-label">DateTime</div>
-                        </div>
+                    <div class="type-card">
+                        <div class="type-count">${stats.column_types.numeric || 0}</div>
+                        <div class="type-label">Numeric</div>
+                    </div>
+                    <div class="type-card">
+                        <div class="type-count">${stats.column_types.categorical || 0}</div>
+                        <div class="type-label">Categorical</div>
+                    </div>
+                    <div class="type-card">
+                        <div class="type-count">${stats.column_types.boolean || 0}</div>
+                        <div class="type-label">Boolean</div>
+                    </div>
+                    <div class="type-card">
+                        <div class="type-count">${stats.column_types.datetime || 0}</div>
+                        <div class="type-label">DateTime</div>
                     </div>
                 </div>
             `;
@@ -789,39 +787,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Create the row
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${column}</td>
-                    <td>
-                        <span class="column-type ${columnType}">${columnType}</span>
-                        ${hasOutliers ? '<span class="outlier-indicator" title="Contains outliers">⚠️</span>' : ''}
-                    </td>
-                    <td>${missingCount} (${((missingCount / stats.file_stats.rows) * 100).toFixed(1)}%)</td>
-                    <td class="data-preview-cell">
-                        ${getDataPreviewForColumn(column, columnType, stats)}
-                    </td>
-                    <td class="action-buttons">
-                        <button class="analyze-btn" data-column="${column}">Analyze</button>
-                        <button class="visualize-btn" data-column="${column}">Visualize</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${column}</td>
+                <td>
+                    <span class="column-type ${columnType}">${columnType}</span>
+                </td>
+                <td>
+                    ${hasOutliers ? `<span class="flag-indicator outlier" title="${stats.outlier_info[column].count} outliers (${stats.outlier_info[column].percentage.toFixed(1)}%)">⚠️</span>` : ''}
+                    ${missingCount > 0 ? `<span class="flag-indicator missing" title="${missingCount} missing values (${((missingCount / stats.file_stats.rows) * 100).toFixed(1)}%)">❌</span>` : ''}
+                </td>
+                <td>${getColumnRange(column, columnType, stats)}</td>
+                <td class="data-preview-cell">
+                    ${getDistributionInfo(column, columnType, stats)}
+                </td>
+                <td class="action-buttons">
+                    <button class="analyze-btn" data-column="${column}">Edit</button>
+                    <button class="visualize-btn" data-column="${column}">View Plots</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+
             // Add event listeners to the action buttons
             document.querySelectorAll('.analyze-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const column = this.getAttribute('data-column');
-                    console.log(`Analyze clicked for column: ${column}`);
+            button.addEventListener('click', function() {
+                const column = this.getAttribute('data-column');
+                console.log(`Analyze clicked for column: ${column}`);
                     // Here you would call a function to open the analysis panel for this column
                     // e.g. openAnalysisFor(column);
-                });
             });
-            
+        });
+
             document.querySelectorAll('.visualize-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const column = this.getAttribute('data-column');
-                    console.log(`Visualize clicked for column: ${column}`);
+            button.addEventListener('click', function() {
+                const column = this.getAttribute('data-column');
+                console.log(`Visualize clicked for column: ${column}`);
                     // Here you would call a function to visualize this column
                     // e.g. visualizeColumn(column);
                 });
@@ -839,64 +840,54 @@ document.addEventListener('DOMContentLoaded', function() {
                         row.style.display = 'none';
                     }
                 });
-            });
+        });
         }
     }
     
-    function getDataPreviewForColumn(column, columnType, stats) {
-        // Generate an appropriate data preview based on column type
-        switch (columnType) {
-            case 'numeric':
-                if (stats.distribution_analysis && stats.distribution_analysis[column]) {
-                    const analysis = stats.distribution_analysis[column];
-                    return `
-                        <div class="sparkline-container">
-                            <div class="numeric-preview">
-                                <span title="Skewness">S: ${analysis.skewness.toFixed(2)}</span>
-                                <span title="Kurtosis">K: ${analysis.kurtosis.toFixed(2)}</span>
-                </div>
-                </div>
-            `;
+    function getColumnRange(column, columnType, stats) {
+        if (columnType === 'numeric' || columnType === 'discrete') {
+            const columnStats = stats.distribution_analysis[column];
+            if (columnStats && columnStats.descriptive_stats) {
+                const min = columnStats.descriptive_stats.min;
+                const max = columnStats.descriptive_stats.max;
+                if (min !== undefined && max !== undefined) {
+                    return `${min.toFixed(2)} - ${max.toFixed(2)}`;
                 }
-                return '<div class="numeric-preview">No data available</div>';
-                
-            case 'categorical':
-                if (stats.categorical_stats && stats.categorical_stats[column]) {
-                    const catStats = stats.categorical_stats[column];
-                    return `
-                        <div class="categorical-preview">
-                            <span>${catStats.unique_count} unique values</span>
-                            <span>Most frequent: ${catStats.most_frequent.value}</span>
-                        </div>
-                    `;
-                }
-                return '<div class="categorical-preview">No data available</div>';
-                
-            case 'boolean':
-                if (stats.boolean_stats && stats.boolean_stats[column]) {
-                    const boolStats = stats.boolean_stats[column];
-                    return `
-                        <div class="boolean-preview">
-                            <span>True: ${boolStats.true_count} (${boolStats.true_percentage.toFixed(1)}%)</span>
-                        </div>
-                    `;
-                }
-                return '<div class="boolean-preview">No data available</div>';
-                
-            case 'timeseries':
-                if (stats.datetime_stats && stats.datetime_stats[column]) {
-                    const dateStats = stats.datetime_stats[column];
-                    return `
-                        <div class="datetime-preview">
-                            <span>${dateStats.time_interval}</span>
-            </div>
-        `;
-                }
-                return '<div class="datetime-preview">No data available</div>';
-                
-            default:
-                return '<div class="data-preview">No preview available</div>';
+            }
+            return 'N/A';
+        } else if (columnType === 'timeseries') {
+            const timeStats = stats.datetime_stats[column];
+            if (timeStats) {
+                return `${timeStats.start_date} - ${timeStats.end_date}`;
+            }
+            return 'N/A';
         }
+        return 'N/A';
+    }
+
+    function getDistributionInfo(column, columnType, stats) {
+        if (columnType === 'numeric' || columnType === 'discrete') {
+            const columnStats = stats.distribution_analysis[column];
+            if (columnStats) {
+                return `${columnStats.distribution_type || 'Unknown'}`;
+            }
+        } else if (columnType === 'categorical') {
+            const catStats = stats.categorical_stats[column];
+            if (catStats) {
+                return `${catStats.unique_count} unique values`;
+            }
+        } else if (columnType === 'boolean') {
+            const boolStats = stats.boolean_stats[column];
+            if (boolStats) {
+                return `True: ${boolStats.true_percentage.toFixed(1)}%`;
+            }
+        } else if (columnType === 'timeseries') {
+            const timeStats = stats.datetime_stats[column];
+            if (timeStats) {
+                return `Interval: ${timeStats.time_interval}`;
+            }
+        }
+        return 'N/A';
     }
 
     // Add function to load and display smart recommendations
