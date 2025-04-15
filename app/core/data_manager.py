@@ -533,7 +533,7 @@ class DataManager:
                         'End Date': time_stats['end_date'],
                         'Date Range': time_stats['range'],
                         'Time Interval': time_stats['time_interval']
-                    })
+                })
             
             # Get sample data (first 10 rows)
             sample_data = self.data[column_name].head(10).tolist()
@@ -710,7 +710,7 @@ class DataManager:
         Returns:
             tuple: (success, message, preview)
         """
-        try:             
+        try:
             # Convert any numeric indices to column names
             column_to_delete = [
                 self.data.columns[col] if isinstance(col, int) else col 
@@ -1074,38 +1074,6 @@ class DataManager:
         buf.close()
         return img_str
 
-    def update_column_boundaries(self, column_name: str, min_value: float, max_value: float) -> Dict[str, float]:
-        """
-        Update the boundaries of a numeric column by filtering out values outside the specified range.
-        
-        Args:
-            column_name (str): Name of the column to update
-            min_value (float): New minimum value for the column
-            max_value (float): New maximum value for the column
-            
-        Returns:
-            Dict[str, float]: Dictionary containing the new statistics for the column
-        """
-        if self.data is None or column_name not in self.data.columns:
-            raise ValueError(f"Column {column_name} not found in dataset")
-            
-        if not pd.api.types.is_numeric_dtype(self.data[column_name]):
-            raise ValueError(f"Column {column_name} is not numeric")
-            
-        if min_value >= max_value:
-            raise ValueError("Minimum value must be less than maximum value")
-            
-        # Create a mask for values within the specified range
-        mask = (self.data[column_name] >= min_value) & (self.data[column_name] <= max_value)
-        self.data.loc[~mask, column_name] = np.nan
-        
-        # Update point flags for this column
-        col_idx = self.data.columns.get_loc(column_name)
-        self._update_point_flags()
-        
-        # Return updated statistics for the column
-        return self._calculate_statistical_properties(column_name, self._determine_column_type(self.data[column_name]))
-
     def update_descriptive_stats(self) -> None:
         """Update descriptive statistics after column deletion.
         
@@ -1224,3 +1192,227 @@ class DataManager:
         
         # Update validation results
         self._descriptive_stats['validation_results'] = self._validate_data()
+
+    def update_column_data_ignoring_flags(self, column_name: str) -> Dict[str, Any]:
+        """
+        Update column statistics and descriptive stats metadata using only non-flagged values.
+        
+        This method recalculates all statistics for a given column while ignoring any values
+        that have been flagged (e.g., outliers, missing values, etc). This provides "clean"
+        statistics based only on valid data points.
+        
+        Args:
+            column_name (str): Name of the column to update
+            
+        Returns:
+            Dict[str, Any]: Updated statistics for the column, or None if column not found
+            
+        Raises:
+            ValueError: If column_name is not found in the dataset
+        """
+        if self.data is None or column_name not in self.data.columns:
+            raise ValueError(f"Column {column_name} not found in dataset")
+            
+        try:
+            # Get column index and data
+            col_idx = self.data.columns.get_loc(column_name)
+            col_data = self.data[column_name]
+            
+            # Get mask for non-flagged values (only NORMAL flag)
+            clean_mask = (self.point_flags[:, col_idx] == DataPointFlag.NORMAL)
+            clean_data = col_data[clean_mask]
+            
+            # Determine column type
+            col_type = self._determine_column_type(clean_data)
+            
+            # Initialize updated stats dictionary
+            updated_stats = {}
+            
+            if col_type in [ColumnType.NUMERIC, ColumnType.DISCRETE]:
+                # Calculate numeric statistics on clean data
+                clean_data_no_na = clean_data.dropna()
+                if len(clean_data_no_na) > 0:
+                    skewness = float(clean_data_no_na.skew())
+                    kurtosis = float(clean_data_no_na.kurtosis())
+                    mean = float(clean_data_no_na.mean())
+                    std = float(clean_data_no_na.std())
+                    min_val = float(clean_data_no_na.min())
+                    max_val = float(clean_data_no_na.max())
+                    
+                    # Update distribution analysis
+                    self._descriptive_stats['distribution_analysis'][column_name] = {
+                        'skewness': skewness,
+                        'kurtosis': kurtosis,
+                        'descriptive_stats': {
+                            'mean': mean,
+                            'std': std,
+                            'min': min_val,
+                            'max': max_val
+                        },
+                        'distribution_type': self._determine_distribution(clean_data_no_na)
+                    }
+                    
+                    # No need to update outlier info since we're using clean data
+                    updated_stats.update({
+                        'skewness': skewness,
+                        'kurtosis': kurtosis,
+                        'mean': mean,
+                        'std': std,
+                        'min': min_val,
+                        'max': max_val
+                    })
+                    
+            elif col_type == ColumnType.CATEGORICAL:
+                # Update categorical statistics
+                value_counts = clean_data.value_counts()
+                if not value_counts.empty:
+                    self._descriptive_stats['categorical_stats'][column_name] = {
+                        'unique_count': int(clean_data.nunique()),
+                        'most_frequent': {
+                            'value': str(value_counts.index[0]),
+                            'count': int(value_counts.iloc[0])
+                        },
+                        'value_distribution': [
+                            {'value': str(val), 'count': int(count)}
+                            for val, count in value_counts.head(10).items()
+                        ]
+                    }
+                    updated_stats.update({
+                        'unique_count': int(clean_data.nunique()),
+                        'most_frequent_value': str(value_counts.index[0]),
+                        'most_frequent_count': int(value_counts.iloc[0])
+                    })
+                    
+            elif col_type == ColumnType.BOOLEAN:
+                # Update boolean statistics
+                true_count = (clean_data == True).sum() + (clean_data == 'True').sum() + (clean_data == 'true').sum() + (clean_data == 1).sum() + (clean_data == '1').sum()
+                false_count = (clean_data == False).sum() + (clean_data == 'False').sum() + (clean_data == 'false').sum() + (clean_data == 0).sum() + (clean_data == '0').sum()
+                total = true_count + false_count
+                
+                self._descriptive_stats['boolean_stats'][column_name] = {
+                    'true_count': int(true_count),
+                    'false_count': int(false_count),
+                    'true_percentage': float(true_count / total * 100) if total > 0 else 0
+                }
+                updated_stats.update({
+                    'true_count': int(true_count),
+                    'false_count': int(false_count),
+                    'true_percentage': float(true_count / total * 100) if total > 0 else 0
+                })
+                
+            elif col_type == ColumnType.TIMESERIES:
+                # Update datetime statistics
+                clean_data_no_na = clean_data.dropna()
+                if len(clean_data_no_na) > 0:
+                    self._descriptive_stats['datetime_stats'][column_name] = {
+                        'start_date': str(clean_data_no_na.min()),
+                        'end_date': str(clean_data_no_na.max()),
+                        'range': str(clean_data_no_na.max() - clean_data_no_na.min()),
+                        'time_interval': self._calculate_time_interval(clean_data_no_na)
+                    }
+                    updated_stats.update({
+                        'start_date': str(clean_data_no_na.min()),
+                        'end_date': str(clean_data_no_na.max()),
+                        'range': str(clean_data_no_na.max() - clean_data_no_na.min())
+                    })
+            
+            # Update missing values count for this column
+            missing_count = clean_data.isna().sum()
+            if missing_count > 0:
+                self._descriptive_stats['missing_values_by_column'][column_name] = int(missing_count)
+                updated_stats['missing_values'] = int(missing_count)
+            
+            # Log the update
+            self._state_logger.capture_state(self, f"update_column_ignoring_flags_{column_name}", {
+                "column": column_name,
+                "clean_data_points": len(clean_data),
+                "total_points": len(col_data)
+            })
+            
+            return updated_stats
+            
+        except Exception as e:
+            logger.error(f"Error updating column stats ignoring flags: {str(e)}", exc_info=True)
+            raise
+
+    def add_new_column_range_flags(self, column_name: str, min_value: Union[int, float], max_value: Union[int, float]) -> Dict[str, Any]:
+        """
+        Update point flags for a column based on a new valid range, marking values outside as OUTOFBOUNDS.
+        
+        This method updates the point_flags array for the specified column, marking any values
+        outside the specified range as OUTOFBOUNDS while preserving other existing flags.
+        
+        Args:
+            column_name (str): Name of the column to update
+            min_value (Union[int, float]): Minimum valid value (inclusive)
+            max_value (Union[int, float]): Maximum valid value (inclusive)
+            
+        Returns:
+            Dict[str, Any]: Statistics about the flagging operation including:
+                - total_points: Total number of points in the column
+                - outofbounds_points: Number of points flagged as out of bounds
+                - previous_flags: Count of each flag type before update
+                - updated_flags: Count of each flag type after update
+            
+        Raises:
+            ValueError: If column_name not found or min_value >= max_value
+        """
+        if self.data is None or column_name not in self.data.columns:
+            raise ValueError(f"Column {column_name} not found in dataset")
+            
+        if min_value >= max_value:
+            raise ValueError("Minimum value must be less than maximum value")
+            
+        try:
+            # Get column index and data
+            col_idx = self.data.columns.get_loc(column_name)
+            col_data = self.data[column_name]
+            
+            # Verify column is numeric
+            if not pd.api.types.is_numeric_dtype(col_data):
+                raise ValueError(f"Column {column_name} must be numeric to apply range flags")
+            
+            # Get current flag counts for reporting
+            previous_flags = {
+                flag.value: int(np.sum(self.point_flags[:, col_idx] == flag))
+                for flag in DataPointFlag
+            }
+            
+            # Create mask for out of bounds values
+            # Note: We don't want to override MISSING flags
+            outofbounds_mask = (
+                (col_data < min_value) | (col_data > max_value) & 
+                ~col_data.isna()  # Don't flag missing values
+            )
+            
+            # Update flags for out of bounds values while preserving missing value flags
+            missing_mask = (self.point_flags[:, col_idx] == DataPointFlag.MISSING)
+            self.point_flags[outofbounds_mask & ~missing_mask, col_idx] = DataPointFlag.OUTOFBOUNDS
+            
+            # Get updated flag counts
+            updated_flags = {
+                flag.value: int(np.sum(self.point_flags[:, col_idx] == flag))
+                for flag in DataPointFlag
+            }
+            
+            # Calculate statistics about the operation
+            stats = {
+                'total_points': len(col_data),
+                'outofbounds_points': int(np.sum(outofbounds_mask)),
+                'previous_flags': previous_flags,
+                'updated_flags': updated_flags
+            }
+            
+            # Log the update
+            self._state_logger.capture_state(self, f"add_column_range_flags_{column_name}", {
+                "column": column_name,
+                "min_value": min_value,
+                "max_value": max_value,
+                "outofbounds_count": stats['outofbounds_points']
+            })
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error adding column range flags: {str(e)}", exc_info=True)
+            raise

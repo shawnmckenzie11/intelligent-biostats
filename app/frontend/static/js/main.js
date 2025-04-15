@@ -1509,6 +1509,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newMin = parseFloat(minInput.value);
                     const newMax = parseFloat(maxInput.value);
                     
+                    // Debug log the values being sent
+                    console.log('Column being edited:', column);
+                    console.log('Column type:', typeof column);
+                    console.log('Updating column flags with:', {
+                        column: column.trim(), // Ensure no whitespace
+                        min_value: newMin,
+                        max_value: newMax
+                    });
+                    
                     // Validate inputs
                     if (isNaN(newMin) || isNaN(newMax)) {
                         validationMessage.textContent = 'Please enter valid numbers';
@@ -1521,30 +1530,79 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     try {
-                        const response = await fetch('/api/update-column-range', {
+                        // First, update the range flags
+                        const flagResponse = await fetch('/api/update-column-flags', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                                column: column,
-                                start_index: newMin,
-                                end_index: newMax
+                                column: column.trim(), // Ensure no whitespace
+                                min_value: newMin,
+                                max_value: newMax
                             })
                         });
                         
-                        const result = await response.json();
+                        // Debug log the response
+                        console.log('Flag update response status:', flagResponse.status);
+                        const flagData = await flagResponse.clone().json().catch(e => console.error('Error parsing flag response:', e));
+                        console.log('Flag update response data:', flagData);
+                        
+                        if (!flagResponse.ok) {
+                            throw new Error(flagData?.error || 'Failed to update column flags');
+                        }
+                        
+                        // Then, update the column statistics ignoring flags
+                        const statsResponse = await fetch('/api/update-column-stats', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                column: column
+                            })
+                        });
+                        
+                        if (!statsResponse.ok) {
+                            throw new Error('Failed to update column statistics');
+                        }
+                        
+                        const result = await statsResponse.json();
                         if (result.success) {
                             // Update the display with new values and data attributes
+                            const newStats = result.stats;
+                            
+                            // Create the updated row content
                             rangeCell.innerHTML = `
                                 <div class="range-container">
-                                    <span class="range-display" data-min="${newMin}" data-max="${newMax}">${newMin.toFixed(2)} - ${newMax.toFixed(2)}</span>
+                                    <span class="range-display" data-min="${newStats.min}" data-max="${newStats.max}">
+                                        ${newStats.min.toFixed(2)} - ${newStats.max.toFixed(2)}
+                                    </span>
                                     <a href="#" class="edit-icon" data-column="${column}" title="Edit range">✏️</a>
                                 </div>`;
+                                
+                            // Update flag indicators if provided
+                            const flagStats = result.flag_stats;
+                            if (flagStats) {
+                                const flagsCell = rangeCell.closest('tr').querySelector('td:nth-child(3)');
+                                let flagsHtml = '';
+                                
+                                if (flagStats.outliers > 0) {
+                                    flagsHtml += `<span class="flag-indicator outlier" title="${flagStats.outliers} outliers (${flagStats.outlier_percentage.toFixed(1)}%)">⚠️</span>`;
+                                }
+                                if (flagStats.missing > 0) {
+                                    flagsHtml += `<span class="flag-indicator missing" title="${flagStats.missing} missing values (${flagStats.missing_percentage.toFixed(1)}%)">❌</span>`;
+                                }
+                                if (flagStats.outofbounds > 0) {
+                                    flagsHtml += `<span class="flag-indicator outofbounds" title="${flagStats.outofbounds} values out of bounds (${flagStats.outofbounds_percentage.toFixed(1)}%)">⛔</span>`;
+                                }
+                                
+                                flagsCell.innerHTML = flagsHtml;
+                            }
+                            
                             // Reinitialize the edit icon
                             initializeEditButtons();
-                            // Refresh stats to show updated data
-                            loadDescriptiveStats();
+                            
                         } else {
                             throw new Error(result.error || 'Failed to update range');
                         }

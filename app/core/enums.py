@@ -5,4 +5,5 @@ class DataPointFlag(Enum):
     NORMAL = "normal"
     OUTLIER = "outlier"
     MISSING = "missing"
-    UNEXPECTED_TYPE = "unexpected_type" 
+    UNEXPECTED_TYPE = "unexpected_type"
+    OUTOFBOUNDS = "out_of_bounds" 
