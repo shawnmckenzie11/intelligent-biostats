@@ -1,6 +1,7 @@
 import sys
 import platform
 import time
+import re
 
 from typing import Dict, List, Optional, Union, Any, Tuple
 import pandas as pd
@@ -178,8 +179,126 @@ class DataManager:
         return ColumnType.CATEGORICAL
     
     def _is_ordinal(self, series: pd.Series) -> bool:
-        """Check if a series contains ordinal data."""
-        # Implementation for ordinal detection
+        """
+        Check if a series contains ordinal data.
+        
+        This method uses multiple heuristics to detect ordinal data:
+        1. Check for common ordinal patterns (1st, 2nd, 3rd, etc.)
+        2. Check for hierarchical/ranked terms (e.g., low/medium/high)
+        3. Check for size-based ordering (small/medium/large)
+        4. Check for common city/region hierarchies (city/state/region)
+        5. Check for educational levels
+        6. Check for numeric prefixes/suffixes in strings
+        
+        Args:
+            series: pandas Series to check
+            
+        Returns:
+            bool: True if the series appears to be ordinal, False otherwise
+        """
+        if series.dtype.name == 'category' and pd.api.types.is_categorical_dtype(series) and series.cat.ordered:
+            return True
+        
+        # Get unique values, excluding NaN
+        unique_vals = series.dropna().unique()
+        if len(unique_vals) < 2:  # Need at least 2 values to be ordinal
+            return False
+        
+        # Convert all values to strings for pattern matching
+        str_vals = [str(v).lower().strip() for v in unique_vals]
+        
+        # Common ordinal patterns
+        ordinal_patterns = {
+            # Numeric ordinals
+            r'^(\d+)(st|nd|rd|th)$',
+            # Letter ordinals
+            r'^[a-z]$',
+            # Roman numerals
+            r'^(i|ii|iii|iv|v|vi|vii|viii|ix|x)$',
+            # Common prefixes
+            r'^(primary|secondary|tertiary)',
+            r'^(low|medium|high|very high)',
+            r'^(small|medium|large|extra large)',
+            r'^(minor|major)',
+            r'^(junior|senior)',
+            r'^(basic|intermediate|advanced)',
+            # Educational levels
+            r'^(elementary|middle|high|college|graduate|post-graduate)',
+            # Administrative levels
+            r'^(city|county|state|region|country)',
+            r'^(local|regional|national|international)',
+            # Frequency terms
+            r'^(never|rarely|sometimes|often|always)',
+            # Agreement scales
+            r'^(strongly disagree|disagree|neutral|agree|strongly agree)',
+            # Priority levels
+            r'^(low|medium|high) priority',
+            # Size-based terms
+            r'^(tiny|small|medium|large|huge)',
+            # Quality levels
+            r'^(poor|fair|good|excellent)',
+            # Numeric prefixes/suffixes
+            r'^\d+\s*[a-zA-Z]+',  # e.g., "1 star", "2 bedrooms"
+            r'[a-zA-Z]+\s*\d+$'   # e.g., "level 1", "grade 2"
+        }
+        
+        # Check if all values match any of the ordinal patterns
+        for pattern in ordinal_patterns:
+            if all(bool(re.match(pattern, val)) for val in str_vals):
+                return True
+            
+        # Check for numeric prefixes/suffixes with consistent units
+        numeric_with_unit = re.compile(r'(\d+)\s*([a-zA-Z]+)')
+        unit_matches = [numeric_with_unit.match(val) for val in str_vals]
+        if all(unit_matches):
+            # Check if all units are the same
+            units = {m.group(2) for m in unit_matches if m}
+            if len(units) == 1:
+                return True
+            
+        # Check for hierarchical geographic terms
+        geo_hierarchies = {
+            'city': 1,
+            'town': 1,
+            'village': 1,
+            'municipality': 1,
+            'county': 2,
+            'district': 2,
+            'province': 3,
+            'state': 3,
+            'region': 4,
+            'country': 5
+        }
+        
+        # Check if values represent a geographic hierarchy
+        if all(any(term in val for term in geo_hierarchies.keys()) for val in str_vals):
+            # Get the hierarchy level for each value
+            levels = []
+            for val in str_vals:
+                for term, level in geo_hierarchies.items():
+                    if term in val:
+                        levels.append(level)
+                        break
+            # If we found levels for all values and they're not all the same
+            if len(levels) == len(str_vals) and len(set(levels)) > 1:
+                return True
+            
+        # Check for consistent numeric patterns
+        if all(any(c.isdigit() for c in val) for val in str_vals):
+            # Extract numbers from strings
+            numbers = []
+            for val in str_vals:
+                nums = re.findall(r'\d+', val)
+                if nums:
+                    numbers.append(int(nums[0]))
+            # Check if numbers form a sequence
+            if len(numbers) == len(str_vals):
+                numbers.sort()
+                # Check if numbers are evenly spaced or form a logical sequence
+                diffs = [numbers[i+1] - numbers[i] for i in range(len(numbers)-1)]
+                if len(set(diffs)) <= 2:  # Allow for at most 2 different intervals
+                    return True
+                
         return False
     
     def _is_censored(self, series: pd.Series) -> bool:
@@ -822,7 +941,7 @@ class DataManager:
         self.update_progress(85, 'Processing column metadata...')
             
         # Initialize tracking variables
-        column_types_list = []
+        column_types_list = [None] * len(self.data.columns)  # Pre-allocate list
         missing_values_by_column = {}
         distribution_analysis = {}
         outlier_info = {}
@@ -862,6 +981,7 @@ class DataManager:
             numeric_kurt = self.data[numeric_cols].kurtosis()
             
             for col in numeric_cols:
+                col_idx = self.data.columns.get_loc(col)
                 non_null_data = self.data[col].dropna()
                 if len(non_null_data) > 0:
                     distribution_analysis[col] = {
@@ -876,19 +996,36 @@ class DataManager:
                         'kurtosis': float(numeric_kurt[col]),
                         'distribution_type': self._determine_distribution(non_null_data)
                     }
-                column_types_list.append('numeric' if self.data[col].nunique() >= 20 else 'discrete')
+                column_types_list[col_idx] = 'numeric' if self.data[col].nunique() >= 20 else 'discrete'
         
         # Process non-numeric columns
         for col in self.data.columns:
-            if col not in numeric_cols:
+            col_idx = self.data.columns.get_loc(col)
+            if column_types_list[col_idx] is None:  # Only process if not already set
                 try:
                     col_data = self.data[col]
                     col_type = self._determine_column_type(col_data)
-                    column_types_list.append(col_type.value)
+                    column_types_list[col_idx] = col_type.value
                     
+                    # Process categorical stats
+                    if col_type == ColumnType.CATEGORICAL:
+                        value_counts = col_data.value_counts()
+                        if not value_counts.empty:
+                            categorical_stats[col] = {
+                                'unique_count': int(col_data.nunique()),
+                                'most_frequent': {
+                                    'value': str(value_counts.index[0]),
+                                    'count': int(value_counts.iloc[0])
+                                },
+                                'value_distribution': [
+                                    {'value': str(val), 'count': int(count)}
+                                    for val, count in value_counts.head(10).items()
+                                ]
+                            }
+                
                 except Exception as e:
                     logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
-                    column_types_list.append('categorical')  # Default to categorical on error
+                    column_types_list[col_idx] = 'categorical'  # Default to categorical on error
                     continue
         
         self.update_progress(93, 'Processing categorical data...')
