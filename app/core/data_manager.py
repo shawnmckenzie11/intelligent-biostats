@@ -1,5 +1,6 @@
 import sys
 import platform
+import time
 
 from typing import Dict, List, Optional, Union, Any, Tuple
 import pandas as pd
@@ -504,8 +505,18 @@ class DataManager:
             # Get descriptive stats
             stats = self.get_column_descriptive_stats()
             if stats is None:
-                self.calculate_descriptive_stats()
-                stats = self.get_column_descriptive_stats()
+                # Try up to 3 times with 2 second delays
+                for attempt in range(3):
+                    if attempt > 0:
+                        time.sleep(2)  # Wait 2 seconds between attempts
+                    stats = self.get_column_descriptive_stats()
+                    if stats is not None:
+                        break
+                
+                # If still no stats after retries, calculate them
+                if stats is None:
+                    self.calculate_descriptive_stats()
+                    stats = self.get_column_descriptive_stats()
                 
             if stats is None:
                 return None, "Failed to calculate descriptive statistics"
@@ -819,57 +830,66 @@ class DataManager:
         boolean_stats = {}
         datetime_stats = {}
         
+        # Vectorized missing values calculation
+        missing_counts = self.data.isna().sum()
+        missing_values_by_column = {col: int(count) for col, count in missing_counts.items() if count > 0}
+        
         # Add file stats that were previously in metadata
         file_stats = {
             'filename': self.current_file,
             'rows': len(self.data),
             'columns': len(self.data.columns),
             'memory_usage': f"{self.data.memory_usage(deep=True).sum() / (1024*1024):.2f} MB",
-            'missing_values': int(self.data.isna().sum().sum())
+            'missing_values': int(missing_counts.sum())
         }
         
         self.update_progress(87, 'Analyzing data quality...')
         
-        # Add data quality metrics
+        # Add data quality metrics - vectorized where possible
         quality_metrics = {
-            'completeness': self._calculate_completeness(),
+            'completeness': 1 - (missing_counts.sum() / (self.data.shape[0] * self.data.shape[1])),
             'consistency': self._check_consistency(),
             'accuracy': self._assess_accuracy()
         }
         
         self.update_progress(90, 'Calculating column statistics...')
         
-        # Process each column
+        # Process numeric columns in bulk where possible
+        numeric_cols = self.data.select_dtypes(include=['int64', 'float64']).columns
+        if len(numeric_cols) > 0:
+            numeric_stats = self.data[numeric_cols].agg(['min', 'max', 'mean', 'median', 'std'])
+            numeric_skew = self.data[numeric_cols].skew()
+            numeric_kurt = self.data[numeric_cols].kurtosis()
+            
+            for col in numeric_cols:
+                non_null_data = self.data[col].dropna()
+                if len(non_null_data) > 0:
+                    distribution_analysis[col] = {
+                        'descriptive_stats': {
+                            'min': float(numeric_stats.loc['min', col]),
+                            'max': float(numeric_stats.loc['max', col]),
+                            'mean': float(numeric_stats.loc['mean', col]),
+                            'median': float(numeric_stats.loc['median', col]),
+                            'std': float(numeric_stats.loc['std', col])
+                        },
+                        'skewness': float(numeric_skew[col]),
+                        'kurtosis': float(numeric_kurt[col]),
+                        'distribution_type': self._determine_distribution(non_null_data)
+                    }
+                column_types_list.append('numeric' if self.data[col].nunique() >= 20 else 'discrete')
+        
+        # Process non-numeric columns
         for col in self.data.columns:
-            try:
-                col_data = self.data[col]
-                
-                # Determine column type and store its string value
-                col_type = self._determine_column_type(col_data)
-                column_types_list.append(col_type.value)  # Store string value directly
-                
-                # Calculate missing values
-                missing_count = col_data.isna().sum()
-                if missing_count > 0:
-                    missing_values_by_column[col] = int(missing_count)
+            if col not in numeric_cols:
+                try:
+                    col_data = self.data[col]
+                    col_type = self._determine_column_type(col_data)
+                    column_types_list.append(col_type.value)
                     
-                # Calculate distribution analysis for numeric columns
-                if col_type == ColumnType.NUMERIC or col_type == ColumnType.DISCRETE:
-                    non_null_data = col_data.dropna()
-                    if len(non_null_data) > 0:
-                        distribution_analysis[col] = {
-                            'descriptive_stats': {
-                                'min': float(non_null_data.min()),
-                                'max': float(non_null_data.max()),
-                                'mean': float(non_null_data.mean()),
-                                'median': float(non_null_data.median()),
-                                'std': float(non_null_data.std()) if len(non_null_data) > 1 else 0
-                            }
-                        }
-                
-            except Exception as e:
-                logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
-                continue
+                except Exception as e:
+                    logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
+                    column_types_list.append('categorical')  # Default to categorical on error
+                    continue
         
         self.update_progress(93, 'Processing categorical data...')
         

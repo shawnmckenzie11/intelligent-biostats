@@ -786,80 +786,75 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear previous content
         statsContainer.innerHTML = '';
 
-        // Create overall layout structure - now horizontal
+        // Create overall layout structure with file stats summary
         const layoutHtml = `
+            <div class="file-stats-summary">
+                <span class="stats-item">Rows: ${stats.file_stats.rows.toLocaleString()}</span> |
+                <span class="stats-item">Columns: ${stats.file_stats.columns.toLocaleString()}</span> |
+                <span class="stats-item">Memory: ${stats.file_stats.memory_usage}</span> |
+                <span class="stats-item">Missing Values: ${stats.file_stats.missing_values.toLocaleString()}</span> |
+                <span class="stats-item">Types: Numeric (${stats.column_types.numeric || 0}), 
+                Categorical (${stats.column_types.categorical || 0}), 
+                Boolean (${stats.column_types.boolean || 0}), 
+                DateTime (${stats.column_types.datetime || 0})</span>
+            </div>
             <div class="stats-dashboard horizontal">
-                <div class="file-stats-panel" title="File Statistics">
-                    <div class="file-stats-content"></div>
-                                </div>
-                <div class="column-stats-panel" title="Column Statistics">
+                <div class="chosen-outcomes-expressions-panel">
+                    <div class="chosen-outcomes-content">
+                        <h4>Selected Variables</h4>
+                        <div class="outcomes-section">
+                            <h5>Outcome Variables</h5>
+                            <ul class="selected-vars-list" id="outcomesList">
+                                <!-- Outcomes will be added here -->
+                            </ul>
+                        </div>
+                        <div class="expressions-section">
+                            <h5>Expression Variables</h5>
+                            <ul class="selected-vars-list" id="expressionsList">
+                                <!-- Expressions will be added here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="column-stats-panel">
                     <div class="search-container">
                         <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
-                            </div>
+                    </div>
                     <div class="column-stats-table-container">
                         <table class="column-stats-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Name</th>
-                                                <th>Type</th>
-                                                <th>Flags</th>
-                                                <th>Range</th>
-                                                <th>Distribution</th>
-                                                <th>Preview</th>
-                                                <th>Edit</th>
-                                            </tr>
-                                        </thead>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Flags</th>
+                                    <th>Range</th>
+                                    <th>Distribution</th>
+                                    <th>Preview</th>
+                                    <th>Edit</th>
+                                </tr>
+                            </thead>
                             <tbody id="columnStatsTableBody">
                                 <!-- Column data will be inserted here -->
                             </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-        statsContainer.innerHTML = layoutHtml;
-
-        // Populate file statistics
-        const fileStatsContent = statsContainer.querySelector('.file-stats-content');
-        if (stats.file_stats && fileStatsContent) {
-            const fileStats = stats.file_stats;
-            fileStatsContent.innerHTML = `
-                <div class="column-type-summary vertical">
-                    <div class="type-card">
-                        <div class="type-count">${fileStats.rows.toLocaleString()}</div>
-                        <div class="type-label">Rows</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${fileStats.columns.toLocaleString()}</div>
-                        <div class="type-label">Columns</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${fileStats.memory_usage}</div>
-                        <div class="type-label">Memory Usage</div>
-                    </div>
-                    <div class="type-card">
-                        <div class="type-count">${fileStats.missing_values.toLocaleString()}</div>
-                        <div class="type-label">Missing Values</div>
-                    </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.numeric || 0}</div>
-                            <div class="type-label">Numeric</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.categorical || 0}</div>
-                            <div class="type-label">Categorical</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.boolean || 0}</div>
-                            <div class="type-label">Boolean</div>
-                        </div>
-                        <div class="type-card">
-                            <div class="type-count">${stats.column_types.datetime || 0}</div>
-                            <div class="type-label">DateTime</div>
+                        </table>
                     </div>
                 </div>
-            `;
-        }
+            </div>
+        `;
+        statsContainer.innerHTML = layoutHtml;
+
+        // Add click handlers for selecting outcomes and expressions
+        document.querySelectorAll('.column-stats-table tbody tr').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (!e.target.closest('.action-buttons')) {  // Don't trigger on action buttons
+                    const columnName = this.cells[0].textContent;
+                    const columnType = this.cells[1].textContent;
+                    
+                    // Show selection modal
+                    showVariableSelectionModal(columnName, columnType);
+                }
+            });
+        });
 
         // Populate the columns table
         const tableBody = document.getElementById('columnStatsTableBody');
@@ -1933,3 +1928,65 @@ async function applyColumnChanges(column) {
         });
     }
 });
+
+function showVariableSelectionModal(columnName, columnType) {
+    const modal = document.createElement('div');
+    modal.className = 'modal variable-selection-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Select Variable Type for ${columnName}</h3>
+            <p>Choose how this variable will be used in your analysis:</p>
+            <div class="selection-options">
+                <button class="selection-btn outcome-btn">Add as Outcome Variable</button>
+                <button class="selection-btn expression-btn">Add as Expression Variable</button>
+            </div>
+            <button class="close-modal">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add event listeners
+    modal.querySelector('.outcome-btn').addEventListener('click', () => {
+        addToVariableList('outcomesList', columnName, columnType);
+        modal.remove();
+    });
+
+    modal.querySelector('.expression-btn').addEventListener('click', () => {
+        addToVariableList('expressionsList', columnName, columnType);
+        modal.remove();
+    });
+
+    modal.querySelector('.close-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+
+function addToVariableList(listId, columnName, columnType) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+
+    // Check if already in list
+    const existingItem = Array.from(list.children).find(item => 
+        item.querySelector('.var-name').textContent === columnName
+    );
+    if (existingItem) return;
+
+    const li = document.createElement('li');
+    li.className = 'selected-var-item';
+    li.innerHTML = `
+        <span class="var-name">${columnName}</span>
+        <span class="var-type">${columnType}</span>
+        <button class="remove-var">×</button>
+    `;
+
+    li.querySelector('.remove-var').addEventListener('click', () => {
+        li.remove();
+    });
+
+    list.appendChild(li);
+}

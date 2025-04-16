@@ -92,10 +92,12 @@
                     </button>
                 </div>
                 <div class="preview-content" id="descriptiveContent">
-                    <div class="stats-dashboard horizontal">
-                        <div class="file-stats-panel">
-                            <div class="file-stats-content"></div>
+                    <div class="common-panel">
+                        <div class="file-stats-summary">
+                            <!-- File stats summary will be inserted here -->
                         </div>
+                    </div>
+                    <div class="stats-dashboard horizontal">
                         <div class="column-stats-panel">
                             <div class="search-container">
                                 <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
@@ -114,6 +116,11 @@
                                     </thead>
                                     <tbody id="columnStatsTableBody"></tbody>
                                 </table>
+                            </div>
+                        </div>
+                        <div class="common-panel">
+                            <div class="chosen-outcomes-expressions-panel">
+                                <div class="chosen-outcomes-content"></div>
                             </div>
                         </div>
                     </div>
