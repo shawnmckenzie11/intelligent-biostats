@@ -32,6 +32,8 @@ if not hasattr(api, '_initialized'):
 def upload_file():
     """Handle file upload and return initial analysis."""
     try:
+        logger.info("Starting file upload handler")
+        
         if 'file' not in request.files:
             logger.error("No file in request.files")
             return jsonify({
@@ -55,9 +57,13 @@ def upload_file():
             }), 400
 
         logger.info(f"Attempting to load file: {file.filename}")
+        logger.info(f"File size: {len(file.read())} bytes")
+        file.seek(0)  # Reset file pointer after reading
         
         # Load data using data manager
+        logger.info("Calling data_manager.load_data")
         success, error = current_app.data_manager.load_data(file_obj=file)
+        
         if not success:
             logger.error(f"Data manager load_data failed: {error}")
             return jsonify({
@@ -65,22 +71,33 @@ def upload_file():
                 'error': error
             }), 400
         
+        logger.info("Data loaded successfully, checking data presence")
+        
         # Verify data was loaded
-        if current_app.data_manager.data is None or current_app.data_manager.data.empty:
+        if current_app.data_manager.data is None:
             logger.error("Data manager has no data after load")
             return jsonify({
                 'success': False,
-                'error': 'Failed to load data - file may be empty or invalid'
+                'error': 'Failed to load data - data is None'
+            }), 400
+            
+        if current_app.data_manager.data.empty:
+            logger.error("Data manager has empty DataFrame after load")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to load data - DataFrame is empty'
             }), 400
         
-        logger.info("File loaded successfully, getting preview")
+        logger.info(f"Data loaded successfully. Shape: {current_app.data_manager.data.shape}")
         
         # Get data preview
         preview_dict = current_app.data_manager.get_data_preview()
         
         # Get descriptive stats
+        logger.info("Calculating descriptive stats")
         stats = current_app.data_manager.get_column_descriptive_stats()
         if stats is None:
+            logger.info("Initial stats were None, recalculating")
             current_app.data_manager.calculate_descriptive_stats()
             stats = current_app.data_manager.get_column_descriptive_stats()
             

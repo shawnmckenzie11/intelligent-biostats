@@ -148,17 +148,108 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            const csvText = e.target.result;
-            displayPreview(csvText);
-            
-            // Upload the full file without triggering analysis
-            uploadFullFile(file)
+            try {
+                // Try to decode as UTF-8 first
+                const decoder = new TextDecoder('utf-8', { fatal: true });
+                const csvText = decoder.decode(new Uint8Array(e.target.result));
+                
+                // If we get here, it's valid UTF-8
+                displayPreview(csvText);
+                
+                // Create a new Blob with proper UTF-8 encoding
+                const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+                const formData = new FormData();
+                formData.append('file', utf8Blob, file.name);
+                
+                // Upload the UTF-8 encoded file
+                fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Upload failed');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        console.log('Upload successful:', data);
+                    } else {
+                        throw new Error(data.error || 'Upload failed');
+                    }
+                })
                 .catch(error => {
                     console.error('Error uploading file:', error);
-                    alert('Error uploading file');
+                    alert('Error uploading file: ' + error.message);
                 });
+                
+            } catch (encodingError) {
+                // If UTF-8 decoding fails, try to convert from other encodings
+                console.log('UTF-8 decoding failed, attempting to convert from other encodings...');
+                
+                // Try different encodings in sequence
+                const encodings = ['iso-8859-1', 'windows-1252', 'ascii'];
+                let converted = false;
+                
+                for (const encoding of encodings) {
+                    try {
+                        const decoder = new TextDecoder(encoding);
+                        const text = decoder.decode(new Uint8Array(e.target.result));
+                        
+                        // Convert to UTF-8
+                        const encoder = new TextEncoder();
+                        const utf8Array = encoder.encode(text);
+                        const utf8Text = new TextDecoder('utf-8').decode(utf8Array);
+                        
+                        // Create a new Blob with proper UTF-8 encoding
+                        const utf8Blob = new Blob([utf8Text], { type: 'text/csv;charset=utf-8;' });
+                        const formData = new FormData();
+                        formData.append('file', utf8Blob, file.name);
+                        
+                        displayPreview(utf8Text);
+                        
+                        // Upload the converted file
+                        fetch('/api/upload', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Upload failed');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Upload successful after conversion:', data);
+                                converted = true;
+                            } else {
+                                throw new Error(data.error || 'Upload failed');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error uploading converted file:', error);
+                            if (!converted) {
+                                alert('Error uploading file: ' + error.message);
+                            }
+                        });
+                        
+                        converted = true;
+                        break;
+                        
+                    } catch (conversionError) {
+                        console.log(`Failed to convert using ${encoding}, trying next encoding...`);
+                        continue;
+                    }
+                }
+                
+                if (!converted) {
+                    alert('Could not process the CSV file. Please ensure it is properly formatted and try again.');
+                }
+            }
         };
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file);  // Read as ArrayBuffer instead of text
     }
 
     function displayPreview(csvText) {

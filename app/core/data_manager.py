@@ -70,6 +70,7 @@ class DataManager:
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
         try:
+            logger.info("Starting load_data")
             # Reset state before loading new data
             self.reset()
             
@@ -77,30 +78,42 @@ class DataManager:
             self._state_logger = StateLogger()
             
             if file_obj is not None:
+                logger.info(f"Loading from file object: {file_obj.filename}")
                 # Reset file pointer to beginning
                 file_obj.seek(0)
                 # Read the file content
                 content = file_obj.read().decode('utf-8')
+                logger.info(f"File content size: {len(content)} bytes")
                 # Create a StringIO object from the content
                 from io import StringIO
                 string_buffer = StringIO(content)
                 # Read the CSV data
+                logger.info("Reading CSV data with pandas")
                 self.data = pd.read_csv(string_buffer)
                 self.current_file = file_obj.filename
             elif file_path is not None:
+                logger.info(f"Loading from file path: {file_path}")
                 self.data = pd.read_csv(file_path)
                 self.current_file = os.path.basename(file_path)
             else:
                 raise ValueError("Either file_path or file_obj must be provided")
                 
             # Validate that data was loaded successfully
-            if self.data is None or self.data.empty:
+            if self.data is None:
+                logger.error("Failed to load data - data is None")
                 raise ValueError("Failed to load data or file is empty")
                 
+            if self.data.empty:
+                logger.error("Failed to load data - DataFrame is empty")
+                raise ValueError("Failed to load data or file is empty")
+                
+            logger.info(f"Data loaded successfully. Shape: {self.data.shape}")
+            
             self.modifications_history = []
             self._initialize_point_flags()
             
             # Calculate descriptive statistics after loading data
+            logger.info("Calculating descriptive statistics")
             self.calculate_descriptive_stats()
             
             # Create a new log file for this CSV load
