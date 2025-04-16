@@ -2254,3 +2254,105 @@ body {
         min-width: 100%;
     }
 }
+
+/* Search and Actions Container */
+.search-actions-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.search-container {
+    flex: 1;
+    min-width: 200px;
+}
+
+.action-buttons-container {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Action Buttons */
+.action-button.add-btn {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    background-color: white;
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+}
+
+.action-button.add-btn:hover {
+    background-color: var(--background-color);
+    border-color: var(--secondary-color);
+}
+
+.action-button.add-to-outcomes {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+}
+
+.action-button.add-to-outcomes:hover {
+    background-color: #2980b9;
+}
+
+/* Checkbox Column */
+.select-column {
+    width: 40px;
+    text-align: center !important;
+}
+
+/* Checkbox Styling */
+.column-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: white;
+    transition: all 0.2s ease;
+    position: relative;
+    margin: 0;
+    padding: 0;
+}
+
+.column-checkbox:checked {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.column-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+}
+
+.column-checkbox:hover {
+    border-color: var(--secondary-color);
+}
+
+/* Table Header Checkbox */
+#selectAllColumns {
+    margin: 0;
+}
+
+/* Ensure table cells align properly */
+.column-stats-table td,
+.column-stats-table th {
+    vertical-align: middle;
+}

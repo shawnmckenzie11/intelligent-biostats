@@ -799,6 +799,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 DateTime (${stats.column_types.datetime || 0})</span>
             </div>
             <div class="stats-dashboard horizontal">
+                <div class="column-stats-panel">
+                    <div class="search-actions-container">
+                        <div class="search-container">
+                            <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
+                        </div>
+                        <div class="action-buttons-container">
+                            <button class="action-button add-btn add-to-outcomes">Add Selected to Outcomes</button>
+                            <button class="action-button add-btn add-to-expressions">Add Selected to Expressions</button>
+                        </div>
+                    </div>
+                    <div class="column-stats-table-container">
+                        <table class="column-stats-table">
+                            <thead>
+                                <tr>
+                                    <th class="select-column">
+                                        <input type="checkbox" id="selectAllColumns" class="column-checkbox">
+                                    </th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Flags</th>
+                                    <th>Range</th>
+                                    <th>Distribution</th>
+                                    <th>Preview</th>
+                                </tr>
+                            </thead>
+                            <tbody id="columnStatsTableBody">
+                                <!-- Column data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
                 <div class="chosen-outcomes-expressions-panel">
                     <div class="chosen-outcomes-content">
                         <h4>Selected Variables</h4>
@@ -816,29 +847,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 </div>
-                <div class="column-stats-panel">
-                    <div class="search-container">
-                        <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
-                    </div>
-                    <div class="column-stats-table-container">
-                        <table class="column-stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Flags</th>
-                                    <th>Range</th>
-                                    <th>Distribution</th>
-                                    <th>Preview</th>
-                                    <th>Edit</th>
-                                </tr>
-                            </thead>
-                            <tbody id="columnStatsTableBody">
-                                <!-- Column data will be inserted here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         `;
         statsContainer.innerHTML = layoutHtml;
@@ -847,8 +855,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.column-stats-table tbody tr').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (!e.target.closest('.action-buttons')) {  // Don't trigger on action buttons
-                    const columnName = this.cells[0].textContent;
-                    const columnType = this.cells[1].textContent;
+                    const columnName = this.cells[1].textContent;
+                    const columnType = this.cells[2].textContent;
                     
                     // Show selection modal
                     showVariableSelectionModal(columnName, columnType);
@@ -874,6 +882,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
             const row = document.createElement('tr');
             row.innerHTML = `
+                <td class="select-column">
+                    <input type="checkbox" class="column-checkbox" data-column="${column}">
+                </td>
                 <td>${column}</td>
                 <td>
                     <span class="column-type ${columnType}">${columnType}</span>
@@ -886,8 +897,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="data-preview-cell">
                     ${getDistributionInfo(column, columnType, stats)}
                 </td>
-                <td class="action-buttons">
-                    <a href="#" class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</a>
+                <td>
+                    <button class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</button>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -907,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
             searchInput.addEventListener('input', function() {
                 const searchTerm = this.value.toLowerCase();
                 document.querySelectorAll('#columnStatsTableBody tr').forEach(row => {
-                    const columnName = row.querySelector('td').textContent.toLowerCase();
+                    const columnName = row.cells[1].textContent.toLowerCase();
                     if (columnName.includes(searchTerm)) {
                         row.style.display = '';
                     } else {
@@ -919,6 +930,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // After populating the table
         initializeEditButtons();
+
+        // Add the select all functionality
+        document.getElementById('selectAllColumns').addEventListener('change', function(e) {
+            const checkboxes = document.querySelectorAll('.column-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+            });
+        });
+
+        // Add the action buttons functionality
+        document.querySelector('.add-to-outcomes').addEventListener('click', function() {
+            const selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked:not(#selectAllColumns)'))
+                .map(checkbox => checkbox.dataset.column);
+            if (selectedColumns.length > 0) {
+                selectedColumns.forEach(column => {
+                    addToVariableList('outcomesList', column);
+                });
+            }
+        });
+
+        document.querySelector('.add-to-expressions').addEventListener('click', function() {
+            const selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked:not(#selectAllColumns)'))
+                .map(checkbox => checkbox.dataset.column);
+            if (selectedColumns.length > 0) {
+                selectedColumns.forEach(column => {
+                    addToVariableList('expressionsList', column);
+                });
+            }
+        });
     }
     
     function getColumnRange(column, columnType, stats) {
@@ -1556,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', function() {
             icon.addEventListener('click', async function(e) {
                 e.preventDefault();
                 const row = this.closest('tr');
-                const column = row.cells[0].textContent; // Get column name from first cell
+                const column = row.cells[1].textContent; // Get column name from second cell
                 
                 console.log('Column being edited:', column);
                 console.log('Column type:', typeof column);
