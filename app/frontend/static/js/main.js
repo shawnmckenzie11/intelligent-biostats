@@ -154,8 +154,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const csvText = decoder.decode(new Uint8Array(e.target.result));
                 
                 // If we get here, it's valid UTF-8
-                displayPreview(csvText);
-                
+            displayPreview(csvText);
+            
                 // Create a new Blob with proper UTF-8 encoding
                 const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
                 const formData = new FormData();
@@ -904,9 +904,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const column = this.getAttribute('data-column');
                     const type = this.getAttribute('data-type');
                     showColumnPreview(column, type);
+                });
             });
-        });
-
+            
             // Add search functionality
             const searchInput = document.getElementById('columnSearchInput');
             searchInput.addEventListener('input', function() {
@@ -1621,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Handle form submission
                 form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
+                            e.preventDefault();
                     const minInput = this.querySelector('.min-input');
                     const maxInput = this.querySelector('.max-input');
                     const validationMessage = this.querySelector('.validation-message');
@@ -1638,30 +1638,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     // Validate inputs
-                    if (isNaN(newMin) || isNaN(newMax)) {
-                        validationMessage.textContent = 'Please enter valid numbers';
-                        return;
-                    }
-                    
-                    if (newMin >= newMax) {
+                            if (isNaN(newMin) || isNaN(newMax)) {
+                                validationMessage.textContent = 'Please enter valid numbers';
+                                return;
+                            }
+                            
+                            if (newMin >= newMax) {
                         validationMessage.textContent = 'Minimum value must be less than maximum value';
-                        return;
-                    }
-                    
+                                return;
+                            }
+                            
                     try {
                         // Get initial column data and flags
                         const initialDataResponse = await fetch('/api/column-data-and-flags', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
                             body: JSON.stringify({ column: column })
                         });
                         
                         if (initialDataResponse.ok) {
                             const initialData = await initialDataResponse.json();
                             console.log('Initial column state:', initialData);
-                        } else {
+                } else {
                             const errorData = await initialDataResponse.json();
                             console.error('Error fetching initial data:', errorData);
                         }
@@ -1700,7 +1700,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (updatedDataResponse.ok) {
                             const updatedData = await updatedDataResponse.json();
                             console.log('Updated column state:', updatedData);
-                        } else {
+                } else {
                             const errorData = await updatedDataResponse.json();
                             console.error('Error fetching updated data:', errorData);
                         }
@@ -1756,10 +1756,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Reinitialize the edit icon
                             initializeEditButtons();
                             
-                        } else {
+            } else {
                             throw new Error(result.error || 'Failed to update range');
-                        }
-                    } catch (error) {
+            }
+        } catch (error) {
                         console.error('Error updating range:', error);
                         validationMessage.textContent = error.message;
                     }

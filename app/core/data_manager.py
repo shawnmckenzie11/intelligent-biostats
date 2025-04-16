@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 import base64
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,8 @@ class DataManager:
         cached_statistics (Dict[str, Any]): Cache for computed statistics
         point_flags (np.ndarray): Array of flags for each data point
         _descriptive_stats (Dict[str, Any]): Cache for descriptive statistics
+        stats_progress (Dict[str, Any]): Progress tracking for statistics calculation
+        _progress_lock (Lock): Thread synchronization for progress updates
     """
     
     def __init__(self):
@@ -55,6 +58,12 @@ class DataManager:
         self._state_logger = StateLogger()
         self.point_flags: Optional[np.ndarray] = None  # Will be (n_rows, n_cols) array of DataPointFlag
         self._descriptive_stats: Optional[Dict[str, Any]] = None  # Cache for descriptive statistics
+        self.stats_progress: Dict[str, Any] = {
+            'percent': 0,
+            'current_task': 'Not started',
+            'is_complete': False
+        }
+        self._progress_lock = Lock()
         
     def reset(self) -> None:
         """Reset the DataManager to its initial state."""
@@ -66,6 +75,12 @@ class DataManager:
         self._state_logger = StateLogger()
         self.point_flags = None
         self._descriptive_stats = None  # Reset descriptive stats cache
+        with self._progress_lock:
+            self.stats_progress = {
+                'percent': 0,
+                'current_task': 'Not started',
+                'is_complete': False
+            }
         
     def load_data(self, file_path: Optional[str] = None, file_obj: Optional[Any] = None) -> Tuple[bool, Optional[str]]:
         """Load data from file path or file object and compute basic statistics."""
@@ -108,7 +123,7 @@ class DataManager:
                 raise ValueError("Failed to load data or file is empty")
                 
             logger.info(f"Data loaded successfully. Shape: {self.data.shape}")
-            
+                
             self.modifications_history = []
             self._initialize_point_flags()
             
@@ -208,27 +223,36 @@ class DataManager:
             
         return properties
     
-    def _determine_distribution(self, series: pd.Series) -> str:
-        """Determine the type of distribution for a numeric series."""
-        if len(series) < 30:
-            return "Insufficient data"
+    def _determine_distribution(self, data: pd.Series) -> str:
+        """
+        Determine the type of distribution for a numeric column.
+        
+        Args:
+            data: pandas Series containing numeric data
             
-        skewness = series.skew()
-        kurtosis = series.kurtosis()
-            
-        # Test for normality using skewness and kurtosis
-        if abs(skewness) < 0.5 and abs(kurtosis - 3) < 0.5:
-            return "Normal"
+        Returns:
+            str: Description of the distribution type
+        """
+        skewness = data.skew()
+        kurtosis = data.kurtosis()
+        
+        # Check for normal distribution
+        if abs(skewness) < 0.5 and abs(kurtosis) < 2:
+            return 'normal'
+        # Check for right-skewed
         elif skewness > 1:
-            return "Right-skewed"
+            return 'right_skewed'
+        # Check for left-skewed
         elif skewness < -1:
-            return "Left-skewed"
-        elif kurtosis > 4:
-            return "Heavy-tailed"
-        elif kurtosis < 2:
-            return "Light-tailed"
+            return 'left_skewed'
+        # Check for heavy-tailed
+        elif kurtosis > 3:
+            return 'heavy_tailed'
+        # Check for light-tailed
+        elif kurtosis < -1:
+            return 'light_tailed'
         else:
-            return "Non-normal"
+            return 'unknown'
     
     def _validate_data(self) -> Dict[str, Any]:
         """Validate the data against defined rules and return validation results."""
@@ -783,6 +807,9 @@ class DataManager:
         if self.data is None:
             return
             
+        logger.debug("Starting final descriptive stats calculation")
+        self.update_progress(85, 'Processing column metadata...')
+            
         # Initialize tracking variables
         column_types_list = []
         missing_values_by_column = {}
@@ -801,6 +828,8 @@ class DataManager:
             'missing_values': int(self.data.isna().sum().sum())
         }
         
+        self.update_progress(87, 'Analyzing data quality...')
+        
         # Add data quality metrics
         quality_metrics = {
             'completeness': self._calculate_completeness(),
@@ -808,106 +837,50 @@ class DataManager:
             'accuracy': self._assess_accuracy()
         }
         
-        for i, col in enumerate(self.data.columns):
+        self.update_progress(90, 'Calculating column statistics...')
+        
+        # Process each column
+        for col in self.data.columns:
             try:
                 col_data = self.data[col]
                 
-                if pd.api.types.is_numeric_dtype(col_data):
-                    if col_data.nunique() < 20:
-                        column_types_list.append('discrete')
-                    else:
-                        column_types_list.append('numeric')
-                    
-                    # Calculate descriptive stats for numeric columns
-                    clean_data = col_data.dropna()
-                    if len(clean_data) > 0:
-                        skewness = clean_data.skew()
-                        kurtosis = clean_data.kurtosis()
-                        mean = clean_data.mean()
-                        std = clean_data.std()
-                        min_val = clean_data.min()
-                        max_val = clean_data.max()
-                        
-                        distribution_analysis[col] = {
-                            'skewness': float(skewness),
-                            'kurtosis': float(kurtosis),
-                            'descriptive_stats': {
-                                'mean': float(mean),
-                                'std': float(std),
-                                'min': float(min_val),
-                                'max': float(max_val)
-                            },
-                            'distribution_type': self._determine_distribution(clean_data)
-                        }
-                        
-                        # Calculate outliers
-                        q1 = clean_data.quantile(0.25)
-                        q3 = clean_data.quantile(0.75)
-                        iqr = q3 - q1
-                        lower_bound = q1 - 1.5 * iqr
-                        upper_bound = q3 + 1.5 * iqr
-                        outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
-                        outlier_info[col] = {
-                            'count': int(len(outliers)),
-                            'percentage': float(len(outliers) / len(clean_data) * 100)
-                        }
-                        
-                elif pd.api.types.is_datetime64_any_dtype(col_data):
-                    column_types_list.append('timeseries')
-                    clean_data = col_data.dropna()
-                    if len(clean_data) > 0:
-                        datetime_stats[col] = {
-                            'start_date': str(clean_data.min()),
-                            'end_date': str(clean_data.max()),
-                            'range': str(clean_data.max() - clean_data.min()),
-                            'time_interval': self._calculate_time_interval(clean_data)
-                        }
-                else:
-                    if col_data.nunique() == 2:
-                        unique_values = col_data.dropna().unique()
-                        if all(val in [True, False, 'True', 'False', 'true', 'false', '1', '0', 1, 0] for val in unique_values):
-                            column_types_list.append('boolean')
-                            true_count = (col_data == True).sum() + (col_data == 'True').sum() + (col_data == 'true').sum() + (col_data == 1).sum() + (col_data == '1').sum()
-                            false_count = (col_data == False).sum() + (col_data == 'False').sum() + (col_data == 'false').sum() + (col_data == 0).sum() + (col_data == '0').sum()
-                            total = true_count + false_count
-                            boolean_stats[col] = {
-                                'true_count': int(true_count),
-                                'false_count': int(false_count),
-                                'true_percentage': float(true_count / total * 100) if total > 0 else 0
-                            }
-                        else:
-                            column_types_list.append('categorical')
-                    else:
-                        column_types_list.append('categorical')
-                        value_counts = col_data.value_counts()
-                        categorical_stats[col] = {
-                            'unique_count': int(col_data.nunique()),
-                            'most_frequent': {
-                                'value': str(value_counts.index[0]),
-                                'count': int(value_counts.iloc[0])
-                            },
-                            'value_distribution': [
-                                {'value': str(val), 'count': int(count)}
-                                for val, count in value_counts.head(10).items()
-                            ]
-                        }
+                # Determine column type and store its string value
+                col_type = self._determine_column_type(col_data)
+                column_types_list.append(col_type.value)  # Store string value directly
                 
+                # Calculate missing values
                 missing_count = col_data.isna().sum()
                 if missing_count > 0:
                     missing_values_by_column[col] = int(missing_count)
                     
+                # Calculate distribution analysis for numeric columns
+                if col_type == ColumnType.NUMERIC or col_type == ColumnType.DISCRETE:
+                    non_null_data = col_data.dropna()
+                    if len(non_null_data) > 0:
+                        distribution_analysis[col] = {
+                            'descriptive_stats': {
+                                'min': float(non_null_data.min()),
+                                'max': float(non_null_data.max()),
+                                'mean': float(non_null_data.mean()),
+                                'median': float(non_null_data.median()),
+                                'std': float(non_null_data.std()) if len(non_null_data) > 1 else 0
+                            }
+                        }
+                
             except Exception as e:
                 logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
                 continue
+        
+        self.update_progress(93, 'Processing categorical data...')
         
         # Store all metadata in _descriptive_stats
         self._descriptive_stats = {
             'file_stats': file_stats,
             'column_types': {
-                'numeric': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'numeric']),
-                'categorical': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'categorical']),
-                'boolean': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'boolean']),
-                'datetime': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'timeseries']),
+                'numeric': len([type_ for type_ in column_types_list if type_ == 'numeric']),
+                'categorical': len([type_ for type_ in column_types_list if type_ == 'categorical']),
+                'boolean': len([type_ for type_ in column_types_list if type_ == 'boolean']),
+                'datetime': len([type_ for type_ in column_types_list if type_ == 'timeseries']),
                 'columns': self.data.columns.tolist(),
                 'column_types_list': column_types_list
             },
@@ -920,30 +893,53 @@ class DataManager:
             'datetime_stats': datetime_stats,
             'validation_results': self._validate_data()
         }
+        
+        self.update_progress(95, 'Finalizing calculations...')
+        logger.debug("Descriptive stats calculation complete")
 
-    def _calculate_time_interval(self, series: pd.Series) -> str:
-        """Calculate the typical time interval between values in a datetime series."""
-        if len(series) < 2:
-            return "Insufficient data"
+    def _calculate_time_interval(self, data: pd.Series) -> str:
+        """
+        Calculate the most common time interval between datetime values.
+        
+        Args:
+            data: pandas Series containing datetime data
             
-        # Calculate time differences
-        diffs = series.sort_values().diff().dropna()
+        Returns:
+            str: Description of the time interval
+        """
+        if len(data) < 2:
+            return 'unknown'
+        
+        # Sort the data and calculate differences
+        sorted_data = data.sort_values()
+        differences = sorted_data.diff().dropna()
         
         # Get the most common difference
-        mode_diff = diffs.mode()
-        if not mode_diff.empty:
-            diff = mode_diff.iloc[0]
-            if pd.Timedelta(days=1) <= diff < pd.Timedelta(days=2):
-                return "Daily"
-            elif pd.Timedelta(days=7) <= diff < pd.Timedelta(days=8):
-                return "Weekly"
-            elif pd.Timedelta(days=30) <= diff < pd.Timedelta(days=31):
-                return "Monthly"
-            elif pd.Timedelta(days=365) <= diff < pd.Timedelta(days=366):
-                return "Yearly"
+        most_common_diff = differences.mode().iloc[0]
+        
+        # Convert to days for easier comparison
+        days = most_common_diff.total_seconds() / (24 * 3600)
+        
+        if days < 1/24:  # Less than 1 hour
+            minutes = most_common_diff.total_seconds() / 60
+            if minutes < 1:  # Less than 1 minute
+                return f'{int(most_common_diff.total_seconds())} seconds'
             else:
-                return f"Custom interval: {diff}"
-        return "Irregular intervals"
+                return f'{int(minutes)} minutes'
+        elif days < 1:  # Less than 1 day
+            hours = days * 24
+            return f'{int(hours)} hours'
+        elif days < 7:  # Less than 1 week
+            return f'{int(days)} days'
+        elif days < 31:  # Less than 1 month
+            weeks = days / 7
+            return f'{int(weeks)} weeks'
+        elif days < 365:  # Less than 1 year
+            months = days / 30.44  # Average month length
+            return f'{int(months)} months'
+        else:
+            years = days / 365.25  # Account for leap years
+            return f'{int(years)} years'
 
     def get_column_descriptive_stats(self) -> Dict[str, Any]:
         """Get the pre-calculated descriptive statistics for all columns.
@@ -1366,10 +1362,10 @@ class DataManager:
         """
         if self.data is None or column_name not in self.data.columns:
             raise ValueError(f"Column {column_name} not found in dataset")
-        
+            
         if min_value >= max_value:
             raise ValueError("Minimum value must be less than maximum value")
-        
+            
         try:
             # Get column index and data
             col_idx = self.data.columns.get_loc(column_name)
@@ -1453,3 +1449,193 @@ class DataManager:
         except Exception as e:
             logger.error(f"Error adding column range flags: {str(e)}", exc_info=True)
             raise
+
+    def analyze_column_types(self) -> None:
+        """Analyze and determine the types of each column in the dataset."""
+        if self.data is None:
+            return
+        
+        logger.debug("Starting column type analysis")
+        self.update_progress(15, 'Analyzing column types...')
+        
+        column_types_list = []
+        for column in self.data.columns:
+            column_types_list.append(self._determine_column_type(self.data[column]))
+        
+        if self._descriptive_stats is None:
+            self._descriptive_stats = {}
+        
+        self._descriptive_stats['column_types'] = {
+            'numeric': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'numeric']),
+            'categorical': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'categorical']),
+            'boolean': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'boolean']),
+            'datetime': len([col for col, type_ in zip(self.data.columns, column_types_list) if type_ == 'timeseries']),
+            'columns': self.data.columns.tolist(),
+            'column_types_list': column_types_list
+        }
+        
+        self.update_progress(20, 'Column types analyzed')
+        logger.debug("Column type analysis complete")
+
+    def calculate_basic_stats(self) -> None:
+        """Calculate basic statistics for each column."""
+        if self.data is None:
+            return
+        
+        logger.debug("Starting basic statistics calculation")
+        self.update_progress(30, 'Calculating basic statistics...')
+        
+        if self._descriptive_stats is None:
+            self._descriptive_stats = {}
+        
+        missing_values_by_column = {}
+        distribution_analysis = {}
+        
+        for col in self.data.columns:
+            col_data = self.data[col]
+            col_type = self._descriptive_stats['column_types']['column_types_list'][self.data.columns.get_loc(col)]
+            
+            # Calculate missing values
+            missing_count = col_data.isna().sum()
+            if missing_count > 0:
+                missing_values_by_column[col] = int(missing_count)
+            
+            # Calculate distribution analysis for numeric columns
+            if col_type in ['numeric', 'discrete']:
+                clean_data = col_data.dropna()
+                if len(clean_data) > 0:
+                    distribution_analysis[col] = {
+                        'skewness': float(clean_data.skew()),
+                        'kurtosis': float(clean_data.kurtosis()),
+                        'descriptive_stats': {
+                            'mean': float(clean_data.mean()),
+                            'std': float(clean_data.std()),
+                            'min': float(clean_data.min()),
+                            'max': float(clean_data.max())
+                        },
+                        'distribution_type': self._determine_distribution(clean_data)
+                    }
+                
+        self._descriptive_stats['missing_values_by_column'] = missing_values_by_column
+        self._descriptive_stats['distribution_analysis'] = distribution_analysis
+        
+        self.update_progress(40, 'Basic statistics calculated')
+        logger.debug("Basic statistics calculation complete")
+
+    def analyze_distributions(self) -> None:
+        """Analyze distributions for each column."""
+        if self.data is None:
+            return
+        
+        logger.debug("Starting distribution analysis")
+        self.update_progress(50, 'Analyzing distributions...')
+        
+        if self._descriptive_stats is None:
+            self._descriptive_stats = {}
+        
+        categorical_stats = {}
+        boolean_stats = {}
+        datetime_stats = {}
+        
+        for col in self.data.columns:
+            col_data = self.data[col]
+            col_type = self._descriptive_stats['column_types']['column_types_list'][self.data.columns.get_loc(col)]
+            
+            if col_type == 'categorical':
+                value_counts = col_data.value_counts()
+                if not value_counts.empty:
+                    categorical_stats[col] = {
+                        'unique_count': int(col_data.nunique()),
+                        'most_frequent': {
+                            'value': str(value_counts.index[0]),
+                            'count': int(value_counts.iloc[0])
+                        },
+                        'value_distribution': [
+                            {'value': str(val), 'count': int(count)}
+                            for val, count in value_counts.head(10).items()
+                        ]
+                    }
+            elif col_type == 'boolean':
+                true_count = (col_data == True).sum()
+                false_count = (col_data == False).sum()
+                total = true_count + false_count
+                boolean_stats[col] = {
+                    'true_count': int(true_count),
+                    'false_count': int(false_count),
+                    'true_percentage': float(true_count / total * 100) if total > 0 else 0
+                }
+            elif col_type == 'timeseries':
+                clean_data = col_data.dropna()
+                if len(clean_data) > 0:
+                    datetime_stats[col] = {
+                        'start_date': str(clean_data.min()),
+                        'end_date': str(clean_data.max()),
+                        'range': str(clean_data.max() - clean_data.min()),
+                        'time_interval': self._calculate_time_interval(clean_data)
+                    }
+        
+        self._descriptive_stats['categorical_stats'] = categorical_stats
+        self._descriptive_stats['boolean_stats'] = boolean_stats
+        self._descriptive_stats['datetime_stats'] = datetime_stats
+        
+        self.update_progress(60, 'Distribution analysis complete')
+        logger.debug("Distribution analysis complete")
+
+    def detect_outliers(self) -> None:
+        """Detect outliers in numeric columns."""
+        if self.data is None:
+            return
+        
+        logger.debug("Starting outlier detection")
+        self.update_progress(70, 'Detecting outliers...')
+        
+        if self._descriptive_stats is None:
+            self._descriptive_stats = {}
+        
+        outlier_info = {}
+        
+        for col in self.data.columns:
+            col_type = self._descriptive_stats['column_types']['column_types_list'][self.data.columns.get_loc(col)]
+            if col_type in ['numeric', 'discrete']:
+                col_data = self.data[col].dropna()
+                if len(col_data) > 0:
+                    Q1 = col_data.quantile(0.25)
+                    Q3 = col_data.quantile(0.75)
+                    IQR = Q3 - Q1
+                    lower_bound = Q1 - 1.5 * IQR
+                    upper_bound = Q3 + 1.5 * IQR
+                    outliers = col_data[(col_data < lower_bound) | (col_data > upper_bound)]
+                    outlier_count = len(outliers)
+                    
+                    if outlier_count > 0:
+                        outlier_info[col] = {
+                            'count': outlier_count,
+                            'percentage': (outlier_count / len(col_data)) * 100,
+                            'bounds': {
+                                'lower': float(lower_bound),
+                                'upper': float(upper_bound)
+                            }
+                        }
+        
+        self._descriptive_stats['outlier_info'] = outlier_info
+        
+        self.update_progress(80, 'Outlier detection complete')
+        logger.debug("Outlier detection complete")
+
+    def update_progress(self, percent: int, task: str, is_complete: bool = False) -> None:
+        """Thread-safe method to update calculation progress.
+        
+        Args:
+            percent: Progress percentage (0-100)
+            task: Current task description
+            is_complete: Whether the calculation is complete
+        """
+        with self._progress_lock:
+            self.stats_progress = {
+                'percent': percent,
+                'current_task': task,
+                'is_complete': is_complete
+            }
+            logger.debug(f"Progress updated: {percent}% - {task}")
+            if is_complete:
+                logger.debug("Calculation marked as complete")

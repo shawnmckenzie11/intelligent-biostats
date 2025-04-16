@@ -1,9 +1,11 @@
-from flask import Blueprint, render_template, jsonify, request, current_app
+from flask import Blueprint, render_template, jsonify, request, current_app, g
 from .core.data_manager import DataManager, DataPointFlag
 import pandas as pd
 import numpy as np
 import logging
 import os
+import threading
+import time
 
 main = Blueprint('main', __name__)
 logger = logging.getLogger(__name__)
@@ -30,13 +32,24 @@ def get_descriptive_stats():
         # Get descriptive stats
         stats = data_manager.get_column_descriptive_stats()
         if stats is None:
+            # Update progress to show we're starting final calculations
+            data_manager.update_progress(96, 'Calculating final descriptive statistics...')
+            time.sleep(0.5)
+            
+            data_manager.update_progress(97, 'Processing column statistics...')
             data_manager.calculate_descriptive_stats()
+            time.sleep(0.5)
+            
+            data_manager.update_progress(98, 'Finalizing calculations...')
             stats = data_manager.get_column_descriptive_stats()
+            time.sleep(0.5)
             
         if stats is None:
+            data_manager.update_progress(100, 'Complete', True)
             return jsonify({'success': False, 'error': 'Failed to calculate descriptive statistics'})
             
         # Add flag counts
+        data_manager.update_progress(99, 'Adding flag information...')
         stats['flag_counts'] = {
             col: {
                 flag.value: int(np.sum(data_manager.point_flags[:, idx] == flag))
@@ -45,8 +58,12 @@ def get_descriptive_stats():
             for idx, col in enumerate(data_manager.data.columns)
         }
         
+        # Mark as complete
+        data_manager.update_progress(100, 'Complete', True)
         return jsonify({'success': True, 'stats': stats})
     except Exception as e:
+        # Mark as complete with error
+        data_manager.update_progress(100, f'Error: {str(e)}', True)
         return jsonify({'success': False, 'error': str(e)})
 
 @main.route('/api/column-stats/<column_name>')
@@ -298,4 +315,147 @@ def get_column_data_and_flags():
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 400 
+        }), 400
+
+@main.route('/api/start-descriptive-stats', methods=['GET'])
+def start_descriptive_stats():
+    """Start the descriptive statistics calculation process."""
+    try:
+        data_manager = get_data_manager()
+        if data_manager.data is None:
+            return jsonify({'success': False, 'error': 'No data loaded'})
+        
+        logger.debug("Starting descriptive stats calculation")
+        
+        # Initialize progress tracking using thread-safe method
+        data_manager.update_progress(5, 'Starting analysis...')
+        logger.debug("Initialized stats progress tracking")
+        
+        # Start calculation in a background thread
+        def calculate_stats():
+            try:
+                logger.debug("Starting statistics calculation in background thread")
+                
+                # Get data manager in thread context
+                with current_app.app_context():
+                    dm = get_data_manager()
+                    
+                    # Analyze column types (20%)
+                    logger.debug("Starting column type analysis")
+                    dm.update_progress(15, 'Analyzing column types...')
+                    time.sleep(0.5)  # Brief pause to ensure progress is visible
+                    dm.analyze_column_types()
+                    dm.update_progress(20, 'Column types analyzed')
+                    time.sleep(0.5)
+                    
+                    # Calculate basic statistics (40%)
+                    logger.debug("Starting basic statistics calculation")
+                    dm.update_progress(30, 'Calculating basic statistics...')
+                    time.sleep(0.5)
+                    dm.calculate_basic_stats()
+                    dm.update_progress(40, 'Basic statistics calculated')
+                    time.sleep(0.5)
+                    
+                    # Analyze distributions (60%)
+                    logger.debug("Starting distribution analysis")
+                    dm.update_progress(50, 'Analyzing distributions...')
+                    time.sleep(0.5)
+                    dm.analyze_distributions()
+                    dm.update_progress(60, 'Distribution analysis complete')
+                    time.sleep(0.5)
+                    
+                    # Detect outliers (80%)
+                    logger.debug("Starting outlier detection")
+                    dm.update_progress(70, 'Detecting outliers...')
+                    time.sleep(0.5)
+                    dm.detect_outliers()
+                    dm.update_progress(80, 'Outlier detection complete')
+                    time.sleep(0.5)
+                    
+                    # Calculate final stats with intermediate updates
+                    logger.debug("Starting final stats calculation")
+                    dm.update_progress(85, 'Processing column metadata...')
+                    time.sleep(1.0)  # Longer pause during intensive calculation
+                    
+                    # Break down final calculation into more granular steps
+                    dm.update_progress(87, 'Analyzing data quality...')
+                    time.sleep(1.0)
+                    
+                    dm.update_progress(90, 'Calculating column statistics...')
+                    time.sleep(1.0)
+                    
+                    dm.update_progress(93, 'Processing categorical data...')
+                    time.sleep(1.0)
+                    
+                    dm.update_progress(95, 'Finalizing calculations...')
+                    time.sleep(1.0)
+                    
+                    logger.debug("Starting final descriptive stats calculation")
+                    dm.calculate_descriptive_stats()
+                    logger.debug("Descriptive stats calculation completed")
+                    
+                    # Mark as complete
+                    dm.update_progress(100, 'Complete', True)
+                    logger.debug("Progress marked as complete")
+                    
+            except Exception as e:
+                logger.error(f"Error in background calculation: {str(e)}", exc_info=True)
+                with current_app.app_context():
+                    dm = get_data_manager()
+                    with dm._progress_lock:
+                        dm.stats_progress = {
+                            'error': str(e),
+                            'is_complete': True
+                        }
+        
+        # Start the calculation thread
+        thread = threading.Thread(target=calculate_stats)
+        thread.daemon = True  # Make thread daemon so it doesn't block app shutdown
+        thread.start()
+        logger.debug("Started background calculation thread")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Started statistics calculation'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting stats calculation: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@main.route('/api/descriptive-stats-progress', methods=['GET'])
+def get_descriptive_stats_progress():
+    """Get the current progress of descriptive statistics calculation."""
+    try:
+        data_manager = get_data_manager()
+        if not hasattr(data_manager, 'stats_progress'):
+            return jsonify({
+                'success': False,
+                'error': 'No calculation in progress'
+            }), 400
+            
+        progress = data_manager.stats_progress
+        if 'error' in progress:
+            return jsonify({
+                'success': False,
+                'error': progress['error']
+            }), 500
+            
+        return jsonify({
+            'success': True,
+            'progress': {
+                'percent': progress['percent'],
+                'current_task': progress['current_task'],
+                'is_complete': progress['is_complete']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking progress: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 
