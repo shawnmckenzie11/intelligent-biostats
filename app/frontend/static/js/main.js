@@ -472,6 +472,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const validationElement = document.querySelector('.delete-column-validation');
         const deleteColumnRequest = document.getElementById('deleteColumnText').value;
         
+        // Hide the preview actions section immediately when proceed button is clicked
+        document.querySelector('.preview-actions').style.display = 'none';
+        
         if (deleteColumnRequest.trim()) {
             // Get the validated columns from the validation display
             const validColumnsMatch = validationElement.textContent.match(/Columns to delete: (.*)/);
@@ -499,9 +502,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const statusElement = document.getElementById('modificationStatus');
                         statusElement.textContent = 'Deletions Applied Successfully';
                         statusElement.className = 'status-message';
-                        
-                        // Hide the preview actions section
-                        document.querySelector('.preview-actions').style.display = 'none';
                         
                         // Show analysis sections
                         document.getElementById('descriptiveStatsSection').style.display = 'block';
@@ -777,6 +777,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
     function displayDescriptiveStats(stats) {
+        // Store stats globally for use in row restoration
+        window.currentStats = stats;
+        
         const statsContainer = document.getElementById('descriptiveContent');
         if (!statsContainer) {
             console.error('Stats display container not found');
@@ -939,30 +942,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add the select all functionality
         document.getElementById('selectAllColumns').addEventListener('change', function(e) {
-            const checkboxes = document.querySelectorAll('.column-checkbox');
-            checkboxes.forEach(checkbox => {
+            // Get all checkboxes in visible rows
+            const visibleCheckboxes = document.querySelectorAll('#columnStatsTableBody tr:not([style*="display: none"]) .column-checkbox');
+            visibleCheckboxes.forEach(checkbox => {
                 checkbox.checked = e.target.checked;
             });
         });
 
         // Add the action buttons functionality
         document.querySelector('.add-to-outcomes').addEventListener('click', function() {
-            const selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked:not(#selectAllColumns)'))
-                .map(checkbox => checkbox.dataset.column);
-            if (selectedColumns.length > 0) {
-                selectedColumns.forEach(column => {
-                    addToVariableList('outcomesList', column);
+            // Get only visible rows' checkboxes (excluding the header checkbox)
+            const visibleCheckedBoxes = Array.from(document.querySelectorAll('#columnStatsTableBody tr:not([style*="display: none"]) .column-checkbox:checked'));
+            
+            if (visibleCheckedBoxes.length > 0) {
+                visibleCheckedBoxes.forEach(checkbox => {
+                    const row = checkbox.closest('tr');
+                    const columnName = row.cells[1].textContent;
+                    const columnType = row.cells[2].querySelector('.column-type').textContent;
+                    
+                    // Only remove row if successfully added to outcomes list
+                    if (addToVariableList('outcomesList', columnName, columnType)) {
+                        // Remove the row from the table
+                        row.remove();
+                    }
                 });
+                
+                // Uncheck all remaining checkboxes and the select all checkbox
+                document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                document.getElementById('selectAllColumns').checked = false;
             }
         });
 
         document.querySelector('.add-to-expressions').addEventListener('click', function() {
-            const selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked:not(#selectAllColumns)'))
-                .map(checkbox => checkbox.dataset.column);
-            if (selectedColumns.length > 0) {
-                selectedColumns.forEach(column => {
-                    addToVariableList('expressionsList', column);
+            // Get only visible rows' checkboxes (excluding the header checkbox)
+            const visibleCheckedBoxes = Array.from(document.querySelectorAll('#columnStatsTableBody tr:not([style*="display: none"]) .column-checkbox:checked'));
+            
+            if (visibleCheckedBoxes.length > 0) {
+                visibleCheckedBoxes.forEach(checkbox => {
+                    const row = checkbox.closest('tr');
+                    const columnName = row.cells[1].textContent;
+                    const columnType = row.cells[2].querySelector('.column-type').textContent;
+                    
+                    // Only remove row if successfully added to expressions list
+                    if (addToVariableList('expressionsList', columnName, columnType)) {
+                        // Remove the row from the table
+                        row.remove();
+                    }
                 });
+                
+                // Uncheck all remaining checkboxes and the select all checkbox
+                document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                document.getElementById('selectAllColumns').checked = false;
             }
         });
     }
@@ -1840,6 +1874,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Make initializeEditButtons available to other functions
     window.initializeEditButtons = initializeEditButtons;
+
+    // Add styles for sticky header
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
+        .column-stats-table-container {
+            position: relative;
+            overflow: auto;
+            max-height: 500px; /* Adjust based on your needs */
+        }
+
+        .column-stats-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white; /* Or match your table header background */
+        }
+
+        .column-stats-table thead tr {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: adds shadow for better separation */
+        }
+
+        .column-stats-table thead th {
+            position: relative;
+            background: white; /* Or match your table header background */
+        }
+
+        .column-stats-table thead th.select-column {
+            z-index: 11; /* Ensure checkbox column stays on top */
+        }
+
+        .column-stats-table thead th input[type="checkbox"] {
+            position: relative;
+            z-index: 12; /* Ensure checkbox itself stays on top */
+        }
+    `;
+    document.head.appendChild(styleSheet);
 });
 
 // Move modal-related functions outside DOMContentLoaded
@@ -2019,13 +2089,13 @@ function showVariableSelectionModal(columnName, columnType) {
 
 function addToVariableList(listId, columnName, columnType) {
     const list = document.getElementById(listId);
-    if (!list) return;
+    if (!list) return false;
 
     // Check if already in list
     const existingItem = Array.from(list.children).find(item => 
         item.querySelector('.var-name').textContent === columnName
     );
-    if (existingItem) return;
+    if (existingItem) return false;  // Return false if already in list
 
     const li = document.createElement('li');
     li.className = 'selected-var-item';
@@ -2035,9 +2105,43 @@ function addToVariableList(listId, columnName, columnType) {
         <button class="remove-var">×</button>
     `;
 
+    // Add event listener to restore the row when variable is removed
     li.querySelector('.remove-var').addEventListener('click', () => {
+        // Remove from the outcomes/expressions list
         li.remove();
+        
+        // Restore the row to the table
+        const tableBody = document.getElementById('columnStatsTableBody');
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-type', columnType);
+        newRow.innerHTML = `
+            <td class="select-column">
+                <input type="checkbox" class="column-checkbox" data-column="${columnName}">
+            </td>
+            <td>${columnName}</td>
+            <td>
+                <span class="column-type ${columnType}">${columnType}</span>
+            </td>
+            <td></td>
+            <td>${getColumnRange(columnName, columnType, window.currentStats)}</td>
+            <td class="data-preview-cell">
+                ${getDistributionInfo(columnName, columnType, window.currentStats)}
+            </td>
+            <td>
+                <button class="action-button preview-btn" data-column="${columnName}" data-type="${columnType}">Preview</button>
+            </td>
+        `;
+        
+        // Add the row back to the table
+        tableBody.appendChild(newRow);
+        
+        // Reinitialize event listeners for the new row
+        initializeEditButtons();
+        newRow.querySelector('.preview-btn').addEventListener('click', function() {
+            showColumnPreview(columnName, columnType);
+        });
     });
 
     list.appendChild(li);
+    return true;  // Return true for successful addition
 }
