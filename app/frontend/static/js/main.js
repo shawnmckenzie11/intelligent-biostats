@@ -809,8 +809,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
                         </div>
                         <div class="action-buttons-container">
-                            <button class="action-button add-btn add-to-outcomes">Add Selected to Outcomes</button>
-                            <button class="action-button add-btn add-to-expressions">Add Selected to Expressions</button>
+                            <button class="action-button add-btn add-to-outcomes">Add to Outcomes</button>
+                            <button class="action-button add-btn add-to-expressions">Add to Expressions</button>
                         </div>
                     </div>
                     <div class="column-stats-table-container">

@@ -1,0 +1,201 @@
+student_id,name,gender,age,current_grade,gpa_2022,gpa_2023,fav_class,homeroom,num_lates,num_absences,extracurricular_hrs,sports_participation,standardized_test,lunch_type,iep_status,parent_edu,school_year
+S001,George Smith,Male,18,12,3.81,3.97,Math,Room B,9,0,6.3,False,96.0,Full,False,High School,2023
+S002,Diana Brown,Female,14,11,2.94,3.01,History,Room C,10,1,4.1,False,69.0,Free,False,Bachelor's,2023
+S003,Ethan Miller,Male,18,12,2.52,2.4,History,Room A,11,5,9.7,True,100.0,Free,False,High School,2023
+S004,George Brown,Male,18,10,2.42,2.31,Art,Room B,8,2,0.0,True,72.0,Full,False,Master's,2023
+S005,George Williams,Male,15,11,3.44,3.18,English,Room D,10,2,6.3,False,82.0,Full,True,Bachelor's,2023
+S006,Fiona Johnson,Female,15,10,2.98,3.14,Physics,Room A,9,0,1.5,True,85.0,Full,False,Bachelor's,2023
+S007,Jack Martinez,Male,15,11,3.46,3.03,Biology,Room B,5,3,4.5,True,100.0,Full,False,Master's,2023
+S008,Ethan Garcia,Male,18,9,4.0,4.0,English,Room C,9,3,4.8,False,75.0,Full,False,High School,2023
+S009,David Lee,Male,16,9,2.61,2.63,English,Room C,5,3,8.0,True,62.0,Reduced,True,High School,2023
+S010,Grace Martinez,Female,18,9,2.38,2.61,History,Room A,7,5,3.6,True,95.0,Full,False,Bachelor's,2023
+S011,George Smith,Male,16,12,3.1,3.25,English,Room B,9,3,7.6,False,72.0,Full,False,High School,2023
+S012,Alex Martinez,Male,16,10,3.57,3.6,Physics,Room A,9,2,2.6,False,76.0,Full,False,Bachelor's,2023
+S013,Ivan Brown,Male,15,12,2.53,2.77,Physics,Room A,5,4,7.7,True,69.0,Free,False,Master's,2023
+S014,Ivan Williams,Male,17,9,3.02,3.11,Math,Room B,9,2,4.1,False,76.0,Reduced,False,Bachelor's,2023
+S015,Grace Garcia,Female,14,10,3.69,3.72,Physics,Room B,9,3,5.1,True,72.0,Free,True,High School,2023
+S016,Henry Martinez,Male,15,9,2.18,2.15,Physics,Room D,11,2,4.3,True,87.0,Reduced,False,Master's,2023
+S017,Eva Smith,Female,15,12,3.12,2.93,History,Room B,13,7,7.6,True,81.0,Reduced,False,Bachelor's,2023
+S018,Cathy Lee,Female,17,12,2.73,2.74,Physics,Room C,8,6,7.2,False,73.0,Full,False,Bachelor's,2023
+S019,Hannah Garcia,Female,14,12,3.06,3.15,Math,Room A,7,2,5.9,False,90.0,Full,False,High School,2023
+S020,Henry Martinez,Male,18,9,3.35,3.44,Biology,Room A,10,6,2.7,True,83.0,Reduced,False,Master's,2023
+S021,Diana Smith,Female,18,10,3.11,3.15,History,Room C,7,2,3.6,True,62.0,Full,False,Bachelor's,2023
+S022,Alex Lee,Male,15,10,2.49,2.31,Biology,Room B,7,4,2.9,False,89.0,Free,False,Bachelor's,2023
+S023,Diana Miller,Female,14,9,2.75,2.62,History,Room C,11,2,0.5,False,82.0,Free,False,Master's,2023
+S024,Beth Williams,Female,15,10,3.71,3.77,Art,Room C,8,4,7.5,False,94.0,Free,False,High School,2023
+S025,Alice Jones,Female,16,9,3.16,3.61,English,Room D,11,5,4.3,True,81.0,Full,False,Bachelor's,2023
+S026,Alice Davis,Female,15,10,3.42,3.61,Art,Room C,4,5,4.3,False,72.0,Reduced,True,Master's,2023
+S027,Alice Smith,Female,15,11,3.13,3.42,Physics,Room A,5,5,8.0,False,78.0,Reduced,False,High School,2023
+S028,Beth Johnson,Female,18,11,3.4,3.42,Biology,Room C,5,6,4.0,True,88.0,Reduced,False,Bachelor's,2023
+S029,Fiona Miller,Female,18,12,2.8,2.72,Physics,Room A,11,4,3.3,True,72.0,Full,True,Master's,2023
+S030,Eva Smith,Female,18,11,2.62,2.58,English,Room A,10,5,4.6,True,76.0,Free,False,Bachelor's,2023
+S031,Alex Williams,Male,16,11,3.38,3.37,History,Room A,8,2,2.7,False,78.0,Full,True,Bachelor's,2023
+S032,Ben Jones,Male,18,11,3.56,3.26,English,Room B,6,3,5.7,True,69.0,Full,False,Master's,2023
+S033,Julia Garcia,Female,14,9,2.54,2.54,Math,Room D,15,3,4.3,True,72.0,Full,False,Master's,2023
+S034,Grace Brown,Female,17,11,2.71,2.77,English,Room A,11,2,4.0,True,82.0,Full,False,High School,2023
+S035,Grace Davis,Female,14,11,2.92,2.87,Math,Room A,12,3,3.8,True,92.0,Free,False,High School,2023
+S036,Alex Garcia,Male,14,12,3.81,3.49,English,Room B,4,2,4.8,False,83.0,Free,False,Bachelor's,2023
+S037,Hannah Jones,Female,18,11,3.28,3.48,Math,Room A,9,4,5.2,True,80.0,Full,False,Bachelor's,2023
+S038,David Johnson,Male,17,11,2.34,2.34,Biology,Room C,6,2,4.0,False,72.0,Reduced,False,Bachelor's,2023
+S039,Frank Garcia,Male,17,10,2.95,3.07,Physics,Room C,13,2,4.3,False,91.0,Full,False,Bachelor's,2023
+S040,Alex Martinez,Male,17,12,2.88,2.71,Physics,Room D,8,2,4.8,False,84.0,Full,True,High School,2023
+S041,Frank Williams,Male,16,12,2.41,2.53,Art,Room A,7,2,4.6,True,73.0,Full,False,Bachelor's,2023
+S042,David Brown,Male,18,12,2.95,3.18,Physics,Room B,5,2,5.1,False,89.0,Full,False,High School,2023
+S043,Cathy Lee,Female,17,12,2.85,3.04,History,Room C,9,2,3.6,True,86.0,Full,False,Bachelor's,2023
+S044,Cathy Williams,Female,16,12,2.82,2.88,English,Room B,8,4,7.0,True,72.0,Full,False,Bachelor's,2023
+S045,Diana Miller,Female,15,12,2.8,2.97,Art,Room B,4,2,5.2,True,79.0,Reduced,False,High School,2023
+S046,Diana Martinez,Female,15,9,3.74,3.79,History,Room C,4,1,4.0,False,75.0,Full,False,High School,2023
+S047,Alice Davis,Female,16,11,2.82,2.84,History,Room B,11,1,5.7,True,100.0,Free,False,Bachelor's,2023
+S048,George Johnson,Male,16,12,3.02,3.13,Math,Room C,4,4,4.9,True,85.0,Reduced,False,Bachelor's,2023
+S049,Hannah Smith,Female,18,11,2.97,3.1,Physics,Room B,13,3,1.5,True,82.0,Full,False,High School,2023
+S050,Ivy Martinez,Female,18,11,2.75,3.08,Biology,Room C,7,3,5.7,False,85.0,Reduced,False,Master's,2023
+S051,Ben Miller,Male,15,9,3.04,2.97,Biology,Room A,10,3,3.0,False,94.0,Reduced,True,Bachelor's,2023
+S052,Julia Williams,Female,17,12,3.03,3.13,Art,Room D,8,0,6.9,False,79.0,Free,False,Master's,2023
+S053,George Lee,Male,15,10,3.04,2.95,Biology,Room C,2,6,4.5,True,74.0,Full,False,Bachelor's,2023
+S054,Ivy Brown,Female,17,9,2.57,2.55,English,Room C,11,3,6.6,False,88.0,Full,True,Bachelor's,2023
+S055,Alex Johnson,Male,17,10,2.9,3.02,Biology,Room D,4,3,3.7,True,78.0,Full,False,Master's,2023
+S056,Alice Jones,Female,18,11,3.38,3.86,Art,Room C,8,3,5.1,True,69.0,Reduced,False,Bachelor's,2023
+S057,Eva Miller,Female,14,11,2.91,3.0,Biology,Room C,6,2,7.4,False,67.0,Full,False,Bachelor's,2023
+S058,Ivan Martinez,Male,14,9,3.08,2.98,English,Room B,6,3,4.5,True,95.0,Full,False,High School,2023
+S059,Chris Williams,Male,16,9,3.08,2.97,Math,Room D,9,5,3.8,False,81.0,Reduced,False,Bachelor's,2023
+S060,Chris Brown,Male,18,10,3.21,3.11,Art,Room A,10,3,6.3,True,74.0,Reduced,True,High School,2023
+S061,Henry Garcia,Male,17,12,3.28,3.53,Math,Room C,8,3,6.3,False,78.0,Reduced,False,High School,2023
+S062,Henry Smith,Male,14,10,2.91,2.81,Math,Room D,2,0,3.9,True,88.0,Full,False,High School,2023
+S063,Henry Brown,Male,17,9,2.54,2.46,Math,Room B,6,3,1.0,True,77.0,Full,False,High School,2023
+S064,Alex Davis,Male,14,10,2.39,2.2,History,Room A,2,3,3.8,True,66.0,Full,True,Master's,2023
+S065,David Garcia,Male,14,9,3.51,3.55,Physics,Room D,7,2,6.4,True,83.0,Reduced,False,High School,2023
+S066,Hannah Brown,Female,14,10,3.39,3.53,History,Room A,10,3,3.4,True,92.0,Full,False,Bachelor's,2023
+S067,Cathy Martinez,Female,18,9,3.32,3.3,Physics,Room A,14,3,5.0,False,91.0,Full,False,Master's,2023
+S068,Chris Martinez,Male,15,9,3.41,3.27,Math,Room A,10,3,3.7,True,74.0,Full,False,Bachelor's,2023
+S069,Beth Johnson,Female,17,9,2.92,3.3,Art,Room C,5,1,1.1,False,93.0,Full,False,High School,2023
+S070,Beth Garcia,Female,18,12,2.69,2.84,Physics,Room C,9,4,3.6,False,82.0,Reduced,False,Bachelor's,2023
+S071,Cathy Martinez,Female,18,10,2.51,2.68,English,Room B,8,2,6.3,False,92.0,Free,False,Bachelor's,2023
+S072,Diana Smith,Female,18,10,2.46,2.62,English,Room B,5,0,0.3,True,86.0,Full,False,Bachelor's,2023
+S073,David Smith,Male,18,10,3.61,3.82,Biology,Room D,11,4,5.5,True,65.0,Full,False,Bachelor's,2023
+S074,Eva Brown,Female,18,9,2.75,2.75,Physics,Room B,9,6,2.6,True,97.0,Full,False,Master's,2023
+S075,Henry Davis,Male,16,10,3.53,3.47,Art,Room A,8,5,6.2,False,81.0,Reduced,False,Bachelor's,2023
+S076,Grace Williams,Female,17,10,2.91,3.03,History,Room A,9,5,6.4,True,86.0,Full,True,High School,2023
+S077,Alice Smith,Female,18,9,2.66,2.55,Math,Room C,5,1,4.7,True,67.0,Reduced,False,Bachelor's,2023
+S078,Cathy Garcia,Female,17,11,2.45,2.47,Biology,Room A,8,4,4.7,False,85.0,Reduced,False,High School,2023
+S079,George Garcia,Male,16,9,2.71,2.86,English,Room D,9,3,3.4,False,91.0,Full,False,Master's,2023
+S080,Fiona Garcia,Female,16,10,3.71,3.97,History,Room A,10,4,2.3,False,99.0,Full,False,High School,2023
+S081,Chris Garcia,Male,17,9,2.46,2.6,History,Room A,10,2,8.4,False,94.0,Reduced,False,High School,2023
+S082,Hannah Johnson,Female,14,11,4.0,4.0,Math,Room D,3,1,3.3,False,86.0,Reduced,False,Master's,2023
+S083,Ethan Smith,Male,15,9,2.58,2.51,Physics,Room B,12,2,8.1,False,65.0,Reduced,False,Bachelor's,2023
+S084,Alice Jones,Female,14,10,3.37,3.26,English,Room B,6,3,3.3,True,81.0,Free,False,High School,2023
+S085,Chris Brown,Male,14,11,2.93,3.07,Art,Room D,9,4,6.1,False,74.0,Full,True,Bachelor's,2023
+S086,Chris Smith,Male,14,12,2.84,3.0,History,Room C,5,1,2.7,True,82.0,Full,False,Master's,2023
+S087,Alice Jones,Female,18,10,2.36,2.68,Math,Room A,13,1,6.0,True,68.0,Reduced,False,High School,2023
+S088,Frank Williams,Male,16,11,2.95,3.19,Art,Room D,4,2,4.3,True,78.0,Full,False,Master's,2023
+S089,Ivy Jones,Female,14,11,2.42,2.63,Physics,Room A,5,3,4.4,False,75.0,Full,False,High School,2023
+S090,Hannah Smith,Female,16,12,2.16,2.54,English,Room C,15,2,6.2,True,75.0,Full,True,Bachelor's,2023
+S091,Eva Williams,Female,17,9,3.06,3.18,Physics,Room A,10,3,4.1,False,75.0,Free,False,Master's,2023
+S092,Alice Brown,Female,15,9,2.68,2.57,History,Room D,9,3,2.1,False,79.0,Full,False,High School,2023
+S093,Eva Miller,Female,17,10,3.84,4.0,Art,Room A,15,5,6.5,True,83.0,Reduced,False,Bachelor's,2023
+S094,Alice Williams,Female,17,12,3.5,3.38,Art,Room B,5,6,2.7,False,60.0,Reduced,False,High School,2023
+S095,Beth Martinez,Female,18,9,3.85,4.0,Art,Room C,9,2,6.0,True,60.0,Free,False,Bachelor's,2023
+S096,Julia Garcia,Female,15,12,2.66,2.95,History,Room C,10,2,6.9,True,77.0,Reduced,True,Bachelor's,2023
+S097,Julia Williams,Female,17,9,3.07,3.27,History,Room C,10,5,4.2,False,78.0,Free,False,Bachelor's,2023
+S098,Hannah Davis,Female,17,11,1.69,2.18,Physics,Room D,9,4,7.4,True,82.0,Reduced,False,High School,2023
+S099,Beth Garcia,Female,15,9,2.86,2.71,Biology,Room C,8,4,6.0,True,73.0,Reduced,False,High School,2023
+S100,George Johnson,Male,15,12,3.05,3.04,Physics,Room B,5,5,3.6,True,80.0,Full,False,High School,2023
+S101,Jack Johnson,Male,17,11,3.08,3.08,English,Room D,8,3,7.8,False,81.0,Full,False,High School,2023
+S102,Julia Smith,Female,15,11,2.98,2.93,Math,Room B,5,1,2.7,True,73.0,Reduced,False,Bachelor's,2023
+S103,Hannah Smith,Female,17,11,3.03,3.01,Art,Room A,10,2,4.2,False,90.0,Full,False,Master's,2023
+S104,Ivy Garcia,Female,17,12,1.64,1.67,Biology,Room A,7,3,4.6,False,82.0,Full,False,Bachelor's,2023
+S105,Grace Lee,Female,18,10,3.13,3.11,Math,Room A,9,1,6.2,True,85.0,Full,False,Bachelor's,2023
+S106,Grace Lee,Female,14,10,3.24,3.38,Biology,Room A,6,1,7.2,True,81.0,Free,False,Master's,2023
+S107,Cathy Johnson,Female,17,10,3.67,3.73,Physics,Room B,10,3,7.1,False,100.0,Full,False,Bachelor's,2023
+S108,Ivy Davis,Female,16,12,3.18,3.38,History,Room D,8,1,5.4,False,86.0,Full,False,Master's,2023
+S109,Julia Miller,Female,14,11,2.93,3.18,Art,Room D,9,4,4.4,True,75.0,Full,False,Bachelor's,2023
+S110,Ivan Brown,Male,14,10,3.55,3.64,Physics,Room C,5,3,1.3,True,88.0,Reduced,False,High School,2023
+S111,Diana Smith,Female,14,12,1.82,1.91,Math,Room B,9,3,2.4,False,64.0,Full,False,High School,2023
+S112,Henry Williams,Male,18,10,2.74,2.79,Math,Room A,9,3,8.5,False,81.0,Full,False,Bachelor's,2023
+S113,Grace Johnson,Female,17,9,2.62,2.92,Math,Room B,6,1,1.3,False,83.0,Full,False,High School,2023
+S114,Beth Miller,Female,18,10,2.98,3.2,Math,Room C,8,2,3.4,False,81.0,Free,False,High School,2023
+S115,Frank Williams,Male,17,10,1.9,2.18,Math,Room C,6,3,7.3,False,77.0,Reduced,False,Bachelor's,2023
+S116,Ivy Lee,Female,18,11,3.66,3.96,Biology,Room B,6,2,5.4,True,70.0,Full,False,Bachelor's,2023
+S117,Frank Lee,Male,18,12,2.88,3.13,Physics,Room B,12,3,6.9,False,72.0,Full,False,Bachelor's,2023
+S118,Julia Garcia,Female,16,11,3.16,2.94,Art,Room B,10,3,6.1,False,81.0,Free,False,High School,2023
+S119,Alice Brown,Female,18,11,3.11,3.28,History,Room D,7,4,7.9,True,69.0,Full,True,High School,2023
+S120,Jack Garcia,Male,15,11,3.63,3.58,History,Room A,9,3,5.6,True,98.0,Reduced,False,Bachelor's,2023
+S121,Fiona Jones,Female,16,11,2.07,2.2,Physics,Room B,9,1,6.3,False,60.0,Full,False,Master's,2023
+S122,Alex Davis,Male,18,11,3.06,2.94,Physics,Room B,6,6,3.6,False,77.0,Full,True,Bachelor's,2023
+S123,Eva Jones,Female,14,10,3.57,3.78,History,Room B,5,3,6.2,True,81.0,Full,False,Master's,2023
+S124,George Brown,Male,15,11,2.95,2.68,History,Room C,10,5,4.2,False,85.0,Full,False,Bachelor's,2023
+S125,Frank Brown,Male,15,11,2.52,2.58,Biology,Room C,6,1,4.1,False,71.0,Reduced,False,Bachelor's,2023
+S126,Cathy Miller,Female,15,12,2.7,2.73,English,Room D,8,3,6.8,True,91.0,Full,False,High School,2023
+S127,Hannah Brown,Female,16,9,2.8,2.88,Art,Room A,9,0,6.8,False,66.0,Free,True,Bachelor's,2023
+S128,Ben Lee,Male,18,10,2.64,2.71,Math,Room D,13,4,8.4,True,74.0,Full,False,Bachelor's,2023
+S129,Cathy Smith,Female,18,10,2.92,3.09,English,Room A,7,2,8.2,True,86.0,Full,False,Bachelor's,2023
+S130,Hannah Williams,Female,14,10,3.75,4.0,Physics,Room C,7,2,6.8,True,90.0,Full,False,Bachelor's,2023
+S131,Julia Miller,Female,14,11,2.7,2.71,History,Room C,8,5,1.6,True,66.0,Reduced,False,Bachelor's,2023
+S132,Jack Jones,Male,15,11,2.76,2.74,English,Room C,7,2,8.7,False,100.0,Full,False,High School,2023
+S133,Jack Jones,Male,14,11,3.23,3.36,Art,Room D,8,1,6.8,True,71.0,Free,False,Bachelor's,2023
+S134,George Martinez,Male,16,12,2.91,2.97,Physics,Room B,6,2,3.5,False,67.0,Free,False,High School,2023
+S135,Ethan Smith,Male,18,9,2.34,2.4,Math,Room B,4,2,6.5,False,85.0,Full,False,Master's,2023
+S136,Jack Lee,Male,15,11,2.97,3.14,Math,Room C,12,4,2.9,False,77.0,Reduced,False,High School,2023
+S137,Alex Johnson,Male,14,9,2.95,2.89,Art,Room B,11,4,6.2,False,75.0,Full,False,High School,2023
+S138,Frank Martinez,Male,16,12,3.49,3.4,Art,Room B,2,5,2.4,False,86.0,Reduced,False,Bachelor's,2023
+S139,Henry Jones,Male,16,10,2.51,2.6,History,Room D,6,5,3.4,True,65.0,Free,False,Bachelor's,2023
+S140,Alex Miller,Male,14,11,3.49,3.47,Math,Room A,7,1,6.4,True,63.0,Full,False,Bachelor's,2023
+S141,Eva Garcia,Female,18,9,2.95,3.27,Physics,Room C,7,4,7.1,True,74.0,Full,False,High School,2023
+S142,George Williams,Male,14,9,2.45,2.5,English,Room C,6,3,5.7,True,91.0,Free,False,Bachelor's,2023
+S143,Julia Williams,Female,15,11,2.35,2.4,Physics,Room D,7,6,4.4,False,74.0,Full,False,High School,2023
+S144,Eva Garcia,Female,14,10,3.97,4.0,Biology,Room D,10,2,0.8,True,96.0,Full,False,Master's,2023
+S145,Ivy Jones,Female,16,10,2.92,2.93,Biology,Room B,9,2,4.6,False,92.0,Full,False,Master's,2023
+S146,Alex Brown,Male,14,10,3.47,3.61,Art,Room C,8,3,6.1,False,83.0,Reduced,True,Bachelor's,2023
+S147,Ethan Lee,Male,18,12,2.15,1.94,History,Room A,6,2,4.4,True,83.0,Full,False,High School,2023
+S148,Jack Jones,Male,17,9,4.0,4.0,Biology,Room D,5,2,5.0,True,83.0,Full,False,Bachelor's,2023
+S149,George Brown,Male,14,9,3.45,3.49,Math,Room A,7,0,4.6,True,82.0,Full,False,High School,2023
+S150,Alice Jones,Female,18,9,2.87,3.0,Physics,Room A,7,5,4.4,True,76.0,Free,False,Bachelor's,2023
+S151,George Lee,Male,18,12,2.85,2.96,Physics,Room C,1,5,5.2,False,77.0,Full,False,High School,2023
+S152,Jack Garcia,Male,16,9,3.37,3.44,Art,Room C,9,5,4.5,False,69.0,Full,False,Master's,2023
+S153,Ethan Brown,Male,18,12,3.34,3.54,English,Room D,6,1,7.9,True,60.0,Full,False,High School,2023
+S154,Ben Brown,Male,18,10,3.09,3.29,Art,Room C,12,1,0.6,False,91.0,Reduced,False,Bachelor's,2023
+S155,Jack Lee,Male,18,11,3.01,3.06,English,Room C,10,4,3.9,False,82.0,Full,False,Bachelor's,2023
+S156,Cathy Lee,Female,18,9,3.28,3.3,Art,Room C,5,2,3.3,False,80.0,Full,False,Bachelor's,2023
+S157,Alex Davis,Male,15,9,2.13,2.05,Art,Room A,13,3,5.4,True,84.0,Free,False,High School,2023
+S158,Eva Brown,Female,15,10,2.81,2.95,Art,Room D,10,1,5.2,False,72.0,Reduced,False,Master's,2023
+S159,Henry Miller,Male,16,11,2.18,2.34,English,Room B,7,3,8.2,True,70.0,Full,False,Bachelor's,2023
+S160,Beth Smith,Female,14,12,3.3,3.38,English,Room A,10,2,8.9,True,77.0,Free,False,Bachelor's,2023
+S161,David Davis,Male,18,11,2.66,2.61,Art,Room C,8,0,3.5,False,94.0,Full,False,High School,2023
+S162,Ben Williams,Male,14,10,2.21,2.49,Biology,Room A,8,5,5.0,False,68.0,Full,False,Bachelor's,2023
+S163,Alice Smith,Female,14,10,2.6,2.74,History,Room C,9,5,5.4,True,60.0,Full,False,Bachelor's,2023
+S164,Cathy Jones,Female,16,11,3.07,3.13,History,Room C,5,0,3.4,False,75.0,Reduced,False,High School,2023
+S165,Cathy Smith,Female,18,12,2.9,3.16,History,Room A,4,1,6.3,False,91.0,Reduced,False,High School,2023
+S166,Alex Davis,Male,18,12,2.41,2.41,English,Room D,6,7,4.5,True,63.0,Full,False,Master's,2023
+S167,Julia Johnson,Female,17,9,2.15,2.09,English,Room C,13,1,2.9,True,68.0,Reduced,False,High School,2023
+S168,Chris Johnson,Male,14,12,3.04,3.19,Biology,Room D,1,2,4.4,True,83.0,Full,False,High School,2023
+S169,Chris Miller,Male,14,11,2.71,2.6,History,Room B,9,1,3.0,True,100.0,Reduced,False,Bachelor's,2023
+S170,Alice Lee,Female,15,10,2.87,3.03,History,Room C,7,4,7.1,False,66.0,Free,False,Bachelor's,2023
+S171,Hannah Lee,Female,17,9,2.92,3.06,Art,Room D,6,4,8.8,False,66.0,Free,False,High School,2023
+S172,Jack Lee,Male,15,9,3.22,3.25,English,Room D,10,3,5.5,True,83.0,Full,True,Bachelor's,2023
+S173,Ben Williams,Male,15,10,3.42,3.09,History,Room B,10,6,5.2,True,92.0,Full,False,High School,2023
+S174,Ivy Miller,Female,15,12,3.07,3.17,Physics,Room D,10,5,5.3,True,74.0,Reduced,False,High School,2023
+S175,Diana Lee,Female,16,10,2.84,3.16,Biology,Room D,13,4,7.4,False,64.0,Reduced,True,High School,2023
+S176,Eva Johnson,Female,16,12,3.01,3.35,Physics,Room B,6,4,7.3,True,84.0,Reduced,False,Master's,2023
+S177,Henry Brown,Male,15,10,2.83,2.68,Physics,Room C,9,7,4.8,False,86.0,Full,False,High School,2023
+S178,Ivan Jones,Male,17,11,2.18,2.32,Biology,Room D,9,6,5.5,True,98.0,Reduced,False,High School,2023
+S179,Ivan Brown,Male,14,12,3.55,3.43,Physics,Room D,6,2,6.3,True,87.0,Full,True,Bachelor's,2023
+S180,Jack Jones,Male,17,11,3.45,3.4,History,Room D,8,4,2.7,True,88.0,Full,False,Master's,2023
+S181,Ivan Davis,Male,18,9,3.99,3.95,English,Room A,5,4,7.4,False,77.0,Full,False,High School,2023
+S182,Chris Smith,Male,16,10,4.0,4.0,Biology,Room B,6,1,8.5,False,100.0,Free,True,Bachelor's,2023
+S183,Cathy Brown,Female,14,9,2.41,2.71,Art,Room A,3,4,7.3,False,76.0,Full,False,High School,2023
+S184,Ben Smith,Male,14,9,2.83,2.87,Physics,Room B,5,0,2.5,True,74.0,Reduced,True,Bachelor's,2023
+S185,George Davis,Male,18,9,4.0,3.98,Biology,Room C,7,7,1.1,False,98.0,Free,False,Bachelor's,2023
+S186,George Jones,Male,18,9,2.98,3.12,Math,Room C,12,3,6.4,False,65.0,Full,False,Bachelor's,2023
+S187,Alice Miller,Female,15,10,3.12,3.15,Math,Room D,9,4,3.5,True,62.0,Full,False,High School,2023
+S188,George Martinez,Male,16,9,2.24,2.23,English,Room B,7,2,5.6,True,81.0,Reduced,False,High School,2023
+S189,Chris Martinez,Male,16,10,3.08,3.22,History,Room C,7,1,8.1,False,80.0,Reduced,False,High School,2023
+S190,Alice Smith,Female,17,10,3.97,4.0,English,Room B,6,2,3.7,False,78.0,Full,False,High School,2023
+S191,David Martinez,Male,15,11,3.64,3.57,English,Room C,7,6,4.2,False,90.0,Free,False,High School,2023
+S192,Frank Williams,Male,15,12,2.7,2.47,English,Room A,7,4,5.6,False,71.0,Full,False,Bachelor's,2023
+S193,Alex Brown,Male,15,12,2.8,2.85,English,Room C,9,4,2.4,True,81.0,Full,False,Master's,2023
+S194,Ivan Williams,Male,15,10,2.43,2.2,Art,Room A,10,9,3.5,True,76.0,Reduced,False,Master's,2023
+S195,Ivan Miller,Male,16,11,2.57,2.54,Art,Room C,10,2,5.0,True,71.0,Reduced,False,Master's,2023
+S196,Diana Williams,Female,16,10,2.04,2.37,Biology,Room D,8,5,4.4,False,79.0,Reduced,False,Bachelor's,2023
+S197,Julia Jones,Female,15,10,2.96,3.2,Math,Room A,9,2,6.2,False,89.0,Full,False,Bachelor's,2023
+S198,Eva Williams,Female,17,10,3.76,3.6,English,Room C,13,2,10.5,True,100.0,Full,False,High School,2023
+S199,Ivan Brown,Male,14,11,3.18,3.21,Biology,Room D,10,4,5.2,True,86.0,Reduced,False,Bachelor's,2023
+S200,Ethan Brown,Male,14,12,3.68,3.64,Math,Room A,7,1,3.3,False,60.0,Full,False,Bachelor's,2023

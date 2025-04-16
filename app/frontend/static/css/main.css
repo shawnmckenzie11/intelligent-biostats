@@ -73,6 +73,9 @@ body {
 
 /* Data Preview */
 .data-preview {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 0;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -157,16 +160,16 @@ body {
 
 /* Add styles for descriptive content */
 #descriptiveContent {
-    height: calc(10 * 53px + 140px); /* 53px per row + space for header and padding */
-    overflow: hidden; /* Prevent container scroll */
-    position: relative; /* For proper child positioning */
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 0;
+    height: calc(100vh - 300px);
+    overflow: hidden;
+    padding: 16px;
 }
 
 #descriptiveContent.collapsed {
-    max-height: 0;
-    padding: 0;
-    margin: 0;
-    overflow: hidden;
+    display: none;
 }
 
 .data-preview table {
@@ -461,6 +464,11 @@ body {
     outline: none;
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.column-search::placeholder {
+    color: #6c757d;
+    opacity: 0.7;
 }
 
 .stats-container {
@@ -2423,4 +2431,26 @@ select {
     bottom: 0;
     height: 2px;
     background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 100%);
+}
+
+.stats-dashboard-container {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.stats-dashboard.horizontal {
+    height: 100%;
+    overflow: hidden;
+}
+
+.column-stats-panel {
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+}
+
+.column-stats-table-container {
+    min-height: 0;
+    overflow: auto;
 }
