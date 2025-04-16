@@ -89,3 +89,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Cursor
+.cursor/*
+!.cursor/rules/
+!.cursor-config.json

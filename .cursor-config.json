@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "rules": {
+    "directories": [".cursor/rules"],
+    "autoApply": true,
+    "priority": [
+      "ui-formatting-rules.mdc",
+      "library-and-route-awareness.mdc"
+    ],
+    "ruleSettings": {
+      "ui-formatting-rules.mdc": {
+        "enforceColors": true,
+        "enforceTypography": true,
+        "enforceLayout": true,
+        "enforceComponents": true,
+        "enforceInteractions": true
+      },
+      "library-and-route-awareness.mdc": {
+        "trackDependencies": true,
+        "trackLibraries": true,
+        "trackArchitecture": true
+      }
+    }
+  },
+  "globalSettings": {
+    "enforceStyleGuide": true,
+    "validateRules": true,
+    "preserveExistingFunctionality": true
+  }
+} 

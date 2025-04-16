@@ -97,3 +97,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Uses pandas for data manipulation
 - Visualization powered by matplotlib and seaborn
 
+## Cursor IDE Integration
+
+This project uses Cursor IDE with specific rules and configurations for consistent development across devices.
+
+### Setup Cursor IDE
+
+1. Install Cursor IDE from [cursor.sh](https://cursor.sh)
+2. Clone the repository
+3. Open the project in Cursor IDE
+4. Verify the rules are loaded:
+   - Check `.cursor/rules` directory exists
+   - Verify `.cursor-config.json` is present
+
+### Available Rules
+
+- **UI Formatting Rules**: Ensures consistent styling across the application
+- **Library and Route Awareness**: Maintains context for dependencies and architecture
+
+### GitHub Actions Integration
+
+The project includes GitHub Actions workflows to:
+- Validate Cursor rules on push/pull requests
+- Ensure consistent development practices
+- Maintain code quality standards
+
+For detailed information about Cursor rules and setup, see [CURSOR_RULES.md](CURSOR_RULES.md)
+

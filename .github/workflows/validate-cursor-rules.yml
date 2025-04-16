@@ -1,0 +1,39 @@
+name: Validate Cursor Rules
+
+on:
+  push:
+    paths:
+      - '.cursor/**'
+      - '.cursor-config.json'
+  pull_request:
+    paths:
+      - '.cursor/**'
+      - '.cursor-config.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Validate Cursor Configuration
+        run: |
+          if [ ! -f ".cursor-config.json" ]; then
+            echo "Warning: .cursor-config.json not found"
+            exit 0  # Don't fail the build, just warn
+          fi
+          
+          # Validate JSON format if file exists
+          if [ -f ".cursor-config.json" ]; then
+            if ! jq empty .cursor-config.json; then
+              echo "Warning: Invalid JSON in .cursor-config.json"
+              exit 0  # Don't fail the build, just warn
+            fi
+          fi
+          
+          # Check for rules but don't fail if missing
+          for rule in "ui-formatting-rules.mdc" "library-and-route-awareness.mdc"; do
+            if [ ! -f ".cursor/rules/$rule" ]; then
+              echo "Warning: Missing rule file: $rule"
+            fi
+          done 

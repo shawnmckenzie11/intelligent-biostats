@@ -3,6 +3,14 @@
     --secondary-color: #3498db;
     --background-color: #f8f9fa;
     --border-color: #e9ecef;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
+    --transition-default: all 0.3s ease;
+    --border-radius: 8px;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
 }
 
 body {
@@ -10,6 +18,8 @@ body {
     margin: 0;
     padding: 0;
     background-color: var(--background-color);
+    color: var(--primary-color);
+    line-height: 1.5;
 }
 
 /* Banner/Navigation */
@@ -44,9 +54,10 @@ body {
 
 /* Main Content */
 .container {
-    max-width: 90%;
-    margin: 2rem auto;
-    padding: 0 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    width: 90%;
 }
 
 /* File Upload Area */
@@ -1474,40 +1485,53 @@ body {
     margin: 0;
 }
 
+/* Preview Actions Section */
 .preview-actions {
-    padding: 1rem;
-    background-color: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    padding: var(--spacing-lg);
+    background-color: var(--background-color);
+    border-top: 1px solid var(--border-color);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .preview-actions .input-group {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
+    width: 100%;
+    padding: 0; /* Remove any default padding */
 }
 
 .preview-actions .input-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #495057;
+    color: var(--primary-color);
     font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    padding: 0; /* Remove any default padding */
 }
 
 .preview-actions .input-wrapper {
     position: relative;
+    width: 100%;
+    margin: 0; /* Remove the margins we added earlier */
+    padding: 0; /* Remove any default padding */
 }
 
 .preview-actions .input-field {
     width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     font-size: 0.9rem;
+    transition: all 0.2s ease;
+    background-color: white;
+    box-sizing: border-box;
 }
 
 .preview-actions .action-group {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: var(--spacing-md);
+    padding: 0; /* Remove any default padding */
 }
 
 .preview-actions .proceed-button {
