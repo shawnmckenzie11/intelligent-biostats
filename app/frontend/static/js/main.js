@@ -521,6 +521,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Load smart recommendations
                         loadSmartRecommendations();
+                        
+                        // Add this line to adjust the section after everything is initialized
+                        setTimeout(adjustDescriptiveStatsSection, 100); // Small delay to ensure content is rendered
                     } else {
                         const statusElement = document.getElementById('modificationStatus');
                         statusElement.textContent = data.error || 'Error applying deletions';
@@ -547,6 +550,9 @@ document.addEventListener('DOMContentLoaded', function() {
             initializeTabs();
             loadDescriptiveStats();
             loadSmartRecommendations();
+            
+            // Add this line to adjust the section after everything is initialized
+            setTimeout(adjustDescriptiveStatsSection, 100); // Small delay to ensure content is rendered
         }
     });
 
@@ -2145,3 +2151,98 @@ function addToVariableList(listId, columnName, columnType) {
     list.appendChild(li);
     return true;  // Return true for successful addition
 }
+
+// Add this function at the end of the file
+function adjustDescriptiveStatsSection() {
+    const descriptiveStatsSection = document.getElementById('descriptiveStatsSection');
+    const previewHeader = descriptiveStatsSection.querySelector('.preview-header');
+    
+    // Scroll the preview header to the top with smooth animation
+    previewHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Calculate and set the height of descriptiveStatsSection
+    const windowHeight = window.innerHeight;
+    const headerOffset = previewHeader.getBoundingClientRect().top + window.scrollY;
+    const availableHeight = windowHeight - headerOffset;
+    
+    // Set min-height instead of height to allow for content growth
+    descriptiveStatsSection.style.minHeight = `${availableHeight}px`;
+}
+
+// Modify the proceed button handler to include the new function
+// Find the existing proceedButton click handler and add the adjustDescriptiveStatsSection call
+// in both the success and non-deletion paths
+
+document.getElementById('proceedButton').addEventListener('click', function() {
+    const validationElement = document.querySelector('.delete-column-validation');
+    const deleteColumnRequest = document.getElementById('deleteColumnText').value;
+    
+    // Hide the preview actions section immediately when proceed button is clicked
+    document.querySelector('.preview-actions').style.display = 'none';
+    
+    if (deleteColumnRequest.trim()) {
+        // ... existing deletion code ...
+        
+        fetch('/api/delete-columns-at-start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                columns: columnsToDelete
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // ... existing success code ...
+                
+                // Show analysis sections
+                document.getElementById('descriptiveStatsSection').style.display = 'block';
+                document.getElementById('analysisTabsSection').style.display = 'block';
+                
+                // Initialize collapsible functionality for descriptive stats
+                initializeDescriptiveStatsCollapsible();
+                
+                // Reinitialize the preview collapsible functionality
+                initializeCollapsiblePreview();
+                
+                // Initialize tabs
+                initializeTabs();
+                
+                // Load descriptive stats
+                loadDescriptiveStats();
+                
+                // Load smart recommendations
+                loadSmartRecommendations();
+                
+                // Add this line to adjust the section after everything is initialized
+                setTimeout(adjustDescriptiveStatsSection, 100); // Small delay to ensure content is rendered
+            } else {
+                // ... existing error handling ...
+            }
+        })
+        .catch(error => {
+            // ... existing error handling ...
+        });
+    } else {
+        // If no columns specified, proceed without deletions
+        document.getElementById('descriptiveStatsSection').style.display = 'block';
+        document.getElementById('analysisTabsSection').style.display = 'block';
+        initializeDescriptiveStatsCollapsible();
+        initializeCollapsiblePreview();
+        initializeTabs();
+        loadDescriptiveStats();
+        loadSmartRecommendations();
+        
+        // Add this line to adjust the section after everything is initialized
+        setTimeout(adjustDescriptiveStatsSection, 100); // Small delay to ensure content is rendered
+    }
+});
+
+// Add window resize handler to maintain proper height when window is resized
+window.addEventListener('resize', function() {
+    if (document.getElementById('descriptiveStatsSection').style.display === 'block') {
+        adjustDescriptiveStatsSection();
+    }
+});
