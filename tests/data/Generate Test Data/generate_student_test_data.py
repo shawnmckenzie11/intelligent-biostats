@@ -6,6 +6,7 @@ rationale for how each column can be processed with statistical tests.
 
 import pandas as pd
 import numpy as np
+import os
 
 np.random.seed(42)  # For reproducibility
 
@@ -71,4 +72,11 @@ df = pd.DataFrame({
     "school_year": school_year
 })
 
-df.to_csv("high_school_students.csv", index=False)
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Create the output file path
+output_path = os.path.join(script_dir, "high_school_students.csv")
+
+# Save the DataFrame to CSV
+df.to_csv(output_path, index=False)

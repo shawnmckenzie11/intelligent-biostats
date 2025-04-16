@@ -160,10 +160,11 @@ body {
 
 /* Add styles for descriptive content */
 #descriptiveContent {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     height: calc(100vh - 300px);
+    min-height: 500px;
     overflow: hidden;
     padding: 16px;
 }
@@ -792,6 +793,10 @@ body {
 }
 
 /* Data Quality */
+.recommendations-section.quality {
+    border-left: 4px solid #2ecc71;
+}
+
 .recommendations-section.quality {
     border-left: 4px solid #2ecc71;
 }
@@ -2038,37 +2043,53 @@ body {
 /* Stats Dashboard Layout */
 .stats-dashboard.horizontal {
     display: flex;
-    gap: 16px; /* Consistent spacing */
-    align-items: flex-start;
-    width: 100%;
-    margin-bottom: 16px;
+    flex-direction: column;
+    gap: 16px;
+    height: auto;
+    overflow: visible;
 }
 
 /* Column Stats Panel */
 .column-stats-panel {
-    flex: 2;
+    flex: 0.7;
+    height: 70%;
+    overflow: hidden;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     display: flex;
     flex-direction: column;
-    background-color: var(--background-color);
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    box-sizing: border-box; /* Critical for width calculation */
+}
+
+.search-actions-container {
+    flex: 0 0 auto;
+    height: 60px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.column-stats-table-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 16px 16px 16px;
 }
 
 /* Search Container */
 .search-container {
-    box-sizing: border-box; /* Critical for width calculation */
-    padding: 0;
-    margin: 0 0 16px 0;
+    flex: 0 0 320px;
+    display: flex;
+    align-items: center;
 }
 
 /* Column Search Input */
 .column-search {
-    box-sizing: border-box;
     width: 100%;
-    height: 42px; /* Explicit height for alignment */
-    padding: 0 1rem;
+    height: 42px;
+    padding: 0 0.5rem;
     background-color: white;
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -2089,7 +2110,7 @@ body {
 
 /* Table Container */
 .column-stats-table-container {
-    box-sizing: border-box; /* Critical for width calculation */
+    box-sizing: border-box;
     width: 100%;
     overflow-x: auto;
     background-color: white;
@@ -2097,13 +2118,13 @@ body {
     border: 1px solid var(--border-color);
     margin: 0;
     padding: 0;
-    max-height: calc(15 * 53px); /* Match height of 15 rows */
+    max-height: calc(15 * 53px);
     overflow-y: auto;
 }
 
 /* Table */
 .column-stats-table {
-    box-sizing: border-box; /* Critical for width calculation */
+    box-sizing: border-box;
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
@@ -2169,12 +2190,13 @@ body {
 
 /* Chosen Outcomes Panel */
 .chosen-outcomes-expressions-panel {
-    flex: 1;
-    min-width: 280px; /* Slightly wider for better readability */
-    background-color: var(--background-color);
-    border-radius: 8px;
+    flex: 0.3;
+    height: 30%;
+    overflow: auto;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     padding: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .chosen-outcomes-content {
@@ -2226,16 +2248,15 @@ body {
 
 /* File Stats Summary */
 .file-stats-summary {
-    width: 100%;
-    background-color: var(--background-color);
-    border-radius: 8px;
+    flex: 0 0 auto;
     padding: 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    margin-bottom: 16px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
     align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .file-stats-summary .stats-item {
@@ -2253,17 +2274,6 @@ body {
     color: var(--secondary-color);
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-    .stats-dashboard.horizontal {
-        flex-direction: column;
-    }
-    
-    .chosen-outcomes-expressions-panel {
-        min-width: 100%;
-    }
-}
-
 /* Search and Actions Container */
 .search-actions-container {
     display: flex;
@@ -2274,21 +2284,16 @@ body {
     box-sizing: border-box;
 }
 
-.search-container {
-    flex: 1;
-    min-width: 200px;
-}
-
 .action-buttons-container {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
-    height: 42px; /* Match search input height */
+    height: 42px;
 }
 
 /* Action Buttons */
 .action-button.add-btn {
-    height: 100%; /* Fill container height */
+    height: 100%;
     padding: 0 1rem;
     border-radius: 6px;
     font-size: 0.9rem;
@@ -2307,7 +2312,7 @@ body {
 }
 
 .action-button.add-to-expressions {
-    background-color: #2980b9; /* Different blue for expressions */
+    background-color: #2980b9;
     color: white;
     border: none;
 }
@@ -2328,7 +2333,7 @@ body {
 
 /* Checkbox Styling */
 .column-checkbox {
-    width: 20px; /* Slightly larger */
+    width: 20px;
     height: 20px;
     cursor: pointer;
     border: 2px solid var(--border-color);
@@ -2355,7 +2360,7 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     color: white;
-    font-size: 14px; /* Larger checkmark */
+    font-size: 14px;
     font-weight: bold;
 }
 
@@ -2380,7 +2385,7 @@ input[type="search"],
 input[type="number"],
 textarea,
 select {
-    background-color: white !important; /* Ensure white background */
+    background-color: white !important;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 0.9rem;
@@ -2390,23 +2395,23 @@ select {
 
 /* Row coloring based on type */
 .column-stats-table tr[data-type="numeric"] {
-    background-color: rgba(52, 152, 219, 0.15); /* Blue tint */
+    background-color: rgba(52, 152, 219, 0.15);
 }
 
 .column-stats-table tr[data-type="categorical"] {
-    background-color: rgba(46, 204, 113, 0.15); /* Green tint */
+    background-color: rgba(46, 204, 113, 0.15);
 }
 
 .column-stats-table tr[data-type="boolean"] {
-    background-color: rgba(155, 89, 182, 0.15); /* Purple tint */
+    background-color: rgba(155, 89, 182, 0.15);
 }
 
 .column-stats-table tr[data-type="timeseries"] {
-    background-color: rgba(230, 126, 34, 0.15); /* Orange tint */
+    background-color: rgba(230, 126, 34, 0.15);
 }
 
 .column-stats-table tr[data-type="discrete"] {
-    background-color: rgba(241, 196, 15, 0.15); /* Yellow tint */
+    background-color: rgba(241, 196, 15, 0.15);
 }
 
 /* Hover state for rows */
@@ -2419,18 +2424,7 @@ select {
     position: sticky;
     top: 0;
     z-index: 1;
-    background-color: white; /* Ensure header background covers content */
-}
-
-/* Add shadow to header when scrolling */
-.column-stats-table thead::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 100%);
+    background-color: white;
 }
 
 .stats-dashboard-container {
@@ -2453,4 +2447,28 @@ select {
 .column-stats-table-container {
     min-height: 0;
     overflow: auto;
+}
+
+.range-edit-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.range-edit-form input[type="number"] {
+    width: 60px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.range-edit-form input[type="number"].min-input {
+    margin-right: 4px;
+}
+
+.range-edit-form input[type="number"].max-input {
+    margin-left: 4px;
 }
