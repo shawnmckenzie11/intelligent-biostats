@@ -948,6 +948,7 @@ class DataManager:
         categorical_stats = {}
         boolean_stats = {}
         datetime_stats = {}
+        ordinal_stats = {}  # Add ordinal stats dictionary
         
         # Vectorized missing values calculation
         missing_counts = self.data.isna().sum()
@@ -1026,11 +1027,11 @@ class DataManager:
                     col_type = self._determine_column_type(col_data)
                     column_types_list[col_idx] = col_type.value
                     
-                    # Process categorical stats
-                    if col_type == ColumnType.CATEGORICAL:
+                    # Process categorical and ordinal stats
+                    if col_type in [ColumnType.CATEGORICAL, ColumnType.ORDINAL]:
                         value_counts = col_data.value_counts()
                         if not value_counts.empty:
-                            categorical_stats[col] = {
+                            stats_dict = {
                                 'unique_count': int(col_data.nunique()),
                                 'most_frequent': {
                                     'value': str(value_counts.index[0]),
@@ -1041,6 +1042,10 @@ class DataManager:
                                     for val, count in value_counts.head(10).items()
                                 ]
                             }
+                            if col_type == ColumnType.CATEGORICAL:
+                                categorical_stats[col] = stats_dict
+                            else:  # ORDINAL
+                                ordinal_stats[col] = stats_dict
                     elif col_type == ColumnType.BOOLEAN:
                         value_counts = col_data.value_counts()
                         true_count = value_counts.get(True, 0)
@@ -1085,6 +1090,7 @@ class DataManager:
             'categorical_stats': categorical_stats,
             'boolean_stats': boolean_stats,
             'datetime_stats': datetime_stats,
+            'ordinal_stats': ordinal_stats,  # Add ordinal stats to output
             'validation_results': self._validate_data()
         }
         

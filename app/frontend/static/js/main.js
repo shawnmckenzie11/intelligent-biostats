@@ -1002,13 +1002,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (columnStats) {
                 return `${columnStats.distribution_type || 'Unknown'}`;
             }
-            } else if (columnType === 'categorical') {
-                const catStats = stats.categorical_stats[column];
+        } else if (columnType === 'categorical') {
+            const catStats = stats.categorical_stats[column];
             if (catStats) {
                 return `${catStats.unique_count} unique values`;
             }
-            } else if (columnType === 'boolean') {
-                const boolStats = stats.boolean_stats[column];
+        } else if (columnType === 'ordinal') {
+            const ordStats = stats.ordinal_stats[column];
+            if (ordStats) {
+                return `${ordStats.unique_count} ordered values`;
+            }
+        } else if (columnType === 'boolean') {
+            const boolStats = stats.boolean_stats[column];
             if (boolStats) {
                 return `True: ${boolStats.true_percentage.toFixed(1)}%`;
             }
