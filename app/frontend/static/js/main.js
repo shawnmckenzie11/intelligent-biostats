@@ -793,10 +793,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="stats-item">Columns: ${stats.file_stats.columns.toLocaleString()}</span> |
                 <span class="stats-item">Memory: ${stats.file_stats.memory_usage}</span> |
                 <span class="stats-item">Missing Values: ${stats.file_stats.missing_values.toLocaleString()}</span> |
-                <span class="stats-item">Types: Numeric (${stats.column_types.numeric || 0}), 
-                Categorical (${stats.column_types.categorical || 0}), 
-                Boolean (${stats.column_types.boolean || 0}), 
-                DateTime (${stats.column_types.datetime || 0})</span>
+                <span class="stats-item">Types: 
+                    ${stats.column_types.numeric > 0 ? `Numeric (${stats.column_types.numeric})` : ''}
+                    ${stats.column_types.discrete > 0 ? `Discrete (${stats.column_types.discrete})` : ''}
+                    ${stats.column_types.categorical > 0 ? `Categorical (${stats.column_types.categorical})` : ''}
+                    ${stats.column_types.ordinal > 0 ? `Ordinal (${stats.column_types.ordinal})` : ''}
+                    ${stats.column_types.boolean > 0 ? `Boolean (${stats.column_types.boolean})` : ''}
+                    ${stats.column_types.datetime > 0 ? `DateTime (${stats.column_types.datetime})` : ''}
+                </span>
             </div>
             <div class="stats-dashboard horizontal">
                 <div class="column-stats-panel">
@@ -876,34 +880,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Check if this column has outliers
                 let hasOutliers = false;
-                if (columnType === 'numeric' && stats.outlier_info && stats.outlier_info[column]) {
+                if ((columnType === 'numeric' || columnType === 'discrete') && 
+                    stats.outlier_info && stats.outlier_info[column]) {
                     hasOutliers = stats.outlier_info[column].count > 0;
                 }
                 
-            const row = document.createElement('tr');
-            row.setAttribute('data-type', columnType);
-            row.innerHTML = `
-                <td class="select-column">
-                    <input type="checkbox" class="column-checkbox" data-column="${column}">
-                </td>
-                <td>${column}</td>
-                <td>
-                    <span class="column-type ${columnType}">${columnType}</span>
-                </td>
-                <td>
-                    ${hasOutliers ? `<span class="flag-indicator outlier" title="${stats.outlier_info[column].count} outliers (${stats.outlier_info[column].percentage.toFixed(1)}%)">⚠️</span>` : ''}
-                    ${missingCount > 0 ? `<span class="flag-indicator missing" title="${missingCount} missing values (${((missingCount / stats.file_stats.rows) * 100).toFixed(1)}%)">❌</span>` : ''}
-                </td>
-                <td>${getColumnRange(column, columnType, stats)}</td>
-                <td class="data-preview-cell">
-                    ${getDistributionInfo(column, columnType, stats)}
-                </td>
-                <td>
-                    <button class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
+                const row = document.createElement('tr');
+                row.setAttribute('data-type', columnType);
+                row.innerHTML = `
+                    <td class="select-column">
+                        <input type="checkbox" class="column-checkbox" data-column="${column}">
+                    </td>
+                    <td>${column}</td>
+                    <td>
+                        <span class="column-type ${columnType}">${columnType}</span>
+                    </td>
+                    <td>
+                        ${hasOutliers ? `<span class="flag-indicator outlier" title="${stats.outlier_info[column].count} outliers (${stats.outlier_info[column].percentage.toFixed(1)}%)">⚠️</span>` : ''}
+                        ${missingCount > 0 ? `<span class="flag-indicator missing" title="${missingCount} missing values (${((missingCount / stats.file_stats.rows) * 100).toFixed(1)}%)">❌</span>` : ''}
+                    </td>
+                    <td>${getColumnRange(column, columnType, stats)}</td>
+                    <td class="data-preview-cell">
+                        ${getDistributionInfo(column, columnType, stats)}
+                    </td>
+                    <td>
+                        <button class="action-button preview-btn" data-column="${column}" data-type="${columnType}">Preview</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
 
             // Add event listeners to the action buttons
             document.querySelectorAll('.preview-btn').forEach(button => {

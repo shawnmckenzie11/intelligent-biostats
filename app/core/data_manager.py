@@ -984,6 +984,25 @@ class DataManager:
                 col_idx = self.data.columns.get_loc(col)
                 non_null_data = self.data[col].dropna()
                 if len(non_null_data) > 0:
+                    # Calculate outliers using IQR method
+                    q1 = non_null_data.quantile(0.25)
+                    q3 = non_null_data.quantile(0.75)
+                    iqr = q3 - q1
+                    lower_bound = q1 - 1.5 * iqr
+                    upper_bound = q3 + 1.5 * iqr
+                    outliers = non_null_data[(non_null_data < lower_bound) | (non_null_data > upper_bound)]
+                    outlier_count = len(outliers)
+                    
+                    if outlier_count > 0:
+                        outlier_info[col] = {
+                            'count': outlier_count,
+                            'percentage': (outlier_count / len(non_null_data)) * 100,
+                            'bounds': {
+                                'lower': float(lower_bound),
+                                'upper': float(upper_bound)
+                            }
+                        }
+                    
                     distribution_analysis[col] = {
                         'descriptive_stats': {
                             'min': float(numeric_stats.loc['min', col]),
@@ -996,7 +1015,7 @@ class DataManager:
                         'kurtosis': float(numeric_kurt[col]),
                         'distribution_type': self._determine_distribution(non_null_data)
                     }
-                column_types_list[col_idx] = 'numeric' if self.data[col].nunique() >= 20 else 'discrete'
+                    column_types_list[col_idx] = 'numeric' if self.data[col].nunique() >= 20 else 'discrete'
         
         # Process non-numeric columns
         for col in self.data.columns:
@@ -1022,7 +1041,23 @@ class DataManager:
                                     for val, count in value_counts.head(10).items()
                                 ]
                             }
-                
+                    elif col_type == ColumnType.BOOLEAN:
+                        value_counts = col_data.value_counts()
+                        true_count = value_counts.get(True, 0)
+                        false_count = value_counts.get(False, 0)
+                        total = true_count + false_count
+                        boolean_stats[col] = {
+                            'true_count': int(true_count),
+                            'false_count': int(false_count),
+                            'true_percentage': float(true_count / total * 100) if total > 0 else 0
+                        }
+                    elif col_type == ColumnType.TIMESERIES:
+                        datetime_stats[col] = {
+                            'start_date': str(col_data.min()),
+                            'end_date': str(col_data.max()),
+                            'range': str(col_data.max() - col_data.min()),
+                            'time_interval': self._calculate_time_interval(col_data)
+                        }
                 except Exception as e:
                     logger.error(f"Error processing column {col}: {str(e)}", exc_info=True)
                     column_types_list[col_idx] = 'categorical'  # Default to categorical on error
@@ -1038,6 +1073,8 @@ class DataManager:
                 'categorical': len([type_ for type_ in column_types_list if type_ == 'categorical']),
                 'boolean': len([type_ for type_ in column_types_list if type_ == 'boolean']),
                 'datetime': len([type_ for type_ in column_types_list if type_ == 'timeseries']),
+                'ordinal': len([type_ for type_ in column_types_list if type_ == 'ordinal']),
+                'discrete': len([type_ for type_ in column_types_list if type_ == 'discrete']),
                 'columns': self.data.columns.tolist(),
                 'column_types_list': column_types_list
             },
