@@ -157,10 +157,9 @@ body {
 
 /* Add styles for descriptive content */
 #descriptiveContent {
-    overflow: visible;
-    transition: max-height 0.3s ease-out;
-    max-height: none;
-    padding: 1rem;
+    height: calc(10 * 53px + 140px); /* 53px per row + space for header and padding */
+    overflow: hidden; /* Prevent container scroll */
+    position: relative; /* For proper child positioning */
 }
 
 #descriptiveContent.collapsed {
@@ -2058,17 +2057,14 @@ body {
 
 /* Column Search Input */
 .column-search {
-    box-sizing: border-box; /* Critical for width calculation */
+    box-sizing: border-box;
     width: 100%;
-    padding: 0.75rem 1rem;
+    height: 42px; /* Explicit height for alignment */
+    padding: 0 1rem;
+    background-color: white;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 0.9rem;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    color: var(--primary-color);
-    background-color: var(--background-color);
-    transition: all 0.2s ease;
-    margin: 0;
 }
 
 .column-search:focus {
@@ -2093,6 +2089,8 @@ body {
     border: 1px solid var(--border-color);
     margin: 0;
     padding: 0;
+    max-height: calc(15 * 53px); /* Match height of 15 rows */
+    overflow-y: auto;
 }
 
 /* Table */
@@ -2113,6 +2111,9 @@ body {
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     font-size: 0.9rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .column-stats-table td {
@@ -2274,24 +2275,21 @@ body {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    height: 42px; /* Match search input height */
 }
 
 /* Action Buttons */
 .action-button.add-btn {
-    padding: 0.75rem 1rem;
+    height: 100%; /* Fill container height */
+    padding: 0 1rem;
     border-radius: 6px;
     font-size: 0.9rem;
     font-weight: 500;
     white-space: nowrap;
-    border: 1px solid var(--border-color);
-    background-color: white;
-    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s ease;
-}
-
-.action-button.add-btn:hover {
-    background-color: var(--background-color);
-    border-color: var(--secondary-color);
 }
 
 .action-button.add-to-outcomes {
@@ -2300,8 +2298,18 @@ body {
     border: none;
 }
 
+.action-button.add-to-expressions {
+    background-color: #2980b9; /* Different blue for expressions */
+    color: white;
+    border: none;
+}
+
 .action-button.add-to-outcomes:hover {
-    background-color: #2980b9;
+    background-color: #3498db;
+}
+
+.action-button.add-to-expressions:hover {
+    background-color: #2471a3;
 }
 
 /* Checkbox Column */
@@ -2312,8 +2320,8 @@ body {
 
 /* Checkbox Styling */
 .column-checkbox {
-    width: 18px;
-    height: 18px;
+    width: 20px; /* Slightly larger */
+    height: 20px;
     cursor: pointer;
     border: 2px solid var(--border-color);
     border-radius: 4px;
@@ -2339,7 +2347,8 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     color: white;
-    font-size: 12px;
+    font-size: 14px; /* Larger checkmark */
+    font-weight: bold;
 }
 
 .column-checkbox:hover {
@@ -2355,4 +2364,63 @@ body {
 .column-stats-table td,
 .column-stats-table th {
     vertical-align: middle;
+}
+
+/* Global input styling */
+input[type="text"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+    background-color: white !important; /* Ensure white background */
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+}
+
+/* Row coloring based on type */
+.column-stats-table tr[data-type="numeric"] {
+    background-color: rgba(52, 152, 219, 0.15); /* Blue tint */
+}
+
+.column-stats-table tr[data-type="categorical"] {
+    background-color: rgba(46, 204, 113, 0.15); /* Green tint */
+}
+
+.column-stats-table tr[data-type="boolean"] {
+    background-color: rgba(155, 89, 182, 0.15); /* Purple tint */
+}
+
+.column-stats-table tr[data-type="timeseries"] {
+    background-color: rgba(230, 126, 34, 0.15); /* Orange tint */
+}
+
+.column-stats-table tr[data-type="discrete"] {
+    background-color: rgba(241, 196, 15, 0.15); /* Yellow tint */
+}
+
+/* Hover state for rows */
+.column-stats-table tr:hover {
+    filter: brightness(0.95);
+}
+
+/* Keep header fixed while scrolling */
+.column-stats-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: white; /* Ensure header background covers content */
+}
+
+/* Add shadow to header when scrolling */
+.column-stats-table thead::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 100%);
 }

@@ -881,6 +881,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
             const row = document.createElement('tr');
+            row.setAttribute('data-type', columnType);
             row.innerHTML = `
                 <td class="select-column">
                     <input type="checkbox" class="column-checkbox" data-column="${column}">
