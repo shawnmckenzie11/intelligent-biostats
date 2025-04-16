@@ -2160,13 +2160,45 @@ function adjustDescriptiveStatsSection() {
     // Scroll the preview header to the top with smooth animation
     previewHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
-    // Calculate and set the height of descriptiveStatsSection
+    // Calculate available height more precisely
     const windowHeight = window.innerHeight;
-    const headerOffset = previewHeader.getBoundingClientRect().top + window.scrollY;
-    const availableHeight = windowHeight - headerOffset;
+    const headerHeight = previewHeader.offsetHeight;
     
-    // Set min-height instead of height to allow for content growth
-    descriptiveStatsSection.style.minHeight = `${availableHeight}px`;
+    // Set the height of the content area
+    const previewContent = descriptiveStatsSection.querySelector('.preview-content');
+    if (previewContent) {
+        // Add some padding at the bottom (e.g., 20px)
+        const bottomPadding = 20;
+        const contentHeight = windowHeight - headerHeight - bottomPadding;
+        
+        // Apply styles to make the content area scrollable and full-height
+        previewContent.style.height = `${contentHeight}px`;
+        previewContent.style.overflowY = 'auto';
+        
+        // Add styles to ensure proper layout
+        const styleSheet = document.createElement("style");
+        styleSheet.textContent = `
+            .preview-content {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .stats-dashboard {
+                flex: 1;
+                min-height: 0; /* Important for nested flex scrolling */
+            }
+            
+            .column-stats-table-container {
+                flex: 1;
+                overflow: auto;
+            }
+            
+            .chosen-outcomes-expressions-panel {
+                margin-top: 20px;
+            }
+        `;
+        document.head.appendChild(styleSheet);
+    }
 }
 
 // Modify the proceed button handler to include the new function
