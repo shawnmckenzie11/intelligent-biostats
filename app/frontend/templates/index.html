@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intelligent Biostats</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -185,5 +186,156 @@
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+    <script>
+    function showColumnPreview(column, type) {
+        const modal = document.createElement('div');
+        // Add both modal base class and specific modal type class
+        modal.className = 'modal plot-preview-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4>Preview: ${column}</h4>
+                    <button class="close-modal" aria-label="Close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-loading">Loading preview...</div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => modal.classList.add('show'));
+        
+        // Fetch preview plots
+        fetch(`/api/preview-plots/${encodeURIComponent(column)}`)
+            .then(async response => {
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success' && data.plots && data.plots.preview) {
+                    modal.querySelector('.modal-body').innerHTML = `
+                        <img src="data:image/png;base64,${data.plots.preview}" 
+                             alt="Preview plots for ${column}">
+                    `;
+                } else {
+                    throw new Error(data.message || 'Failed to generate preview');
+                }
+            })
+            .catch(error => {
+                console.error('Error in plot generation:', error);
+                modal.querySelector('.modal-body').innerHTML = `
+                    <div class="modal-error">
+                        Error generating preview: ${error.message}
+                        <br>
+                        <small>Check browser console for more details</small>
+                    </div>
+                `;
+            });
+
+        const closeModal = () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    function showVariableSelectionModal(columnName, columnType) {
+        const modal = document.createElement('div');
+        modal.className = 'modal variable-selection-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4>Select Variable Type for ${columnName}</h4>
+                    <button class="close-modal" aria-label="Close">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Choose how this variable will be used in your analysis:</p>
+                    <div class="selection-options">
+                        <button class="modal-btn modal-btn-primary selection-btn outcome-btn">
+                            Add as Outcome Variable
+                        </button>
+                        <button class="modal-btn modal-btn-secondary selection-btn expression-btn">
+                            Add as Expression Variable
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => modal.classList.add('show'));
+
+        const closeModal = () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        modal.querySelector('.outcome-btn').addEventListener('click', () => {
+            addToVariableList('outcomesList', columnName, columnType);
+            closeModal();
+        });
+
+        modal.querySelector('.expression-btn').addEventListener('click', () => {
+            addToVariableList('expressionsList', columnName, columnType);
+            closeModal();
+        });
+
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
+    function showAnalysisDetails(analysis) {
+        const modal = document.createElement('div');
+        modal.className = 'modal modal-lg';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4>Analysis Details</h4>
+                    <button class="close-modal" aria-label="Close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="analysis-details-content">
+                        <p><strong>Test Name:</strong> ${analysis.test_name}</p>
+                        <p><strong>Date & Time:</strong> ${new Date(analysis.date_time).toLocaleString()}</p>
+                        <p><strong>Input File:</strong> ${analysis.input_file}</p>
+                        <p><strong>Modifications:</strong> ${analysis.modifications ? 
+                            JSON.parse(analysis.modifications).length : 0}</p>
+                        <div class="test-details">
+                            <h4>Test Details:</h4>
+                            <pre>${JSON.stringify(analysis.test_details, null, 2)}</pre>
+                        </div>
+                        <div class="conclusion">
+                            <h4>Conclusion:</h4>
+                            <p>${analysis.conclusion}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => modal.classList.add('show'));
+
+        const closeModal = () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+    </script>
 </body>
 </html> 
