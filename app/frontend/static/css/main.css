@@ -2215,8 +2215,8 @@ body {
 .overlay-content .chosen-outcomes-expressions-panel {
     background: white;
     border-radius: 8px;
-    padding: 16px;
-    margin-top: 16px;
+    padding: 4px;
+    margin-top: 2px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -2312,9 +2312,9 @@ body {
 /* Panel Section Container - Side by Side Layout */
 .panel-section-container {
     display: flex;
-    gap: 20px;
-    margin-top: 20px;
-    min-height: 300px;
+    gap: 2px;
+    margin-top: 2px;
+    min-height: 220px;
 }
 
 .panel-section {
@@ -2453,4 +2453,44 @@ body {
 
 .remove-var:hover {
     opacity: 1;
+}
+
+/* Action Buttons Container */
+.action-buttons-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Action Button Styles */
+.action-button.add-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-button.add-to-outcomes {
+    background-color: var(--secondary-color);
+}
+
+.action-button.add-to-outcomes:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+.action-button.add-to-expressions {
+    background-color: #2980b9;
+}
+
+.action-button.add-to-expressions:hover {
+    background-color: #2471a3;
+    transform: translateY(-1px);
 }

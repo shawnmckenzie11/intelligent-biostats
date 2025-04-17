@@ -2468,7 +2468,7 @@ function adjustDescriptiveStatsSection() {
             }
             
             .chosen-outcomes-expressions-panel {
-                margin-top: 20px;
+                margin-top: 2px;
             }
         `;
         document.head.appendChild(styleSheet);
