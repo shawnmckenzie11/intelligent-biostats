@@ -1035,3 +1035,50 @@ def update_boundaries(column_name: str) -> Dict[str, Any]:
             'status': 'error',
             'message': str(e)
         }), 400
+
+@api.route('/preview-plots/<column_name>', methods=['GET'])
+def get_preview_plots(column_name: str) -> Dict[str, Any]:
+    """
+    Generate and return preview plots for a specific column.
+    
+    Args:
+        column_name (str): Name of the column to generate plots for
+        
+    Returns:
+        JSON response containing:
+        - status: 'success' or 'error'
+        - plots: Dictionary of base64 encoded plot images (on success)
+        - message: Error message (on error)
+    """
+    logger.debug(f"Received preview plot request for column: {column_name}")
+    
+    try:
+        if current_app.data_manager.data is None:
+            logger.error("No data loaded in data manager")
+            return jsonify({
+                'status': 'error',
+                'message': 'No data loaded'
+            }), 400
+            
+        if column_name not in current_app.data_manager.data.columns:
+            logger.error(f"Column {column_name} not found in dataset")
+            return jsonify({
+                'status': 'error',
+                'message': f'Column {column_name} not found'
+            }), 404
+            
+        logger.debug(f"Generating preview plots for column: {column_name}")
+        plots = current_app.data_manager.generate_preview_plots(column_name)
+        logger.debug(f"Successfully generated plots for {column_name}")
+        
+        return jsonify({
+            'status': 'success',
+            'plots': plots
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating preview plots: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500

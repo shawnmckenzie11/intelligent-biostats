@@ -1534,73 +1534,104 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to show column preview with plots
     function showColumnPreview(column, type) {
-        // Create modal for plots
+        // Create modal container
         const modal = document.createElement('div');
-        modal.className = 'modal plot-modal';
+        modal.className = 'plot-preview-modal';
         modal.innerHTML = `
             <div class="modal-content">
-                <h3>Column Preview: ${column}</h3>
-                <div class="plots-container">
-                    <div class="loading-spinner">Generating plots...</div>
+                <div class="modal-header">
+                    <h4>Preview: ${column}</h4>
+                    <button class="close-modal">×</button>
                 </div>
-                <button class="close-modal">Close</button>
+                <div class="modal-body">
+                    <div class="loading-spinner">Loading preview...</div>
+                </div>
             </div>
         `;
+        
+        // Add modal styles if not already present
+        if (!document.getElementById('preview-modal-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'preview-modal-styles';
+            styles.textContent = `
+                .plot-preview-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+                
+                .plot-preview-modal .modal-content {
+                    background: white;
+                    border-radius: 8px;
+                    padding: 20px;
+                    max-width: 90%;
+                    max-height: 90%;
+                    overflow: auto;
+                }
+                
+                .plot-preview-modal .modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                }
+                
+                .plot-preview-modal .close-modal {
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    padding: 0;
+                    color: #666;
+                }
+                
+                .plot-preview-modal .close-modal:hover {
+                    color: #333;
+                }
+                
+                .plot-preview-modal img {
+                    max-width: 100%;
+                    height: auto;
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+        
+        // Add to document
         document.body.appendChild(modal);
-
-        // Add event listener for close button
-        modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+        
+        // Close handlers
+        const closeModal = () => modal.remove();
+        modal.querySelector('.close-modal').addEventListener('click', closeModal);
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
         });
-
-        // Fetch plots from backend
-        fetch(`/api/generate-plots/${encodeURIComponent(column)}`)
+        
+        // Fetch preview plots
+        fetch(`/api/preview-plots/${encodeURIComponent(column)}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    const plotsContainer = modal.querySelector('.plots-container');
-                    plotsContainer.innerHTML = '';
-
-                    // Display plots based on column type
-                    if (type === 'numeric' || type === 'discrete') {
-                        plotsContainer.innerHTML = `
-                            <div class="plot-grid">
-                                <div class="plot">
-                                    <h4>Histogram</h4>
-                                    <img src="data:image/png;base64,${data.plots.histogram}" alt="Histogram">
-                                </div>
-                                <div class="plot">
-                                    <h4>Q-Q Plot</h4>
-                                    <img src="data:image/png;base64,${data.plots.qq_plot}" alt="Q-Q Plot">
-                                </div>
-                                <div class="plot">
-                                    <h4>Box Plot</h4>
-                                    <img src="data:image/png;base64,${data.plots.box_plot}" alt="Box Plot">
-                                </div>
-                            </div>
-                        `;
-                    } else if (type === 'categorical' || type === 'boolean') {
-                        plotsContainer.innerHTML = `
-                            <div class="plot-grid">
-                                <div class="plot">
-                                    <h4>Distribution</h4>
-                                    <img src="data:image/png;base64,${data.plots.pie_chart}" alt="Pie Chart">
-                                </div>
-                                <div class="plot">
-                                    <h4>Bar Plot</h4>
-                                    <img src="data:image/png;base64,${data.plots.bar_plot}" alt="Bar Plot">
-                                </div>
-                            </div>
-                        `;
-                    }
+                if (data.status === 'success') {
+                    modal.querySelector('.modal-body').innerHTML = `
+                        <img src="data:image/png;base64,${data.plots.preview}" 
+                             alt="Preview plots for ${column}">
+                    `;
                 } else {
-                    throw new Error(data.error || 'Failed to generate plots');
+                    throw new Error(data.message || 'Failed to generate preview');
                 }
             })
             .catch(error => {
-                modal.querySelector('.plots-container').innerHTML = `
-                    <div class="error-message">Error generating plots: ${error.message}</div>
+                modal.querySelector('.modal-body').innerHTML = `
+                    <div class="error-message">
+                        Error generating preview: ${error.message}
+                    </div>
                 `;
             });
     }

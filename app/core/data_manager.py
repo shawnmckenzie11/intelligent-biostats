@@ -1839,3 +1839,73 @@ class DataManager:
             logger.debug(f"Progress updated: {percent}% - {task}")
             if is_complete:
                 logger.debug("Calculation marked as complete")
+
+    def generate_preview_plots(self, column_name: str) -> Dict[str, str]:
+        """
+        Generate lightweight preview plots for column data visualization.
+        Optimized for quick UI display with reduced DPI and simplified styling.
+        
+        Args:
+            column_name (str): Name of the column to generate preview plots for
+            
+        Returns:
+            Dict[str, str]: Dictionary containing base64 encoded plot images with keys:
+                - For numeric/discrete columns:
+                    'histogram': Distribution histogram
+                    'boxplot': Box and whisker plot
+                - For categorical/boolean columns:
+                    'barplot': Bar chart of value counts
+                    
+        Raises:
+            ValueError: If column_name not found in dataset
+        """
+        if self.data is None or column_name not in self.data.columns:
+            raise ValueError(f"Column {column_name} not found in dataset")
+        
+        plots = {}
+        column_data = self.data[column_name]
+        
+        # Use a simplified style for preview plots
+        plt.style.use('seaborn-v0_8-whitegrid')
+        
+        # Determine column type
+        col_type = self._determine_column_type(column_data)
+        
+        if col_type in [ColumnType.NUMERIC, ColumnType.DISCRETE]:
+            # Create figure with lower DPI for faster rendering
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4), dpi=72)
+            
+            # Histogram with KDE
+            sns.histplot(data=column_data.dropna(), kde=True, ax=ax1)
+            ax1.set_title('Distribution')
+            ax1.tick_params(labelsize=8)
+            
+            # Box plot
+            sns.boxplot(data=column_data.dropna(), ax=ax2)
+            ax2.set_title('Box Plot')
+            ax2.tick_params(labelsize=8)
+            
+            plt.tight_layout()
+            plots['preview'] = self._fig_to_base64(fig)
+            plt.close(fig)
+            
+        else:  # Categorical or Boolean
+            # Single figure with value counts
+            fig, ax = plt.subplots(figsize=(6, 4), dpi=72)
+            
+            value_counts = column_data.value_counts()
+            if len(value_counts) > 10:
+                # If too many categories, show top 10
+                value_counts = value_counts.head(10)
+                plt.title('Top 10 Values')
+            else:
+                plt.title('Value Distribution')
+            
+            value_counts.plot(kind='bar', ax=ax)
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            
+            plots['preview'] = self._fig_to_base64(fig)
+            plt.close(fig)
+        
+        return plots
