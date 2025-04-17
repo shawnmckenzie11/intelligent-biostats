@@ -1549,66 +1549,20 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Add modal styles if not already present
-        if (!document.getElementById('preview-modal-styles')) {
-            const styles = document.createElement('style');
-            styles.id = 'preview-modal-styles';
-            styles.textContent = `
-                .plot-preview-modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                }
-                
-                .plot-preview-modal .modal-content {
-                    background: white;
-                    border-radius: 8px;
-                    padding: 20px;
-                    max-width: 90%;
-                    max-height: 90%;
-                    overflow: auto;
-                }
-                
-                .plot-preview-modal .modal-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 15px;
-                }
-                
-                .plot-preview-modal .close-modal {
-                    background: none;
-                    border: none;
-                    font-size: 24px;
-                    cursor: pointer;
-                    padding: 0;
-                    color: #666;
-                }
-                
-                .plot-preview-modal .close-modal:hover {
-                    color: #333;
-                }
-                
-                .plot-preview-modal img {
-                    max-width: 100%;
-                    height: auto;
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-        
         // Add to document
         document.body.appendChild(modal);
         
+        // Add show class after a brief delay to trigger animation
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        
         // Close handlers
-        const closeModal = () => modal.remove();
+        const closeModal = () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300); // Wait for animation
+        };
+        
         modal.querySelector('.close-modal').addEventListener('click', closeModal);
         modal.addEventListener('click', e => {
             if (e.target === modal) closeModal();
@@ -1616,9 +1570,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Fetch preview plots
         fetch(`/api/preview-plots/${encodeURIComponent(column)}`)
-            .then(response => response.json())
+            .then(async response => {
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.status === 'success') {
+                if (data.status === 'success' && data.plots && data.plots.preview) {
                     modal.querySelector('.modal-body').innerHTML = `
                         <img src="data:image/png;base64,${data.plots.preview}" 
                              alt="Preview plots for ${column}">
@@ -1628,9 +1588,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                console.error('Error in plot generation:', error);
                 modal.querySelector('.modal-body').innerHTML = `
                     <div class="error-message">
                         Error generating preview: ${error.message}
+                        <br>
+                        <small>Check browser console for more details</small>
                     </div>
                 `;
             });
