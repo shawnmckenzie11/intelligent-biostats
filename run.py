@@ -16,13 +16,12 @@ def is_running_in_executable():
 
 # Only check for virtual environment if not running as executable
 if not is_running_in_executable():
-if not hasattr(sys, 'real_prefix') and not sys.base_prefix != sys.prefix:
+    if not hasattr(sys, 'real_prefix') and not sys.base_prefix != sys.prefix:
         logger.warning("Not running in a virtual environment. Please run './activate_venv.sh python run.py'")
-    sys.exit(1)
+        sys.exit(1)
 
-# Add the current directory to the Python path
-if not is_running_in_executable():
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    # Add the current directory to the Python path
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from startup import initialize_environment
 from app import create_app
