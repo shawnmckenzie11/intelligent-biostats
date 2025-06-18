@@ -17,9 +17,10 @@ cd "$HOME/intelligent-biostats" || {
     exit 1
 }
 
-# Activate virtual environment
-source venv/bin/activate || {
-    log_message "Error: Failed to activate virtual environment"
+# Reset any local changes
+log_message "Resetting local changes"
+git reset --hard >> "$LOG_FILE" 2>&1 || {
+    log_message "Error: Failed to reset local changes"
     exit 1
 }
 
@@ -27,6 +28,12 @@ source venv/bin/activate || {
 log_message "Pulling latest changes from GitHub"
 git pull origin main >> "$LOG_FILE" 2>&1 || {
     log_message "Error: Failed to pull changes from GitHub"
+    exit 1
+}
+
+# Activate virtual environment
+source venv/bin/activate || {
+    log_message "Error: Failed to activate virtual environment"
     exit 1
 }
 
