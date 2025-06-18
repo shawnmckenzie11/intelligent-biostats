@@ -76,12 +76,13 @@ class StateLogger:
                 logger.warning("No data to log")
                 return
                 
-            # Create log entry
+            # Create log entry with minimal information
             log_entry = {
                 'timestamp': datetime.now().isoformat(),
                 'operation': operation,
                 'shape': df.shape if hasattr(df, 'shape') else None,
                 'columns': list(df.columns) if hasattr(df, 'columns') else None,
+                'memory_usage_mb': df.memory_usage(deep=True).sum() / (1024*1024) if hasattr(df, 'memory_usage') else None,
                 'additional_info': additional_info
             }
             
