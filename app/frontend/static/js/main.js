@@ -101,8 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleOverlay = document.getElementById('toggleOverlay');
     const overlayTab = document.getElementById('overlayTab');
     
-    // Hide overlay panel initially
+    // Hide overlay panel initially and remove expanded class
     overlay.style.display = 'none';
+    overlay.classList.remove('expanded');
 
     // Add click handler for overlay toggle
     toggleOverlay.addEventListener('click', () => {
@@ -312,10 +313,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize collapsible functionality
         initializeCollapsiblePreview();
-        
-        // Show the overlay panel when data is loaded
-        const overlay = document.querySelector('.analysis-overlay');
-        overlay.style.display = 'block';
     }
 
     function initializeCollapsiblePreview() {
@@ -817,6 +814,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="search-container">
                             <input type="text" id="columnSearchInput" placeholder="Search columns..." class="column-search">
                         </div>
+                        <div class="flags-toggle-container">
+                            <label class="flags-toggle-label">
+                                <input type="checkbox" id="ignoreFlagsCheckbox" class="flags-toggle-input">
+                                <span class="flags-toggle-text">Ignore flags during analysis</span>
+                            </label>
+                        </div>
                         <div class="action-buttons-container">
                             <button class="action-button add-btn add-to-outcomes">Add to Outcomes</button>
                             <button class="action-button add-btn add-to-expressions">Add to Expressions</button>
@@ -843,26 +846,59 @@ document.addEventListener('DOMContentLoaded', function() {
                         </table>
                     </div>
                 </div>
-                <div class="chosen-outcomes-expressions-panel">
-                    <div class="chosen-outcomes-content">
-                        <h4>Selected Variables</h4>
-                        <div class="outcomes-section">
-                            <h5>Outcome Variables</h5>
-                            <ul class="selected-vars-list" id="outcomesList">
-                                <!-- Outcomes will be added here -->
-                            </ul>
-                        </div>
-                        <div class="expressions-section">
-                            <h5>Expression Variables</h5>
-                            <ul class="selected-vars-list" id="expressionsList">
-                                <!-- Expressions will be added here -->
-                            </ul>
+            </div>
+        `;
+        statsContainer.innerHTML = layoutHtml;
+
+        // Move the chosen-outcomes-expressions-panel to the overlay content
+        const overlayContent = document.querySelector('.overlay-content');
+        const chosenOutcomesHtml = `
+            <div class="chosen-outcomes-expressions-panel">
+                <div class="chosen-outcomes-content">
+                    <div class="outcomes-expressions-panel">
+                        <div class="panel-section-container">
+                            <div class="panel-section outcomes-section">
+                                <h4>Outcome Variables</h4>
+                                <div class="outcomes-table-container">
+                                    <table class="variables-table outcomes-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Transform</th>
+                                                <th>Paired</th>
+                                                <th>Timeseries</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="outcomesTableBody">
+                                            <!-- Outcomes will be added here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="panel-section expressions-section">
+                                <h4>Expression Variables</h4>
+                                <div class="expressions-table-container">
+                                    <table class="variables-table expressions-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Transform</th>
+                                                <th>Paired</th>
+                                                <th>Timeseries</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="expressionsTableBody">
+                                            <!-- Expressions will be added here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         `;
-        statsContainer.innerHTML = layoutHtml;
+        overlayContent.innerHTML = chosenOutcomesHtml;
 
         // Add click handlers for selecting outcomes and expressions
         document.querySelectorAll('.column-stats-table tbody tr').forEach(row => {
@@ -961,6 +997,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const visibleCheckedBoxes = Array.from(document.querySelectorAll('#columnStatsTableBody tr:not([style*="display: none"]) .column-checkbox:checked'));
             
             if (visibleCheckedBoxes.length > 0) {
+                let successfulAdd = false;
                 visibleCheckedBoxes.forEach(checkbox => {
                     const row = checkbox.closest('tr');
                     const columnName = row.cells[1].textContent;
@@ -970,8 +1007,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (addToVariableList('outcomesList', columnName, columnType)) {
                         // Remove the row from the table
                         row.remove();
+                        successfulAdd = true;
                     }
                 });
+                
+                // Show and expand overlay only on first successful addition
+                if (successfulAdd && overlay.style.display === 'none') {
+                    overlay.style.display = 'block';
+                    overlay.classList.add('expanded');
+                }
                 
                 // Uncheck all remaining checkboxes and the select all checkbox
                 document.querySelectorAll('.column-checkbox').forEach(checkbox => {
@@ -1881,14 +1925,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .column-stats-table-container {
             position: relative;
             overflow: auto;
-            max-height: 500px; /* Adjust based on your needs */
+            max-height: 500px;
         }
 
         .column-stats-table thead {
             position: sticky;
             top: 0;
             z-index: 10;
-            background: white; /* Or match your table header background */
+            background: white;
         }
 
         .column-stats-table thead tr {
@@ -1910,6 +1954,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(styleSheet);
+
+    // Add after the search input event listener
+            
+            // Add event listener for ignore flags checkbox
+            const ignoreFlagsCheckbox = document.getElementById('ignoreFlagsCheckbox');
+            if (ignoreFlagsCheckbox) {
+                ignoreFlagsCheckbox.addEventListener('change', function(e) {
+                    const isIgnoreFlags = e.target.checked;
+                    // Store the state in a data attribute on the container
+                    document.querySelector('.column-stats-panel').dataset.ignoreFlags = isIgnoreFlags;
+                    
+                    // You can add additional logic here to handle the flag state
+                    console.log('Ignore flags during analysis:', isIgnoreFlags);
+                });
+            }
 });
 
 // Move modal-related functions outside DOMContentLoaded
@@ -2087,31 +2146,79 @@ function showVariableSelectionModal(columnName, columnType) {
     });
 }
 
-function addToVariableList(listId, columnName, columnType) {
-    const list = document.getElementById(listId);
-    if (!list) return false;
+function addToVariableList(tableId, columnName, columnType) {
+    const tableBody = document.getElementById(tableId === 'outcomesList' ? 'outcomesTableBody' : 'expressionsTableBody');
+    if (!tableBody) return false;
 
-    // Check if already in list
-    const existingItem = Array.from(list.children).find(item => 
-        item.querySelector('.var-name').textContent === columnName
+    // Check if already in table
+    const existingRow = Array.from(tableBody.children).find(row => 
+        row.querySelector('.var-name').textContent === columnName
     );
-    if (existingItem) return false;  // Return false if already in list
+    if (existingRow) return false;
 
-    const li = document.createElement('li');
-    li.className = 'selected-var-item';
-    li.innerHTML = `
-        <span class="var-name">${columnName}</span>
-        <span class="var-type">${columnType}</span>
-        <button class="remove-var">×</button>
+    const row = document.createElement('tr');
+    row.className = 'selected-var-row';
+    
+    row.innerHTML = `
+        <td>
+            <span class="var-name">${columnName}</span>
+            <button class="action-button remove-var" title="Remove">×</button>
+        </td>
+        <td>
+            <select class="transform-select">
+                <option value="none">None</option>
+                <option value="log">Log</option>
+                <option value="sqrt">Square Root</option>
+                <option value="zscore">Z-Score</option>
+                <option value="center">Center</option>
+                <option value="scale">Scale</option>
+            </select>
+        </td>
+        <td>
+            <select class="paired-select">
+                <option value="none">None</option>
+                ${tableBody.querySelectorAll('tr').length > 0 ? 
+                    Array.from(tableBody.querySelectorAll('tr')).map(r => 
+                        `<option value="${r.querySelector('.var-name').textContent}">
+                            ${r.querySelector('.var-name').textContent}
+                        </option>`
+                    ).join('') 
+                    : ''
+                }
+            </select>
+        </td>
+        <td>
+            <div class="timeseries-controls">
+                <label class="switch">
+                    <input type="checkbox" class="timeseries-toggle">
+                    <span class="slider round"></span>
+                </label>
+                <select class="timeseries-type" disabled>
+                    <option value="trend">Trend</option>
+                    <option value="seasonal">Seasonal</option>
+                    <option value="cyclic">Cyclic</option>
+                </select>
+            </div>
+        </td>
     `;
 
-    // Add event listener to restore the row when variable is removed
-    li.querySelector('.remove-var').addEventListener('click', () => {
-        // Remove from the outcomes/expressions list
-        li.remove();
+    // Add event listeners
+    const timeseriesToggle = row.querySelector('.timeseries-toggle');
+    const timeseriesType = row.querySelector('.timeseries-type');
+    
+    timeseriesToggle.addEventListener('change', function() {
+        timeseriesType.disabled = !this.checked;
+    });
+
+    row.querySelector('.remove-var').addEventListener('click', () => {
+        // Remove from the outcomes/expressions table
+        row.remove();
         
-        // Restore the row to the table
-        const tableBody = document.getElementById('columnStatsTableBody');
+        // Update paired options for all remaining rows
+        updatePairedOptions(tableBody);
+        
+        // Restore the row to the main table
+        const mainTableBody = document.getElementById('columnStatsTableBody');
         const newRow = document.createElement('tr');
         newRow.setAttribute('data-type', columnType);
         newRow.innerHTML = `
@@ -2132,8 +2239,7 @@ function addToVariableList(listId, columnName, columnType) {
             </td>
         `;
         
-        // Add the row back to the table
-        tableBody.appendChild(newRow);
+        mainTableBody.appendChild(newRow);
         
         // Reinitialize event listeners for the new row
         initializeEditButtons();
@@ -2142,9 +2248,183 @@ function addToVariableList(listId, columnName, columnType) {
         });
     });
 
-    list.appendChild(li);
-    return true;  // Return true for successful addition
+    tableBody.appendChild(row);
+    
+    // Update paired options for all rows
+    updatePairedOptions(tableBody);
+    
+    return true;
 }
+
+// Function to update paired options for all rows in a table
+function updatePairedOptions(tableBody) {
+    // Get counts from both tables
+    const outcomesCount = document.getElementById('outcomesTableBody').querySelectorAll('tr').length;
+    const expressionsCount = document.getElementById('expressionsTableBody').querySelectorAll('tr').length;
+    
+    const rows = tableBody.querySelectorAll('tr');
+    rows.forEach(row => {
+        const pairedSelect = row.querySelector('.paired-select');
+        const currentValue = pairedSelect.value;
+        const currentName = row.querySelector('.var-name').textContent;
+        const isOutcome = row.closest('#outcomesTableBody') !== null;
+        
+        // Clear existing options
+        pairedSelect.innerHTML = '<option value="none">------</option>';
+        
+        // Case 1: Single outcome, no expressions
+        if (outcomesCount === 1 && expressionsCount === 0) {
+            pairedSelect.disabled = true;
+            return;
+        }
+        
+        // Case 2: Single outcome, single expression
+        if (outcomesCount === 1 && expressionsCount === 1) {
+            // If this is the outcome row
+            if (isOutcome) {
+                // Add the expression as an option
+                const expressionName = document.getElementById('expressionsTableBody')
+                    .querySelector('.var-name').textContent;
+                pairedSelect.innerHTML += `
+                    <option value="${expressionName}" ${currentValue === expressionName ? 'selected' : ''}>
+                        ${expressionName}
+                    </option>
+                `;
+            } else {
+                // Add the outcome as an option
+                const outcomeName = document.getElementById('outcomesTableBody')
+                    .querySelector('.var-name').textContent;
+                pairedSelect.innerHTML += `
+                    <option value="${outcomeName}" ${currentValue === outcomeName ? 'selected' : ''}>
+                        ${outcomeName}
+                    </option>
+                `;
+            }
+            pairedSelect.disabled = false;
+            return;
+        }
+        
+        // For all other cases, enable the select and add appropriate options
+        pairedSelect.disabled = false;
+        
+        // If this is an outcome row, add all expressions as options
+        if (isOutcome) {
+            document.getElementById('expressionsTableBody').querySelectorAll('tr').forEach(expressionRow => {
+                const expressionName = expressionRow.querySelector('.var-name').textContent;
+                pairedSelect.innerHTML += `
+                    <option value="${expressionName}" ${currentValue === expressionName ? 'selected' : ''}>
+                        ${expressionName}
+                    </option>
+                `;
+            });
+        } else {
+            // If this is an expression row, add all outcomes as options
+            document.getElementById('outcomesTableBody').querySelectorAll('tr').forEach(outcomeRow => {
+                const outcomeName = outcomeRow.querySelector('.var-name').textContent;
+                pairedSelect.innerHTML += `
+                    <option value="${outcomeName}" ${currentValue === outcomeName ? 'selected' : ''}>
+                        ${outcomeName}
+                    </option>
+                `;
+            });
+        }
+    });
+}
+
+// Update the styles
+const styleSheet = document.createElement("style");
+styleSheet.textContent += `
+    .variables-table select {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .variables-table select:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+
+    .timeseries-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Switch styling */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        transition: .4s;
+    }
+
+    input:checked + .slider {
+        background-color: #2196F3;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(20px);
+    }
+
+    .slider.round {
+        border-radius: 20px;
+    }
+
+    .slider.round:before {
+        border-radius: 50%;
+    }
+
+    .variables-table .remove-var {
+        float: right;
+        padding: 0 4px;
+        color: #f44336;
+        font-size: 1.2em;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        opacity: 0.6;
+    }
+
+    .variables-table .remove-var:hover {
+        opacity: 1;
+    }
+
+    .variables-table td {
+        vertical-align: middle;
+    }
+`;
+document.head.appendChild(styleSheet);
 
 // Add this function at the end of the file
 function adjustDescriptiveStatsSection() {
@@ -2188,7 +2468,7 @@ function adjustDescriptiveStatsSection() {
             }
             
             .chosen-outcomes-expressions-panel {
-                margin-top: 20px;
+                margin-top: 2px;
             }
         `;
         document.head.appendChild(styleSheet);
