@@ -20,8 +20,8 @@ if not is_running_in_executable():
         logger.warning("Not running in a virtual environment. Please run './activate_venv.sh python run.py'")
         sys.exit(1)
 
-    # Add the current directory to the Python path
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the current directory to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from startup import initialize_environment
 from app import create_app
